@@ -1,0 +1,16 @@
+=== INICIO ===
+[OK] BD lista
+[OK] Root creado
+[OK] LoginWindow creado, esperando login...
+[INFO] Auto-login...
+[CALLBACK] on_login_success: {'id': 1, 'username': 'admin', 'nombre_completo': 'Administrador del Sistema', 'rol': 'admin'}
+[OK] _intentar_login() retorno
+[OK] wait_window retorno, usuario={'id': 1, 'username': 'admin', 'nombre_completo': 'Administrador del Sistema', 'rol': 'admin'}
+[INFO] root.deiconify()...
+[OK] root visible
+[INFO] Creando MainWindow...
+[OK] MainWindow creado
+[INFO] mainloop()...
+[INFO] Auto-close
+[OK] mainloop finalizo
+=== FIN ===
