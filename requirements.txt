@@ -1,0 +1,29 @@
+# S.C.A.H. - Sistema de Control de Alojamiento y Huéspedes
+# Dependencias del proyecto
+
+# UI moderna sobre Tkinter
+customtkinter>=5.2.0
+
+# Conexión a PostgreSQL
+psycopg2-binary>=2.9.9
+
+# Lectura/escritura de archivos Excel (.xlsx)
+openpyxl>=3.1.2
+
+# Lectura de archivos Excel antiguos (.xls)
+xlrd>=2.0.1
+
+# Generación de reportes PDF
+reportlab>=4.1.0
+
+# Hashing seguro de contraseñas
+bcrypt>=4.1.2
+
+# Manejo de imágenes en la UI
+Pillow>=10.2.0
+
+# Selector de fechas para formularios
+tkcalendar>=1.6.1
+
+# Gráficos y estadísticas
+matplotlib>=3.8.0
