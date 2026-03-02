@@ -74,12 +74,13 @@ class HotelManagerModule(ctk.CTkFrame):
             table_card,
             columnas=[
                 {"id": "id", "texto": "ID", "ancho": 50},
-                {"id": "nombre", "texto": "Nombre del Hotel", "ancho": 250},
-                {"id": "nro_orden", "texto": "Nro. Orden", "ancho": 100},
-                {"id": "direccion", "texto": "Dirección", "ancho": 250},
+                {"id": "nombre", "texto": "Nombre del Hotel", "ancho": 200},
+                {"id": "categoria", "texto": "Categoría", "ancho": 130},
+                {"id": "direccion", "texto": "Dirección", "ancho": 200},
+                {"id": "telefono", "texto": "Teléfono", "ancho": 150},
                 {"id": "ciudad", "texto": "Ciudad/Localidad", "ancho": 150},
-                {"id": "huespedes", "texto": "Huéspedes", "ancho": 90},
-                {"id": "estado", "texto": "Estado", "ancho": 80},
+                {"id": "huespedes", "texto": "Huéspedes", "ancho": 80},
+                {"id": "estado", "texto": "Estado", "ancho": 70},
             ],
             on_doble_click=self._editar_hotel,
             altura=15
@@ -98,7 +99,8 @@ class HotelManagerModule(ctk.CTkFrame):
         """Carga la lista de hoteles desde la BD."""
         try:
             query = """
-                SELECT h.id, h.nombre, h.nro_orden, h.direccion, h.ciudad_localidad,
+                SELECT h.id, h.nombre, h.categoria, h.nro_orden, h.direccion,
+                       h.telefono, h.ciudad_localidad,
                        h.activo, COUNT(hu.id) as total_huespedes
                 FROM hoteles h
                 LEFT JOIN huespedes hu ON h.id = hu.hotel_id
@@ -106,9 +108,11 @@ class HotelManagerModule(ctk.CTkFrame):
             params = []
 
             if filtro:
-                query += " WHERE (h.nombre ILIKE %s OR h.ciudad_localidad ILIKE %s OR h.direccion ILIKE %s)"
+                query += (" WHERE (h.nombre ILIKE %s OR h.ciudad_localidad ILIKE %s"
+                          " OR h.direccion ILIKE %s OR h.categoria ILIKE %s"
+                          " OR h.telefono ILIKE %s)")
                 patron = f"%{filtro}%"
-                params = [patron, patron, patron]
+                params = [patron, patron, patron, patron, patron]
 
             query += " GROUP BY h.id ORDER BY h.nombre"
 
@@ -120,8 +124,9 @@ class HotelManagerModule(ctk.CTkFrame):
                     datos.append({
                         "id": str(r["id"]),
                         "nombre": r["nombre"],
-                        "nro_orden": r["nro_orden"] or "",
+                        "categoria": r["categoria"] or "",
                         "direccion": r["direccion"] or "",
+                        "telefono": r["telefono"] or "",
                         "ciudad": r["ciudad_localidad"] or "",
                         "huespedes": str(r["total_huespedes"]),
                         "estado": "Activo" if r["activo"] else "Inactivo",
@@ -162,7 +167,7 @@ class HotelManagerModule(ctk.CTkFrame):
 
         ventana = ctk.CTkToplevel(self)
         ventana.title(titulo)
-        ventana.geometry("500x400")
+        ventana.geometry("500x520")
         ventana.resizable(False, False)
         ventana.grab_set()
         ventana.transient(self)
@@ -170,8 +175,8 @@ class HotelManagerModule(ctk.CTkFrame):
         # Centrar
         ventana.update_idletasks()
         x = (ventana.winfo_screenwidth() // 2) - 250
-        y = (ventana.winfo_screenheight() // 2) - 200
-        ventana.geometry(f"500x400+{x}+{y}")
+        y = (ventana.winfo_screenheight() // 2) - 260
+        ventana.geometry(f"500x520+{x}+{y}")
 
         frame = ctk.CTkFrame(ventana, fg_color="transparent")
         frame.pack(fill="both", expand=True, padx=25, pady=20)
@@ -185,11 +190,17 @@ class HotelManagerModule(ctk.CTkFrame):
         inp_nombre = InputConLabel(frame, "Nombre", "Nombre del hotel", obligatorio=True)
         inp_nombre.pack(fill="x", pady=5)
 
+        inp_categoria = InputConLabel(frame, "Categoría", "Ej: HOTEL 5*, HOSTEL, CABAÑA...")
+        inp_categoria.pack(fill="x", pady=5)
+
         inp_orden = InputConLabel(frame, "Nro. Orden", "Número de orden")
         inp_orden.pack(fill="x", pady=5)
 
         inp_dir = InputConLabel(frame, "Dirección", "Dirección del hotel")
         inp_dir.pack(fill="x", pady=5)
+
+        inp_telefono = InputConLabel(frame, "Teléfono", "Teléfono de contacto")
+        inp_telefono.pack(fill="x", pady=5)
 
         inp_ciudad = InputConLabel(frame, "Ciudad", "Ciudad o localidad", obligatorio=True)
         inp_ciudad.pack(fill="x", pady=5)
@@ -197,8 +208,10 @@ class HotelManagerModule(ctk.CTkFrame):
         # Cargar datos si es edición
         if es_edicion:
             inp_nombre.set(hotel.get("nombre", ""))
+            inp_categoria.set(hotel.get("categoria", "") or "")
             inp_orden.set(hotel.get("nro_orden", "") or "")
             inp_dir.set(hotel.get("direccion", "") or "")
+            inp_telefono.set(hotel.get("telefono", "") or "")
             inp_ciudad.set(hotel.get("ciudad_localidad", "") or "")
 
         # Botones
@@ -215,24 +228,30 @@ class HotelManagerModule(ctk.CTkFrame):
             try:
                 if es_edicion:
                     db.ejecutar_query("""
-                        UPDATE hoteles SET nombre=%s, nro_orden=%s, direccion=%s, ciudad_localidad=%s
+                        UPDATE hoteles SET nombre=%s, categoria=%s, nro_orden=%s,
+                        direccion=%s, telefono=%s, ciudad_localidad=%s
                         WHERE id=%s
                     """, (
                         sanitizar_texto(inp_nombre.get()),
+                        sanitizar_texto(inp_categoria.get()),
                         sanitizar_texto(inp_orden.get()),
                         sanitizar_texto(inp_dir.get()),
+                        sanitizar_texto(inp_telefono.get()),
                         sanitizar_texto(inp_ciudad.get()),
                         hotel["id"]
                     ))
                     log_info(f"Hotel actualizado: {inp_nombre.get()}")
                 else:
                     db.ejecutar_query("""
-                        INSERT INTO hoteles (nombre, nro_orden, direccion, ciudad_localidad, usuario_registro_id)
-                        VALUES (%s, %s, %s, %s, %s)
+                        INSERT INTO hoteles (nombre, categoria, nro_orden, direccion,
+                        telefono, ciudad_localidad, usuario_registro_id)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """, (
                         sanitizar_texto(inp_nombre.get()),
+                        sanitizar_texto(inp_categoria.get()),
                         sanitizar_texto(inp_orden.get()),
                         sanitizar_texto(inp_dir.get()),
+                        sanitizar_texto(inp_telefono.get()),
                         sanitizar_texto(inp_ciudad.get()),
                         self.usuario["id"]
                     ))
