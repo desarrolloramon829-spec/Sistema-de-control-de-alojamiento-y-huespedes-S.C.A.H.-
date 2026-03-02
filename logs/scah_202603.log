@@ -514,3 +514,108 @@ Instálala con: pip install xlrd
 2026-03-02 07:32:04,577 [INFO] SCAH: Usuario 'admin' inicio sesion
 2026-03-02 07:34:43,873 [INFO] SCAH: Sesión cerrada: admin
 2026-03-02 07:34:45,486 [INFO] SCAH: Aplicacion cerrada
+2026-03-02 09:25:50,533 [INFO] SCAH: Pool de conexiones a PostgreSQL inicializado correctamente
+2026-03-02 09:25:50,538 [INFO] SCAH: Iniciando migraciones de base de datos...
+2026-03-02 09:25:50,574 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 09:25:50,575 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 09:25:50,575 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 09:25:50,575 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 09:25:50,575 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 09:25:50,589 [INFO] SCAH: Índices creados correctamente
+2026-03-02 09:25:50,622 [INFO] SCAH: Usuario admin ya existe
+2026-03-02 09:25:50,622 [INFO] SCAH: Migraciones completadas exitosamente
+2026-03-02 09:25:50,664 [INFO] SCAH: Sistema inicializado correctamente
+2026-03-02 09:26:03,101 [INFO] SCAH: Login exitoso: 'admin'
+2026-03-02 09:26:03,101 [INFO] SCAH: Login exitoso: admin (admin)
+2026-03-02 09:26:03,102 [INFO] SCAH: Usuario 'admin' inicio sesion
+2026-03-02 09:28:39,366 [INFO] SCAH: Importación Excel: 238 importados, 0 duplicados, 0 errores
+2026-03-02 09:29:39,856 [ERROR] SCAH: Error ejecutando query: 
+                SELECT hu.apellido_nombre, hu.dni_pasaporte, hu.nacionalidad,
+                     : no existe la columna hu.profesion_ocupacion
+LINE 3:                        hu.procedencia, hu.profesion_ocupacio...
+                                               ^
+Traceback (most recent call last):
+  File "C:\Users\Usuario\OneDrive\Desktop\HOTELES\database\connection.py", line 89, in ejecutar_query
+    cursor.execute(query, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "c:\Users\Usuario\OneDrive\Desktop\HOTELES\.venv\Lib\site-packages\psycopg2\extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: no existe la columna hu.profesion_ocupacion
+LINE 3:                        hu.procedencia, hu.profesion_ocupacio...
+                                               ^
+
+2026-03-02 09:29:41,615 [ERROR] SCAH: Error ejecutando query: 
+                SELECT hu.apellido_nombre, hu.dni_pasaporte, hu.nacionalidad,
+                     : no existe la columna hu.profesion_ocupacion
+LINE 3:                        hu.procedencia, hu.profesion_ocupacio...
+                                               ^
+Traceback (most recent call last):
+  File "C:\Users\Usuario\OneDrive\Desktop\HOTELES\database\connection.py", line 89, in ejecutar_query
+    cursor.execute(query, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "c:\Users\Usuario\OneDrive\Desktop\HOTELES\.venv\Lib\site-packages\psycopg2\extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: no existe la columna hu.profesion_ocupacion
+LINE 3:                        hu.procedencia, hu.profesion_ocupacio...
+                                               ^
+
+2026-03-02 09:29:43,404 [ERROR] SCAH: Error ejecutando query: 
+                SELECT h.nombre as hotel, h.ciudad_localidad,
+                       hu.apellido_no: no existe la columna hu.profesion_ocupacion
+LINE 4:                        hu.profesion_ocupacion, hu.edad,
+                               ^
+Traceback (most recent call last):
+  File "C:\Users\Usuario\OneDrive\Desktop\HOTELES\database\connection.py", line 89, in ejecutar_query
+    cursor.execute(query, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "c:\Users\Usuario\OneDrive\Desktop\HOTELES\.venv\Lib\site-packages\psycopg2\extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: no existe la columna hu.profesion_ocupacion
+LINE 4:                        hu.profesion_ocupacion, hu.edad,
+                               ^
+
+2026-03-02 09:30:09,629 [ERROR] SCAH: Error ejecutando query: 
+                    SELECT hu.apellido_nombre, hu.dni_pasaporte, hu.nacionalidad,
+                 : no existe la columna hu.profesion_ocupacion
+LINE 3:                            hu.procedencia, hu.profesion_ocup...
+                                                   ^
+Traceback (most recent call last):
+  File "C:\Users\Usuario\OneDrive\Desktop\HOTELES\database\connection.py", line 89, in ejecutar_query
+    cursor.execute(query, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "c:\Users\Usuario\OneDrive\Desktop\HOTELES\.venv\Lib\site-packages\psycopg2\extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: no existe la columna hu.profesion_ocupacion
+LINE 3:                            hu.procedencia, hu.profesion_ocup...
+                                                   ^
+
+2026-03-02 09:30:36,657 [INFO] SCAH: Usuario creado: juan-boffa
+2026-03-02 09:30:36,657 [ERROR] SCAH: Error al guardar usuario: Auditoria.registrar() missing 1 required positional argument: 'tabla_afectada'
+Traceback (most recent call last):
+  File "C:\Users\Usuario\OneDrive\Desktop\HOTELES\modules\guest_manager.py", line 266, in guardar
+    Auditoria.registrar(
+    ~~~~~~~~~~~~~~~~~~~^
+        self.usuario["id"], "usuario_creado",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        f"Nuevo usuario: {inp_username.get()}"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+TypeError: Auditoria.registrar() missing 1 required positional argument: 'tabla_afectada'
+2026-03-02 09:30:52,830 [INFO] SCAH: Búsqueda ejecutada: 9 resultados
+2026-03-02 09:30:57,481 [INFO] SCAH: Búsqueda ejecutada: 6 resultados
+2026-03-02 09:31:02,697 [INFO] SCAH: Búsqueda ejecutada: 0 resultados
+2026-03-02 09:31:10,235 [INFO] SCAH: Búsqueda ejecutada: 0 resultados
+2026-03-02 09:31:12,942 [INFO] SCAH: Búsqueda ejecutada: 72 resultados
+2026-03-02 09:31:18,641 [INFO] SCAH: Búsqueda ejecutada: 0 resultados
+2026-03-02 09:31:23,556 [INFO] SCAH: Búsqueda ejecutada: 64 resultados
+2026-03-02 09:31:28,138 [INFO] SCAH: Búsqueda ejecutada: 64 resultados
+2026-03-02 09:32:12,085 [INFO] matplotlib.category: Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2026-03-02 09:32:12,086 [INFO] matplotlib.category: Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2026-03-02 09:38:16,770 [INFO] SCAH: Búsqueda ejecutada: 6 resultados
+2026-03-02 09:38:22,915 [INFO] SCAH: Búsqueda ejecutada: 2 resultados
+2026-03-02 09:39:07,839 [INFO] SCAH: Excel exportado: C:/Users/Usuario/Downloads/pedro sanchez.xlsx (2 registros)
