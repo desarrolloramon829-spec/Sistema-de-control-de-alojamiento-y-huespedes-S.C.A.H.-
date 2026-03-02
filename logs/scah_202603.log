@@ -408,3 +408,29 @@ openpyxl.utils.exceptions.InvalidFileException: openpyxl does not support the ol
 2026-03-01 08:50:36,278 [INFO] SCAH: Login exitoso: 'admin'
 2026-03-01 08:50:36,278 [INFO] SCAH: Login exitoso: admin (admin)
 2026-03-01 08:50:36,278 [INFO] SCAH: Usuario 'admin' inicio sesion
+2026-03-02 07:23:02,637 [INFO] SCAH: Pool de conexiones a PostgreSQL inicializado correctamente
+2026-03-02 07:23:02,639 [INFO] SCAH: Iniciando migraciones de base de datos...
+2026-03-02 07:23:02,676 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:23:02,676 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:23:02,676 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:23:02,676 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:23:02,677 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:23:02,696 [INFO] SCAH: Índices creados correctamente
+2026-03-02 07:23:02,739 [INFO] SCAH: Usuario admin ya existe
+2026-03-02 07:23:02,739 [INFO] SCAH: Migraciones completadas exitosamente
+2026-03-02 07:23:02,782 [INFO] SCAH: Sistema inicializado correctamente
+2026-03-02 07:23:14,497 [INFO] SCAH: Login exitoso: 'admin'
+2026-03-02 07:23:14,497 [INFO] SCAH: Login exitoso: admin (admin)
+2026-03-02 07:23:14,497 [INFO] SCAH: Usuario 'admin' inicio sesion
+2026-03-02 07:23:27,680 [ERROR] SCAH: Error en 'JUN 25 (1).xls': Se necesita la librería 'xlrd' para leer archivos .xls.
+Instálala con: pip install xlrd: Se necesita la librería 'xlrd' para leer archivos .xls.
+Instálala con: pip install xlrd
+Traceback (most recent call last):
+  File "C:\Users\Usuario\OneDrive\Desktop\HOTELES\modules\import_excel.py", line 345, in _procesar_archivos
+    wb = _abrir_workbook(archivo)
+  File "C:\Users\Usuario\OneDrive\Desktop\HOTELES\modules\import_excel.py", line 87, in _abrir_workbook
+    raise ImportError(
+    ...<2 lines>...
+    )
+ImportError: Se necesita la librería 'xlrd' para leer archivos .xls.
+Instálala con: pip install xlrd
