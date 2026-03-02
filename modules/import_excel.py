@@ -409,12 +409,30 @@ class ImportExcelModule(ctk.CTkFrame):
             self.btn_importar.configure(state="normal")
 
     def _leer_datos_hotel(self, hoja, nombre_archivo: str, hoja_nombre: str) -> dict:
-        """Lee los datos del hotel de una hoja del Excel."""
+        """Lee los datos del hotel de una hoja del Excel.
+        Intenta las posiciones configuradas y también busca en las primeras filas."""
         try:
-            nombre = self._valor_celda(hoja, "A", 2)
-            nro_orden = self._valor_celda(hoja, "A", 4)
-            direccion = self._valor_celda(hoja, "A", 5)
-            ciudad = self._valor_celda(hoja, "A", 6)
+            # Intentar posiciones configuradas primero
+            nombre = self._valor_celda(hoja, EXCEL_HOTEL_MAP["nombre"]["col"], EXCEL_HOTEL_MAP["nombre"]["row"])
+            nro_orden = self._valor_celda(hoja, EXCEL_HOTEL_MAP["nro_orden"]["col"], EXCEL_HOTEL_MAP["nro_orden"]["row"])
+            direccion = self._valor_celda(hoja, EXCEL_HOTEL_MAP["direccion"]["col"], EXCEL_HOTEL_MAP["direccion"]["row"])
+            ciudad = self._valor_celda(hoja, EXCEL_HOTEL_MAP["ciudad_localidad"]["col"], EXCEL_HOTEL_MAP["ciudad_localidad"]["row"])
+
+            # Si no encontró nombre en la posición configurada, buscar en las primeras filas de la columna A
+            if not nombre or str(nombre).strip() == "":
+                for r in range(1, 10):
+                    val = self._valor_celda(hoja, "A", r)
+                    if val and str(val).strip() and len(str(val).strip()) > 2:
+                        texto = str(val).strip().lower()
+                        # Saltar encabezados genéricos
+                        if texto not in ("hotel", "nombre", "nro", "orden", "dirección",
+                                         "direccion", "ciudad", "localidad"):
+                            nombre = val
+                            break
+
+            # También intentar usar el nombre de la hoja como nombre de hotel si no hay datos
+            if not nombre or str(nombre).strip() == "":
+                nombre = hoja_nombre
 
             return {
                 "archivo_hoja": f"{nombre_archivo} / {hoja_nombre}",
@@ -433,21 +451,84 @@ class ImportExcelModule(ctk.CTkFrame):
                 "hoja": hoja_nombre
             }
 
-    def _leer_huespedes(self, hoja, hotel_data: dict) -> list:
-        """Lee los datos de huéspedes de una hoja del Excel."""
-        huespedes = []
-        fila = EXCEL_HUESPED_START_ROW
+    def _detectar_fila_inicio(self, hoja) -> int:
+        """Detecta automáticamente la fila donde comienzan los datos de huéspedes.
+        Escanea desde la fila 1 buscando la primera fila que tenga datos válidos
+        en las columnas de huéspedes (no encabezados)."""
+        columnas_a_verificar = [
+            EXCEL_HUESPED_COLS["apellido_nombre"],
+            EXCEL_HUESPED_COLS["dni_pasaporte"],
+            EXCEL_HUESPED_COLS["nacionalidad"],
+        ]
+        # Palabras clave de encabezados que NO son datos
+        encabezados = {
+            "apellido", "nombre", "apellido y nombre", "apellido_nombre",
+            "dni", "pasaporte", "dni/pasaporte", "documento",
+            "nacionalidad", "procedencia", "profesion", "profesión",
+            "edad", "entrada", "salida", "nacimiento",
+            "fecha", "hotel", "nro", "orden", "dirección", "direccion",
+            "ciudad", "localidad", "fec. nacimiento", "fec. entrada",
+            "fec. salida", "fecha nacimiento", "fecha entrada", "fecha salida",
+        }
 
-        while True:
-            # Verificar si la fila tiene datos (al menos apellido_nombre)
-            apellido = self._valor_celda(hoja, EXCEL_HUESPED_COLS["apellido_nombre"], fila)
-            if not apellido or str(apellido).strip() == "":
-                # Verificar 2 filas más por si hay filas vacías intermedias
-                apellido_next = self._valor_celda(hoja, EXCEL_HUESPED_COLS["apellido_nombre"], fila + 1)
-                if not apellido_next or str(apellido_next).strip() == "":
+        for fila in range(1, 50):  # Escanear hasta fila 50
+            for col in columnas_a_verificar:
+                valor = self._valor_celda(hoja, col, fila)
+                if valor is not None:
+                    texto = str(valor).strip().lower()
+                    if texto and texto not in encabezados and len(texto) > 1:
+                        # Encontramos datos reales, no un encabezado
+                        return fila
+        return EXCEL_HUESPED_START_ROW  # Fallback al valor configurado
+
+    def _fila_tiene_datos(self, hoja, fila: int) -> bool:
+        """Verifica si una fila tiene datos en al menos una columna de huéspedes."""
+        for col in EXCEL_HUESPED_COLS.values():
+            valor = self._valor_celda(hoja, col, fila)
+            if valor is not None and str(valor).strip() != "":
+                return True
+        return False
+
+    def _obtener_max_fila(self, hoja) -> int:
+        """Obtiene la última fila con datos en la hoja."""
+        # Para openpyxl
+        if hasattr(hoja, 'max_row') and hoja.max_row:
+            return hoja.max_row
+        # Para xlrd adapter
+        if hasattr(hoja, '_sheet') and hasattr(hoja._sheet, 'nrows'):
+            return hoja._sheet.nrows
+        return 10000  # Fallback
+
+    def _leer_huespedes(self, hoja, hotel_data: dict) -> list:
+        """Lee los datos de huéspedes de una hoja del Excel.
+        Detecta automáticamente la fila de inicio y escanea todas las filas."""
+        huespedes = []
+
+        # Detectar fila de inicio automáticamente
+        fila = self._detectar_fila_inicio(hoja)
+        max_fila = self._obtener_max_fila(hoja)
+        filas_vacias_consecutivas = 0
+        MAX_FILAS_VACIAS = 15  # Tolerar hasta 15 filas vacías antes de parar
+
+        while fila <= max_fila + MAX_FILAS_VACIAS:
+            # Verificar si la fila tiene algún dato en cualquier columna de huéspedes
+            if not self._fila_tiene_datos(hoja, fila):
+                filas_vacias_consecutivas += 1
+                if filas_vacias_consecutivas >= MAX_FILAS_VACIAS:
                     break
                 fila += 1
                 continue
+
+            filas_vacias_consecutivas = 0
+
+            # Leer apellido/nombre - puede estar vacío si hay otros datos
+            apellido = self._valor_celda(hoja, EXCEL_HUESPED_COLS["apellido_nombre"], fila)
+            if not apellido or str(apellido).strip() == "":
+                # La fila tiene datos en otras columnas pero no nombre - intentar usar DNI como referencia
+                dni_val = self._valor_celda(hoja, EXCEL_HUESPED_COLS["dni_pasaporte"], fila)
+                if not dni_val or str(dni_val).strip() == "":
+                    fila += 1
+                    continue
 
             try:
                 # Leer fecha de nacimiento
@@ -496,7 +577,13 @@ class ImportExcelModule(ctk.CTkFrame):
         """Obtiene el valor de una celda específica."""
         try:
             celda = hoja[f"{columna}{fila}"]
-            return celda.value
+            valor = celda.value
+            # Limpiar valores que sean solo espacios en blanco
+            if isinstance(valor, str) and valor.strip() == "":
+                return None
+            return valor
+        except (KeyError, IndexError, AttributeError):
+            return None
         except Exception:
             return None
 

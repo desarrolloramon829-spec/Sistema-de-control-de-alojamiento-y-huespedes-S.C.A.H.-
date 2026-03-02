@@ -4,20 +4,22 @@
 
 Existen **dos métodos** para instalar el sistema en otra computadora:
 
-| Método | Requiere Python | Requiere Internet | Dificultad |
-|--------|:-:|:-:|:-:|
-| **A. Código fuente** (recomendado) | Sí | Sí (primera vez) | Fácil |
-| **B. Ejecutable compilado** | No | No | Medio (compilar primero) |
+| Método                             | Requiere Python | Requiere Internet |        Dificultad        |
+| ---------------------------------- | :-------------: | :---------------: | :----------------------: |
+| **A. Código fuente** (recomendado) |       Sí        | Sí (primera vez)  |          Fácil           |
+| **B. Ejecutable compilado**        |       No        |        No         | Medio (compilar primero) |
 
 ---
 
 ## Requisitos en la computadora destino
 
 ### Obligatorios (ambos métodos)
+
 - **Windows 10/11** (64 bits)
 - **PostgreSQL 14+** instalado y en ejecución
 
 ### Solo para Método A (código fuente)
+
 - **Python 3.10+** (con "Add to PATH" marcado durante instalación)
 - **Conexión a Internet** (solo la primera vez, para instalar dependencias)
 
@@ -28,11 +30,13 @@ Existen **dos métodos** para instalar el sistema en otra computadora:
 ### Paso 1: Copiar los archivos
 
 Copie **toda la carpeta del proyecto** a la computadora destino. Puede usar:
+
 - USB/Pendrive
 - Carpeta compartida en red
 - Comprimirla en ZIP y enviarla
 
 **Archivos y carpetas necesarios:**
+
 ```
 HOTELES/
 ├── main.py
@@ -81,6 +85,7 @@ HOTELES/
 - Ejecute `SCAH_Launcher.bat`
 
 **Credenciales por defecto:**
+
 - Usuario: `admin`
 - Contraseña: `admin123`
 
@@ -128,6 +133,7 @@ DB_CONFIG = {
 ```
 
 También puede usar **variables de entorno** en lugar de editar el archivo:
+
 ```
 set SCAH_DB_HOST=localhost
 set SCAH_DB_PORT=5432
@@ -141,25 +147,30 @@ set SCAH_DB_PASSWORD=mi_contraseña
 ## Solución de Problemas
 
 ### "Python no está instalado o no está en el PATH"
+
 - Reinstale Python marcando **"Add Python to PATH"**
 - O agregue manualmente `C:\Users\<usuario>\AppData\Local\Programs\Python\Python3XX\` al PATH del sistema
 
 ### "No se pudo conectar a PostgreSQL"
+
 - Verifique que el servicio esté en ejecución:
   - Abra `services.msc` → busque "postgresql" → Estado: "En ejecución"
 - Verifique las credenciales en `config.py`
 - Intente conectarse con pgAdmin para confirmar acceso
 
 ### "Error al instalar dependencias"
+
 - Verifique su conexión a Internet
 - Ejecute manualmente: `pip install -r requirements.txt`
 - Si `psycopg2-binary` falla, intente: `pip install psycopg2`
 
 ### La aplicación se cierra inmediatamente
+
 - Ejecute desde terminal para ver errores: `python main.py`
 - Revise el archivo `crash_log.txt` o la carpeta `logs/`
 
 ### Error "DLL load failed" o similar
+
 - Instale **Microsoft Visual C++ Redistributable**: https://aka.ms/vs/17/release/vc_redist.x64.exe
 
 ---

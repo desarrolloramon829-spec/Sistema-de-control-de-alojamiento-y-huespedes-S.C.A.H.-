@@ -434,3 +434,67 @@ Traceback (most recent call last):
     )
 ImportError: Se necesita la librería 'xlrd' para leer archivos .xls.
 Instálala con: pip install xlrd
+2026-03-02 07:24:14,138 [INFO] SCAH: Pool de conexiones a PostgreSQL inicializado correctamente
+2026-03-02 07:24:14,138 [INFO] SCAH: Iniciando migraciones de base de datos...
+2026-03-02 07:24:14,139 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:24:14,139 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:24:14,139 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:24:14,140 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:24:14,140 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:24:14,141 [INFO] SCAH: Índices creados correctamente
+2026-03-02 07:24:14,142 [INFO] SCAH: Usuario admin ya existe
+2026-03-02 07:24:14,142 [INFO] SCAH: Migraciones completadas exitosamente
+2026-03-02 07:24:14,147 [INFO] SCAH: Sistema inicializado correctamente
+2026-03-02 07:24:24,056 [INFO] SCAH: Login exitoso: 'admin'
+2026-03-02 07:24:24,056 [INFO] SCAH: Login exitoso: admin (admin)
+2026-03-02 07:24:24,056 [INFO] SCAH: Usuario 'admin' inicio sesion
+2026-03-02 07:24:29,727 [ERROR] SCAH: Error en 'JUN 25 (1).xls': Se necesita la librería 'xlrd' para leer archivos .xls.
+Instálala con: pip install xlrd: Se necesita la librería 'xlrd' para leer archivos .xls.
+Instálala con: pip install xlrd
+Traceback (most recent call last):
+  File "C:\Users\Usuario\OneDrive\Desktop\HOTELES\modules\import_excel.py", line 345, in _procesar_archivos
+    wb = _abrir_workbook(archivo)
+  File "C:\Users\Usuario\OneDrive\Desktop\HOTELES\modules\import_excel.py", line 87, in _abrir_workbook
+    raise ImportError(
+    ...<2 lines>...
+    )
+ImportError: Se necesita la librería 'xlrd' para leer archivos .xls.
+Instálala con: pip install xlrd
+2026-03-02 07:25:32,135 [INFO] SCAH: Pool de conexiones a PostgreSQL inicializado correctamente
+2026-03-02 07:25:32,135 [INFO] SCAH: Iniciando migraciones de base de datos...
+2026-03-02 07:25:32,136 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:25:32,137 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:25:32,137 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:25:32,137 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:25:32,137 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:25:32,138 [INFO] SCAH: Índices creados correctamente
+2026-03-02 07:25:32,139 [INFO] SCAH: Usuario admin ya existe
+2026-03-02 07:25:32,139 [INFO] SCAH: Migraciones completadas exitosamente
+2026-03-02 07:25:32,145 [INFO] SCAH: Sistema inicializado correctamente
+2026-03-02 07:25:38,788 [INFO] SCAH: Login exitoso: 'admin'
+2026-03-02 07:25:38,788 [INFO] SCAH: Login exitoso: admin (admin)
+2026-03-02 07:25:38,788 [INFO] SCAH: Usuario 'admin' inicio sesion
+2026-03-02 07:25:43,543 [ERROR] SCAH: Error en 'JUN 25 (1).xls': Se necesita la librería 'xlrd' para leer archivos .xls.
+Instálala con: pip install xlrd: Se necesita la librería 'xlrd' para leer archivos .xls.
+Instálala con: pip install xlrd
+Traceback (most recent call last):
+  File "C:\Users\Usuario\OneDrive\Desktop\HOTELES\modules\import_excel.py", line 345, in _procesar_archivos
+    wb = _abrir_workbook(archivo)
+  File "C:\Users\Usuario\OneDrive\Desktop\HOTELES\modules\import_excel.py", line 87, in _abrir_workbook
+    raise ImportError(
+    ...<2 lines>...
+    )
+ImportError: Se necesita la librería 'xlrd' para leer archivos .xls.
+Instálala con: pip install xlrd
+2026-03-02 07:25:50,360 [ERROR] SCAH: Error en 'JUN 25.xls': Se necesita la librería 'xlrd' para leer archivos .xls.
+Instálala con: pip install xlrd: Se necesita la librería 'xlrd' para leer archivos .xls.
+Instálala con: pip install xlrd
+Traceback (most recent call last):
+  File "C:\Users\Usuario\OneDrive\Desktop\HOTELES\modules\import_excel.py", line 345, in _procesar_archivos
+    wb = _abrir_workbook(archivo)
+  File "C:\Users\Usuario\OneDrive\Desktop\HOTELES\modules\import_excel.py", line 87, in _abrir_workbook
+    raise ImportError(
+    ...<2 lines>...
+    )
+ImportError: Se necesita la librería 'xlrd' para leer archivos .xls.
+Instálala con: pip install xlrd
