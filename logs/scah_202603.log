@@ -498,3 +498,19 @@ Traceback (most recent call last):
     )
 ImportError: Se necesita la librería 'xlrd' para leer archivos .xls.
 Instálala con: pip install xlrd
+2026-03-02 07:31:58,451 [INFO] SCAH: Pool de conexiones a PostgreSQL inicializado correctamente
+2026-03-02 07:31:58,452 [INFO] SCAH: Iniciando migraciones de base de datos...
+2026-03-02 07:31:58,453 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:31:58,453 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:31:58,453 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:31:58,453 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:31:58,453 [INFO] SCAH: Tabla verificada/creada correctamente
+2026-03-02 07:31:58,454 [INFO] SCAH: Índices creados correctamente
+2026-03-02 07:31:58,456 [INFO] SCAH: Usuario admin ya existe
+2026-03-02 07:31:58,456 [INFO] SCAH: Migraciones completadas exitosamente
+2026-03-02 07:31:58,461 [INFO] SCAH: Sistema inicializado correctamente
+2026-03-02 07:32:04,577 [INFO] SCAH: Login exitoso: 'admin'
+2026-03-02 07:32:04,577 [INFO] SCAH: Login exitoso: admin (admin)
+2026-03-02 07:32:04,577 [INFO] SCAH: Usuario 'admin' inicio sesion
+2026-03-02 07:34:43,873 [INFO] SCAH: Sesión cerrada: admin
+2026-03-02 07:34:45,486 [INFO] SCAH: Aplicacion cerrada
