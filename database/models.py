@@ -52,10 +52,15 @@ CREATE TABLE IF NOT EXISTS huespedes (
     profesion VARCHAR(200),
     fecha_entrada DATE,
     fecha_salida DATE,
+    habitacion VARCHAR(20),
+    domicilio VARCHAR(500),
+    destino VARCHAR(200),
+    movilidad VARCHAR(200),
+    telefono VARCHAR(50),
     origen_carga VARCHAR(20) NOT NULL DEFAULT 'manual',
     usuario_carga_id INTEGER REFERENCES usuarios(id),
     fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_origen CHECK (origen_carga IN ('excel', 'manual'))
+    CONSTRAINT chk_origen CHECK (origen_carga IN ('excel', 'excel_v2', 'manual'))
 );
 """
 
@@ -103,6 +108,8 @@ SQL_CREATE_INDICES = [
     "CREATE INDEX IF NOT EXISTS idx_huespedes_entrada ON huespedes(fecha_entrada);",
     "CREATE INDEX IF NOT EXISTS idx_huespedes_salida ON huespedes(fecha_salida);",
     "CREATE INDEX IF NOT EXISTS idx_huespedes_nacionalidad ON huespedes(nacionalidad);",
+    "CREATE INDEX IF NOT EXISTS idx_huespedes_habitacion ON huespedes(habitacion);",
+    "CREATE INDEX IF NOT EXISTS idx_huespedes_telefono ON huespedes(telefono);",
     "CREATE INDEX IF NOT EXISTS idx_hoteles_nombre ON hoteles(nombre);",
     "CREATE INDEX IF NOT EXISTS idx_hoteles_ciudad ON hoteles(ciudad_localidad);",
     "CREATE INDEX IF NOT EXISTS idx_auditoria_usuario ON auditoria(usuario_id);",

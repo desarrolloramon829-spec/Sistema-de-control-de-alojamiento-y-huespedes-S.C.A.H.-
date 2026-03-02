@@ -12,7 +12,7 @@ from ui.components import InputConLabel
 from ui.dialogs import mostrar_exito, mostrar_error, mostrar_advertencia
 from utils.validators import (validar_dni, validar_fecha, validar_texto_obligatorio,
                                validar_edad, validar_fechas_estadia, calcular_edad,
-                               sanitizar_texto)
+                               sanitizar_texto, validar_telefono, validar_habitacion)
 from utils.logger import log_info, log_error, Auditoria
 
 
@@ -197,6 +197,56 @@ class ManualEntryModule(ctk.CTkFrame):
         )
         self.input_salida.grid(row=0, column=1, sticky="ew")
 
+        # --- Card: Datos Adicionales ---
+        adicional_card = ctk.CTkFrame(scroll, fg_color=COLORS["bg_card"], corner_radius=10)
+        adicional_card.pack(fill="x", pady=(0, 10))
+
+        ctk.CTkLabel(
+            adicional_card, text="🏠 Datos Adicionales",
+            font=obtener_fuente("heading"),
+            anchor="w"
+        ).pack(fill="x", padx=20, pady=(15, 10))
+
+        form_adicional = ctk.CTkFrame(adicional_card, fg_color="transparent")
+        form_adicional.pack(fill="x", padx=20, pady=(0, 15))
+
+        # Fila 1: Habitación + Teléfono
+        row_adic1 = ctk.CTkFrame(form_adicional, fg_color="transparent")
+        row_adic1.pack(fill="x", pady=3)
+        row_adic1.grid_columnconfigure((0, 1), weight=1)
+
+        self.input_habitacion = InputConLabel(
+            row_adic1, "Habitación", "Ej: 205"
+        )
+        self.input_habitacion.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+
+        self.input_telefono = InputConLabel(
+            row_adic1, "Teléfono", "Ej: 11 39106166"
+        )
+        self.input_telefono.grid(row=0, column=1, sticky="ew")
+
+        # Fila 2: Domicilio
+        self.input_domicilio = InputConLabel(
+            form_adicional, "Domicilio", "Ej: GORRITI 420"
+        )
+        self.input_domicilio.pack(fill="x", pady=3)
+
+        # Fila 3: Destino + Movilidad
+        row_adic2 = ctk.CTkFrame(form_adicional, fg_color="transparent")
+        row_adic2.pack(fill="x", pady=3)
+        row_adic2.grid_columnconfigure((0, 1), weight=1)
+
+        self.input_destino = InputConLabel(
+            row_adic2, "Destino", "Ej: JUJUY"
+        )
+        self.input_destino.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+
+        self.input_movilidad = InputConLabel(
+            row_adic2, "Movilidad", "SI / NO",
+            tipo="combo", values=["", "SI", "NO"]
+        )
+        self.input_movilidad.grid(row=0, column=1, sticky="ew")
+
         # --- Mensaje de alerta duplicados ---
         self.label_alerta = ctk.CTkLabel(
             scroll, text="",
@@ -293,7 +343,8 @@ class ManualEntryModule(ctk.CTkFrame):
         # Limpiar errores anteriores
         for inp in [self.input_hotel, self.input_nombre, self.input_dni,
                      self.input_fecha_nac, self.input_edad,
-                     self.input_entrada, self.input_salida]:
+                     self.input_entrada, self.input_salida,
+                     self.input_habitacion, self.input_telefono]:
             inp.limpiar_error()
 
         # Hotel
@@ -357,6 +408,20 @@ class ManualEntryModule(ctk.CTkFrame):
                 self.input_salida.mostrar_error(msg)
                 errores.append(msg)
 
+        # Habitación (opcional)
+        if self.input_habitacion.get():
+            ok, msg, _ = validar_habitacion(self.input_habitacion.get())
+            if not ok:
+                self.input_habitacion.mostrar_error(msg)
+                errores.append(msg)
+
+        # Teléfono (opcional)
+        if self.input_telefono.get():
+            ok, msg, _ = validar_telefono(self.input_telefono.get())
+            if not ok:
+                self.input_telefono.mostrar_error(msg)
+                errores.append(msg)
+
         return len(errores) == 0, errores
 
     def _guardar(self):
@@ -409,8 +474,10 @@ class ManualEntryModule(ctk.CTkFrame):
                 INSERT INTO huespedes (
                     hotel_id, nacionalidad, procedencia, apellido_nombre,
                     dni_pasaporte, fecha_nacimiento, edad, profesion,
-                    fecha_entrada, fecha_salida, origen_carga, usuario_carga_id
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'manual', %s)
+                    fecha_entrada, fecha_salida,
+                    habitacion, domicilio, destino, movilidad, telefono,
+                    origen_carga, usuario_carga_id
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'manual', %s)
                 RETURNING id
             """, (
                 hotel_id,
@@ -423,6 +490,11 @@ class ManualEntryModule(ctk.CTkFrame):
                 sanitizar_texto(self.input_profesion.get()),
                 fecha_entrada,
                 fecha_salida,
+                sanitizar_texto(self.input_habitacion.get()),
+                sanitizar_texto(self.input_domicilio.get()),
+                sanitizar_texto(self.input_destino.get()),
+                sanitizar_texto(self.input_movilidad.get()),
+                sanitizar_texto(self.input_telefono.get()),
                 self.usuario["id"]
             ))
             huesped_id = cursor.fetchone()[0]
@@ -479,4 +551,9 @@ class ManualEntryModule(ctk.CTkFrame):
         self.input_profesion.limpiar()
         self.input_entrada.limpiar()
         self.input_salida.limpiar()
+        self.input_habitacion.limpiar()
+        self.input_domicilio.limpiar()
+        self.input_destino.limpiar()
+        self.input_movilidad.limpiar()
+        self.input_telefono.limpiar()
         self.label_alerta.configure(text="")

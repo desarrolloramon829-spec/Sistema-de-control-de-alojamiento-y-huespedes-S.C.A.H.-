@@ -268,6 +268,7 @@ class StatisticsModule(ctk.CTkFrame):
                 "Nacionalidades",
                 "Profesiones",
                 "Procedencia",
+                "Destinos",
                 "Huéspedes por Hotel",
                 "Rango de Edades",
                 "Tendencia Mensual"
@@ -309,6 +310,8 @@ class StatisticsModule(ctk.CTkFrame):
                 self._stat_profesiones()
             elif tipo == "Procedencia":
                 self._stat_procedencia()
+            elif tipo == "Destinos":
+                self._stat_destinos()
             elif tipo == "Huéspedes por Hotel":
                 self._stat_por_hotel()
             elif tipo == "Rango de Edades":
@@ -489,6 +492,20 @@ class StatisticsModule(ctk.CTkFrame):
             )
         else:
             self._mostrar_grafico_barras([], "Huéspedes por Hotel")
+
+    def _stat_destinos(self):
+        datos = db.ejecutar_query("""
+            SELECT destino, COUNT(*) as total FROM huespedes
+            WHERE destino IS NOT NULL AND destino != ''
+            GROUP BY destino ORDER BY total DESC LIMIT 15
+        """, fetch=True)
+        if datos:
+            self._mostrar_grafico_barras(
+                [(d["destino"], d["total"]) for d in datos],
+                "Principales Destinos"
+            )
+        else:
+            self._mostrar_grafico_barras([], "Destinos")
 
     def _stat_edades(self):
         datos = db.ejecutar_query("""

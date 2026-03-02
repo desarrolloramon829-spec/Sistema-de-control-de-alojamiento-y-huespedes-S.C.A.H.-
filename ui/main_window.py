@@ -103,6 +103,7 @@ class MainWindow:
         items_menu = [
             ("dashboard", "📊", "Dashboard", None),
             ("importar", "📥", "Importar Excel", "importar_excel"),
+            ("importar_v2", "📋", "Importar Tabular", "importar_excel"),
             ("carga_manual", "✏️", "Carga Manual", "carga_manual"),
             ("busqueda", "🔍", "Búsqueda", "busqueda"),
             ("hoteles", "🏨", "Hoteles", "gestionar_hoteles"),
@@ -210,6 +211,7 @@ class MainWindow:
         titulos = {
             "dashboard": "📊 Dashboard",
             "importar": "📥 Importar desde Excel",
+            "importar_v2": "📋 Importar Formato Tabular",
             "carga_manual": "✏️ Carga Manual de Huéspedes",
             "busqueda": "🔍 Búsqueda de Huéspedes",
             "hoteles": "🏨 Gestión de Hoteles",
@@ -229,6 +231,9 @@ class MainWindow:
             elif modulo_id == "importar":
                 from modules.import_excel import ImportExcelModule
                 modulo = ImportExcelModule(self.content_frame, self.usuario)
+            elif modulo_id == "importar_v2":
+                from modules.import_excel_v2 import ImportExcelV2Module
+                modulo = ImportExcelV2Module(self.content_frame, self.usuario)
             elif modulo_id == "carga_manual":
                 from modules.manual_entry import ManualEntryModule
                 modulo = ManualEntryModule(self.content_frame, self.usuario)

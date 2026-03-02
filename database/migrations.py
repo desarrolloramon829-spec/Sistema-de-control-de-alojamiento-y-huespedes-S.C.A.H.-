@@ -57,6 +57,10 @@ def ejecutar_migraciones():
         conn.commit()
         cursor.close()
         log_info("Migraciones completadas exitosamente")
+
+        # Ejecutar migraciones incrementales
+        migrar_v1_1()
+
         return True
 
     except Exception as e:
@@ -98,4 +102,59 @@ def verificar_esquema() -> tuple[bool, list]:
     except Exception as e:
         log_error("Error al verificar esquema", e)
         db.liberar_conexion(conn)
-        return False, tablas_necesarias
+
+
+# ============================================================
+# MIGRACIÓN V1.1: Nuevas columnas para formato tabular V2
+# ============================================================
+SQL_MIGRACION_V1_1 = [
+    "ALTER TABLE huespedes ADD COLUMN IF NOT EXISTS habitacion VARCHAR(20);",
+    "ALTER TABLE huespedes ADD COLUMN IF NOT EXISTS domicilio VARCHAR(500);",
+    "ALTER TABLE huespedes ADD COLUMN IF NOT EXISTS destino VARCHAR(200);",
+    "ALTER TABLE huespedes ADD COLUMN IF NOT EXISTS movilidad VARCHAR(200);",
+    "ALTER TABLE huespedes ADD COLUMN IF NOT EXISTS telefono VARCHAR(50);",
+    "CREATE INDEX IF NOT EXISTS idx_huespedes_habitacion ON huespedes(habitacion);",
+    "CREATE INDEX IF NOT EXISTS idx_huespedes_telefono ON huespedes(telefono);",
+]
+
+
+def migrar_v1_1():
+    """Migración v1.1: Agrega columnas de habitación, domicilio, destino, movilidad y teléfono.
+    También actualiza el constraint de origen_carga para incluir 'excel_v2'."""
+    log_info("Ejecutando migración v1.1 (columnas formato tabular)...")
+
+    conn = db.obtener_conexion()
+    if not conn:
+        log_error("No se pudo obtener conexión para migración v1.1")
+        return False
+
+    try:
+        cursor = conn.cursor()
+
+        for sql in SQL_MIGRACION_V1_1:
+            try:
+                cursor.execute(sql)
+            except Exception as e:
+                log_info(f"Nota migración v1.1: {e}")
+
+        # Actualizar constraint de origen_carga para incluir 'excel_v2'
+        try:
+            cursor.execute("ALTER TABLE huespedes DROP CONSTRAINT IF EXISTS chk_origen;")
+            cursor.execute(
+                "ALTER TABLE huespedes ADD CONSTRAINT chk_origen "
+                "CHECK (origen_carga IN ('excel', 'excel_v2', 'manual'));"
+            )
+        except Exception as e:
+            log_info(f"Nota constraint: {e}")
+
+        conn.commit()
+        cursor.close()
+        log_info("Migración v1.1 completada exitosamente")
+        return True
+
+    except Exception as e:
+        conn.rollback()
+        log_error("Error durante migración v1.1", e)
+        return False
+    finally:
+        db.liberar_conexion(conn)

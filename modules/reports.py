@@ -82,6 +82,11 @@ def exportar_a_excel(datos: list, archivo: str, titulo: str = "Datos"):
         "rol": "Rol",
         "ultimo_acceso": "Último Acceso",
         "fecha_registro": "Fecha Registro",
+        "habitacion": "Habitación",
+        "domicilio": "Domicilio",
+        "destino": "Destino",
+        "movilidad": "Movilidad",
+        "telefono": "Teléfono",
     }
 
     # Headers
@@ -203,6 +208,11 @@ def generar_pdf(datos: list, archivo: str, titulo: str = "Reporte",
         "nombre": "Nombre",
         "hotel_nombre": "Hotel",
         "ciudad_localidad": "Ciudad",
+        "habitacion": "Habitación",
+        "domicilio": "Domicilio",
+        "destino": "Destino",
+        "movilidad": "Movilidad",
+        "telefono": "Teléfono",
     }
 
     # Determinar columnas
@@ -413,7 +423,8 @@ class ReportsModule(ctk.CTkFrame):
                 SELECT hu.apellido_nombre, hu.dni_pasaporte, hu.nacionalidad,
                        hu.procedencia, hu.profesion_ocupacion, hu.edad,
                        hu.fecha_entrada, hu.fecha_salida, h.nombre as hotel,
-                       h.ciudad_localidad
+                       h.ciudad_localidad, hu.habitacion, hu.domicilio,
+                       hu.destino, hu.movilidad, hu.telefono
                 FROM huespedes hu
                 LEFT JOIN hoteles h ON hu.hotel_id = h.id
                 ORDER BY hu.apellido_nombre
@@ -424,7 +435,8 @@ class ReportsModule(ctk.CTkFrame):
                 formato, "listado_general", "Listado General de Huéspedes",
                 ["apellido_nombre", "dni_pasaporte", "nacionalidad",
                  "procedencia", "profesion_ocupacion", "edad",
-                 "fecha_entrada", "fecha_salida", "hotel", "ciudad_localidad"]
+                 "fecha_entrada", "fecha_salida", "hotel", "ciudad_localidad",
+                 "habitacion", "domicilio", "destino", "movilidad", "telefono"]
             )
         except Exception as e:
             log_error("Error en reporte general", e)
@@ -437,7 +449,8 @@ class ReportsModule(ctk.CTkFrame):
                 SELECT h.nombre as hotel, h.ciudad_localidad,
                        hu.apellido_nombre, hu.dni_pasaporte, hu.nacionalidad,
                        hu.profesion_ocupacion, hu.edad,
-                       hu.fecha_entrada, hu.fecha_salida
+                       hu.fecha_entrada, hu.fecha_salida,
+                       hu.habitacion, hu.telefono
                 FROM huespedes hu
                 JOIN hoteles h ON hu.hotel_id = h.id
                 ORDER BY h.nombre, hu.apellido_nombre
@@ -447,7 +460,8 @@ class ReportsModule(ctk.CTkFrame):
                 [dict(d) for d in datos] if datos else [],
                 formato, "huespedes_por_hotel", "Huéspedes por Hotel",
                 ["hotel", "ciudad_localidad", "apellido_nombre",
-                 "dni_pasaporte", "nacionalidad", "fecha_entrada", "fecha_salida"]
+                 "dni_pasaporte", "nacionalidad", "fecha_entrada", "fecha_salida",
+                 "habitacion", "telefono"]
             )
         except Exception as e:
             log_error("Error en reporte por hotel", e)
@@ -516,7 +530,8 @@ class ReportsModule(ctk.CTkFrame):
                 datos = db.ejecutar_query("""
                     SELECT hu.apellido_nombre, hu.dni_pasaporte, hu.nacionalidad,
                            hu.procedencia, hu.profesion_ocupacion, hu.edad,
-                           hu.fecha_entrada, hu.fecha_salida, h.nombre as hotel
+                           hu.fecha_entrada, hu.fecha_salida, h.nombre as hotel,
+                           hu.habitacion, hu.telefono
                     FROM huespedes hu
                     LEFT JOIN hoteles h ON hu.hotel_id = h.id
                     WHERE hu.fecha_entrada BETWEEN %s AND %s
