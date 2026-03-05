@@ -1,0 +1,237 @@
+{% extends "base.html" %} {% block title %}Estadísticas - S.C.A.H.{% endblock %}
+{% block content %}
+<h5 class="fw-bold mb-3">
+  <i class="bi bi-bar-chart-line text-primary"></i> Estadísticas
+</h5>
+
+<!-- Selector -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body p-2 p-md-3">
+    <div class="d-flex flex-wrap gap-1">
+      <button
+        class="btn btn-sm btn-primary stat-btn active"
+        data-tipo="nacionalidades"
+      >
+        <i class="bi bi-globe"></i>
+        <span class="d-none d-sm-inline">Nacionalidades</span>
+      </button>
+      <button
+        class="btn btn-sm btn-outline-primary stat-btn"
+        data-tipo="profesiones"
+      >
+        <i class="bi bi-briefcase"></i>
+        <span class="d-none d-sm-inline">Profesiones</span>
+      </button>
+      <button
+        class="btn btn-sm btn-outline-primary stat-btn"
+        data-tipo="procedencia"
+      >
+        <i class="bi bi-geo-alt"></i>
+        <span class="d-none d-sm-inline">Procedencia</span>
+      </button>
+      <button
+        class="btn btn-sm btn-outline-primary stat-btn"
+        data-tipo="destinos"
+      >
+        <i class="bi bi-signpost-2"></i>
+        <span class="d-none d-sm-inline">Destinos</span>
+      </button>
+      <button
+        class="btn btn-sm btn-outline-primary stat-btn"
+        data-tipo="por_hotel"
+      >
+        <i class="bi bi-building"></i>
+        <span class="d-none d-sm-inline">Por Hotel</span>
+      </button>
+      <button
+        class="btn btn-sm btn-outline-primary stat-btn"
+        data-tipo="edades"
+      >
+        <i class="bi bi-people"></i>
+        <span class="d-none d-sm-inline">Edades</span>
+      </button>
+      <button
+        class="btn btn-sm btn-outline-primary stat-btn"
+        data-tipo="tendencia"
+      >
+        <i class="bi bi-graph-up"></i>
+        <span class="d-none d-sm-inline">Tendencia</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Chart -->
+<div class="card border-0 shadow-sm">
+  <div
+    class="card-header bg-white d-flex justify-content-between align-items-center"
+  >
+    <h6 class="mb-0" id="chartTitle">Nacionalidades</h6>
+    <div class="btn-group btn-group-sm">
+      <button
+        class="btn btn-outline-secondary chart-type-btn active"
+        data-chart="bar"
+        title="Barras"
+      >
+        <i class="bi bi-bar-chart"></i>
+      </button>
+      <button
+        class="btn btn-outline-secondary chart-type-btn"
+        data-chart="pie"
+        title="Circular"
+      >
+        <i class="bi bi-pie-chart"></i>
+      </button>
+      <button
+        class="btn btn-outline-secondary chart-type-btn"
+        data-chart="line"
+        title="Línea"
+      >
+        <i class="bi bi-graph-up"></i>
+      </button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div id="chartLoading" class="text-center py-5" style="display:none">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="text-muted mt-2">Cargando datos...</p>
+    </div>
+    <div style="position:relative; height:400px; max-height:50vh">
+      <canvas id="mainChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Data table -->
+<div class="card border-0 shadow-sm mt-3">
+  <div class="card-header bg-white">
+    <h6 class="mb-0"><i class="bi bi-table"></i> Datos</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0" id="dataTable">
+      <thead class="table-light">
+        <tr>
+          <th>Categoría</th>
+          <th class="text-end">Cantidad</th>
+          <th class="text-end d-none d-md-table-cell">Porcentaje</th>
+        </tr>
+      </thead>
+      <tbody id="dataBody"></tbody>
+    </table>
+  </div>
+</div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      let mainChart = null;
+      let currentData = null;
+      let currentType = 'bar';
+
+      const ctx = document.getElementById('mainChart').getContext('2d');
+      const colors = [
+          '#0d6efd', '#198754', '#dc3545', '#ffc107', '#0dcaf0',
+          '#6f42c1', '#fd7e14', '#20c997', '#d63384', '#6610f2',
+          '#0d6efd80', '#19875480', '#dc354580', '#ffc10780', '#0dcaf080'
+      ];
+
+      function loadData(tipo) {
+          const loading = document.getElementById('chartLoading');
+          loading.style.display = 'block';
+
+          fetch(`/estadisticas/api/${tipo}`)
+              .then(r => r.json())
+              .then(data => {
+                  loading.style.display = 'none';
+                  currentData = data;
+                  renderChart(data, currentType);
+                  renderTable(data);
+                  document.getElementById('chartTitle').textContent =
+                      document.querySelector(`.stat-btn[data-tipo="${tipo}"]`).textContent.trim();
+              })
+              .catch(err => {
+                  loading.style.display = 'none';
+                  console.error(err);
+              });
+      }
+
+      function renderChart(data, type) {
+          if (mainChart) mainChart.destroy();
+
+          const labels = data.labels || [];
+          const values = data.valores || data.values || [];
+
+          const bgColors = labels.map((_, i) => colors[i % colors.length]);
+
+          mainChart = new Chart(ctx, {
+              type: type,
+              data: {
+                  labels: labels,
+                  datasets: [{
+                      label: 'Cantidad',
+                      data: values,
+                      backgroundColor: type === 'line' ? colors[0] + '33' : bgColors,
+                      borderColor: type === 'line' ? colors[0] : bgColors,
+                      borderWidth: type === 'line' ? 2 : 1,
+                      fill: type === 'line',
+                      tension: 0.3
+                  }]
+              },
+              options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                      legend: { display: type === 'pie' }
+                  },
+                  scales: type === 'pie' ? {} : {
+                      y: { beginAtZero: true }
+                  }
+              }
+          });
+      }
+
+      function renderTable(data) {
+          const labels = data.labels || [];
+          const values = data.valores || data.values || [];
+          const total = values.reduce((a, b) => a + b, 0);
+          const tbody = document.getElementById('dataBody');
+
+          tbody.innerHTML = labels.map((label, i) => {
+              const pct = total > 0 ? ((values[i] / total) * 100).toFixed(1) : '0.0';
+              return `<tr>
+                  <td>${label}</td>
+                  <td class="text-end fw-semibold">${values[i]}</td>
+                  <td class="text-end d-none d-md-table-cell">${pct}%</td>
+              </tr>`;
+          }).join('');
+      }
+
+      // Stat type buttons
+      document.querySelectorAll('.stat-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+              document.querySelectorAll('.stat-btn').forEach(b => {
+                  b.classList.remove('btn-primary', 'active');
+                  b.classList.add('btn-outline-primary');
+              });
+              this.classList.remove('btn-outline-primary');
+              this.classList.add('btn-primary', 'active');
+              loadData(this.dataset.tipo);
+          });
+      });
+
+      // Chart type buttons
+      document.querySelectorAll('.chart-type-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+              document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('active'));
+              this.classList.add('active');
+              currentType = this.dataset.chart;
+              if (currentData) renderChart(currentData, currentType);
+          });
+      });
+
+      // Load initial
+      loadData('nacionalidades');
+  });
+</script>
+{% endblock %} {% endblock %}

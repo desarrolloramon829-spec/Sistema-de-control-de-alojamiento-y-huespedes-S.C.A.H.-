@@ -1,0 +1,21 @@
+# render.yaml - Render.com Blueprint (Infrastructure as Code)
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: scah-web
+    runtime: python
+    region: oregon
+    plan: free
+    branch: NUEVA-IMPORTACION
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "web.app:create_app('production')" --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false  # Se configura manualmente con la URL de Neon.tech
+      - key: PYTHON_VERSION
+        value: "3.13.12"

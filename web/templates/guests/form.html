@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar' if es_edicion else 'Nuevo' }} Huésped - S.C.A.H.{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-10 col-xl-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0">
+                <h5 class="mb-0 fw-bold">
+                    <i class="bi bi-person-plus text-primary"></i>
+                    {{ 'Editar' if es_edicion else 'Cargar Nuevo' }} Huésped
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <!-- Hotel -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Hotel <span class="text-danger">*</span></label>
+                        <select class="form-select" name="hotel_id" required>
+                            <option value="">Seleccione un hotel</option>
+                            {% for h in hoteles %}
+                            <option value="{{ h.id }}" {% if datos.get('hotel_id')|string == h.id|string %}selected{% endif %}>
+                                {{ h.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Nombre y DNI -->
+                    <div class="row g-3">
+                        <div class="col-12 col-md-8">
+                            <label class="form-label fw-semibold">
+                                Apellido y Nombre <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" name="apellido_nombre"
+                                   value="{{ datos.get('apellido_nombre', '') }}" required
+                                   placeholder="Ej: García, Juan Carlos">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">
+                                DNI / Pasaporte <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" name="dni_pasaporte"
+                                   value="{{ datos.get('dni_pasaporte', '') }}" required
+                                   placeholder="12345678">
+                        </div>
+                    </div>
+
+                    <!-- Nacionalidad, Procedencia, Profesión -->
+                    <div class="row g-3 mt-1">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">Nacionalidad</label>
+                            <input type="text" class="form-control" name="nacionalidad"
+                                   value="{{ datos.get('nacionalidad', '') }}" placeholder="Argentina">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">Procedencia</label>
+                            <input type="text" class="form-control" name="procedencia"
+                                   value="{{ datos.get('procedencia', '') }}" placeholder="Buenos Aires">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">Profesión</label>
+                            <input type="text" class="form-control" name="profesion"
+                                   value="{{ datos.get('profesion', '') }}" placeholder="Comerciante">
+                        </div>
+                    </div>
+
+                    <!-- Edad, Fecha nacimiento -->
+                    <div class="row g-3 mt-1">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold">Edad</label>
+                            <input type="number" class="form-control" name="edad" id="edad"
+                                   value="{{ datos.get('edad', '') }}" min="0" max="150"
+                                   placeholder="30">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold">Fecha Nac.</label>
+                            <input type="date" class="form-control" name="fecha_nacimiento"
+                                   id="fecha_nacimiento"
+                                   value="{{ datos.get('fecha_nacimiento', '') }}"
+                                   onchange="calcularEdad()">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold">
+                                Fecha Entrada <span class="text-danger">*</span>
+                            </label>
+                            <input type="date" class="form-control" name="fecha_entrada"
+                                   value="{{ datos.get('fecha_entrada', '') }}" required>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold">Fecha Salida</label>
+                            <input type="date" class="form-control" name="fecha_salida"
+                                   value="{{ datos.get('fecha_salida', '') }}">
+                        </div>
+                    </div>
+
+                    <!-- Habitación, Domicilio, Destino -->
+                    <div class="row g-3 mt-1">
+                        <div class="col-4 col-md-2">
+                            <label class="form-label fw-semibold">Habitación</label>
+                            <input type="text" class="form-control" name="habitacion"
+                                   value="{{ datos.get('habitacion', '') }}" placeholder="101">
+                        </div>
+                        <div class="col-8 col-md-4">
+                            <label class="form-label fw-semibold">Domicilio</label>
+                            <input type="text" class="form-control" name="domicilio"
+                                   value="{{ datos.get('domicilio', '') }}">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold">Destino</label>
+                            <input type="text" class="form-control" name="destino"
+                                   value="{{ datos.get('destino', '') }}">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold">Movilidad</label>
+                            <input type="text" class="form-control" name="movilidad"
+                                   value="{{ datos.get('movilidad', '') }}">
+                        </div>
+                    </div>
+
+                    <!-- Teléfono -->
+                    <div class="row g-3 mt-1">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">Teléfono</label>
+                            <input type="tel" class="form-control" name="telefono"
+                                   value="{{ datos.get('telefono', '') }}" placeholder="+54 11 1234-5678">
+                        </div>
+                    </div>
+
+                    <!-- Botones -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{{ url_for('guests.index') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> Guardar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function calcularEdad() {
+    const fn = document.getElementById('fecha_nacimiento').value;
+    if (!fn) return;
+    const nacimiento = new Date(fn);
+    const hoy = new Date();
+    let edad = hoy.getFullYear() - nacimiento.getFullYear();
+    const m = hoy.getMonth() - nacimiento.getMonth();
+    if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) edad--;
+    if (edad >= 0 && edad <= 150) document.getElementById('edad').value = edad;
+}
+</script>
+{% endblock %}

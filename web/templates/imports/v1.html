@@ -1,0 +1,146 @@
+{% extends "base.html" %} {% block title %}Importar V1 - S.C.A.H.{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <a
+    href="{{ url_for('imports.index') }}"
+    class="btn btn-sm btn-outline-secondary me-2"
+  >
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h5 class="fw-bold mb-0">
+    <i class="bi bi-file-earmark-spreadsheet text-success"></i> Importar Formato
+    V1
+  </h5>
+</div>
+
+{% if not preview %}
+<!-- Upload -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body">
+    <form method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="action" value="preview" />
+      <div class="mb-3">
+        <label class="form-label fw-semibold"
+          >Archivos Excel (.xlsx, .xls)</label
+        >
+        <input
+          type="file"
+          name="archivos"
+          class="form-control"
+          accept=".xlsx,.xls"
+          multiple
+          required
+        />
+        <div class="form-text">
+          Puede seleccionar múltiples archivos. Cada hoja = un hotel.
+        </div>
+      </div>
+      <button type="submit" class="btn btn-success">
+        <i class="bi bi-eye"></i> Vista Previa
+      </button>
+    </form>
+  </div>
+</div>
+{% else %}
+<!-- Preview -->
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center p-3">
+      <div class="fs-3 fw-bold text-primary">
+        {{ preview.hoteles | length }}
+      </div>
+      <small class="text-muted">Hoteles</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center p-3">
+      <div class="fs-3 fw-bold text-success">
+        {{ preview.huespedes | length }}
+      </div>
+      <small class="text-muted">Huéspedes</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center p-3">
+      <div class="fs-3 fw-bold text-danger">{{ preview.errores | length }}</div>
+      <small class="text-muted">Errores</small>
+    </div>
+  </div>
+</div>
+
+{% if preview.errores %}
+<div class="card border-0 shadow-sm mb-3 border-start border-danger border-3">
+  <div class="card-header bg-white">
+    <h6 class="mb-0 text-danger">
+      <i class="bi bi-exclamation-triangle"></i> Errores encontrados
+    </h6>
+  </div>
+  <div class="card-body p-0">
+    <ul
+      class="list-group list-group-flush"
+      style="max-height:200px;overflow-y:auto"
+    >
+      {% for err in preview.errores %}
+      <li class="list-group-item small text-danger py-1">{{ err }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %} {% if preview.huespedes %}
+<div class="card border-0 shadow-sm mb-3">
+  <div
+    class="card-header bg-white d-flex justify-content-between align-items-center"
+  >
+    <h6 class="mb-0">Vista previa (primeros 50)</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Hotel</th>
+          <th>Nombre</th>
+          <th class="d-none d-md-table-cell">DNI</th>
+          <th class="d-none d-lg-table-cell">Nacionalidad</th>
+          <th class="d-none d-lg-table-cell">Habitación</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in preview.huespedes[:50] %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ h.get('hotel_nombre', '-') }}</td>
+          <td>{{ h.get('apellido_nombre', '-') }}</td>
+          <td class="d-none d-md-table-cell">
+            {{ h.get('dni_pasaporte', '-') }}
+          </td>
+          <td class="d-none d-lg-table-cell">
+            {{ h.get('nacionalidad', '-') }}
+          </td>
+          <td class="d-none d-lg-table-cell">{{ h.get('habitacion', '-') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="d-flex gap-2">
+  <form method="POST">
+    <input type="hidden" name="action" value="import" />
+    <button
+      type="submit"
+      class="btn btn-primary"
+      onclick="this.disabled=true; this.innerHTML='<span class=\'spinner-border spinner-border-sm\'></span> Importando...'; this.form.submit();"
+    >
+      <i class="bi bi-download"></i> Importar {{ preview.huespedes | length }}
+      huéspedes
+    </button>
+  </form>
+  <a
+    href="{{ url_for('imports.importar_v1') }}"
+    class="btn btn-outline-secondary"
+    >Cancelar</a
+  >
+</div>
+{% endif %} {% endif %} {% endblock %}

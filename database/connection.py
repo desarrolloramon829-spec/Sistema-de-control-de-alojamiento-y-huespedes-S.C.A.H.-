@@ -3,11 +3,47 @@ S.C.A.H. - Conexión a PostgreSQL
 Pool de conexiones y gestión de la base de datos
 """
 
+import os
 import psycopg2
 import psycopg2.pool
 import psycopg2.extras
 from config import DB_CONFIG
 from utils.logger import log_info, log_error
+
+
+def _get_connection_params() -> dict:
+    """
+    Obtiene los parámetros de conexión.
+    Prioriza DATABASE_URL (para Render/Neon/Railway) sobre parámetros individuales.
+    """
+    database_url = os.environ.get("DATABASE_URL", "")
+
+    if database_url:
+        # Parsear DATABASE_URL (formato: postgresql://user:pass@host:port/dbname?sslmode=require)
+        from urllib.parse import urlparse
+        parsed = urlparse(database_url)
+        params = {
+            "host": parsed.hostname,
+            "port": parsed.port or 5432,
+            "dbname": parsed.path.lstrip("/"),
+            "user": parsed.username,
+            "password": parsed.password,
+        }
+        # Agregar sslmode para conexiones en la nube
+        if parsed.query:
+            params["sslmode"] = "require"
+        else:
+            params["sslmode"] = "require"  # Siempre SSL para URLs de nube
+        return params
+
+    # Fallback: parámetros individuales (uso local)
+    return {
+        "host": DB_CONFIG["host"],
+        "port": DB_CONFIG["port"],
+        "dbname": DB_CONFIG["dbname"],
+        "user": DB_CONFIG["user"],
+        "password": DB_CONFIG["password"],
+    }
 
 
 class DatabaseConnection:
@@ -24,14 +60,12 @@ class DatabaseConnection:
     def inicializar(self):
         """Inicializa el pool de conexiones."""
         try:
+            conn_params = _get_connection_params()
+            self._conn_params = conn_params
             self._pool = psycopg2.pool.ThreadedConnectionPool(
                 minconn=1,
                 maxconn=10,
-                host=DB_CONFIG["host"],
-                port=DB_CONFIG["port"],
-                dbname=DB_CONFIG["dbname"],
-                user=DB_CONFIG["user"],
-                password=DB_CONFIG["password"]
+                **conn_params
             )
             log_info("Pool de conexiones a PostgreSQL inicializado correctamente")
             return True
@@ -159,6 +193,11 @@ class DatabaseConnection:
     @staticmethod
     def crear_base_datos():
         """Crea la base de datos si no existe (conecta a 'postgres' por defecto)."""
+        # En entornos cloud (DATABASE_URL), la BD ya existe — no intentar crearla
+        if os.environ.get("DATABASE_URL"):
+            log_info("DATABASE_URL detectada — se omite creación de BD (ya existe en la nube)")
+            return True
+
         try:
             conn = psycopg2.connect(
                 host=DB_CONFIG["host"],
