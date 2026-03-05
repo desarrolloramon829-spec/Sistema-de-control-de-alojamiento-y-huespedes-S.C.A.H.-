@@ -171,4 +171,4 @@ def toggle_activo(user_id: int, admin_id: int) -> tuple[bool, str]:
 
 def obtener_roles() -> list:
     """Retorna lista de roles disponibles con su nombre legible."""
-    return [{"key": k, "nombre": obtener_nombre_rol(k)} for k in ROLES.keys()]
+    return [{"id": k, "nombre": obtener_nombre_rol(k)} for k in ROLES.keys()]
