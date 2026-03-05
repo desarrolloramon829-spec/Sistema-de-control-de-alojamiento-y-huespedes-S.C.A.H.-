@@ -8,6 +8,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from datetime import datetime
+from openpyxl import load_workbook
 from database.connection import db
 from config import (EXCEL_HOTEL_MAP, EXCEL_HUESPED_COLS, EXCEL_HUESPED_START_ROW,
                     EXCEL_V2_HUESPED_COLS, EXCEL_V2_HUESPED_START_ROW,
@@ -16,7 +17,85 @@ from utils.validators import (validar_fecha, validar_edad, validar_telefono,
                                validar_habitacion, sanitizar_texto)
 from utils.formatters import formato_fecha
 from utils.logger import log_info, log_error, Auditoria
-from modules.import_excel import _abrir_workbook
+
+try:
+    import xlrd
+    XLRD_DISPONIBLE = True
+except ImportError:
+    XLRD_DISPONIBLE = False
+
+
+class _XlrdCelda:
+    def __init__(self, valor):
+        self.value = valor
+
+
+class _XlrdHoja:
+    def __init__(self, sheet, book):
+        self._sheet = sheet
+        self._book = book
+        self.title = sheet.name
+
+    def __getitem__(self, ref: str):
+        import re
+        m = re.match(r'^([A-Za-z]+)(\d+)$', ref)
+        if not m:
+            return _XlrdCelda(None)
+
+        col_letters = m.group(1).upper()
+        row_num = int(m.group(2))
+
+        col_idx = 0
+        for ch in col_letters:
+            col_idx = col_idx * 26 + (ord(ch) - ord('A') + 1)
+        col_idx -= 1
+        row_idx = row_num - 1
+
+        if row_idx < 0 or row_idx >= self._sheet.nrows:
+            return _XlrdCelda(None)
+        if col_idx < 0 or col_idx >= self._sheet.ncols:
+            return _XlrdCelda(None)
+
+        cell = self._sheet.cell(row_idx, col_idx)
+        valor = cell.value
+
+        if cell.ctype == xlrd.XL_CELL_DATE and valor:
+            try:
+                dt_tuple = xlrd.xldate_as_tuple(valor, self._book.datemode)
+                from datetime import datetime as _dt
+                valor = _dt(*dt_tuple)
+            except Exception:
+                pass
+
+        if isinstance(valor, str) and valor.strip() == '':
+            valor = None
+
+        return _XlrdCelda(valor)
+
+
+class _XlrdLibro:
+    def __init__(self, filepath):
+        self._book = xlrd.open_workbook(filepath)
+        self.sheetnames = self._book.sheet_names()
+
+    def __getitem__(self, nombre):
+        sheet = self._book.sheet_by_name(nombre)
+        return _XlrdHoja(sheet, self._book)
+
+    def close(self):
+        self._book.release_resources()
+
+
+def _abrir_workbook(filepath: str):
+    ext = os.path.splitext(filepath)[1].lower()
+    if ext == '.xls':
+        if not XLRD_DISPONIBLE:
+            raise ImportError(
+                "Se necesita la librería 'xlrd' para leer archivos .xls. "
+                "Instálala con: pip install xlrd"
+            )
+        return _XlrdLibro(filepath)
+    return load_workbook(filepath, read_only=True, data_only=True)
 
 
 # ── Lectura de celdas ────────────────────────────────────────
