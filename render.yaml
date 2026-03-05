@@ -16,6 +16,6 @@ services:
       - key: FLASK_SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        sync: false  # Se configura manualmente con la URL de Neon.tech
+        sync: false # Se configura manualmente con la URL de Neon.tech
       - key: PYTHON_VERSION
-        value: "3.13.12"
+        value: '3.13.12'
