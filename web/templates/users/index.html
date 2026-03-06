@@ -52,16 +52,17 @@ block content %}
               >
                 <i class="bi bi-pencil"></i>
               </a>
-              {% if u.username != 'admin' %}
+              {% if u.id != session['user']['id'] %}
               <form
                 method="POST"
                 action="{{ url_for('users.toggle', user_id=u.id) }}"
                 class="d-inline"
+                data-confirm="{{ '¿Desactivar al usuario ' ~ u.username ~ '?' if u.activo else '¿Reactivar al usuario ' ~ u.username ~ '?' }}"
               >
                 <button
                   type="submit"
                   class="btn btn-outline-{{ 'warning' if u.activo else 'success' }}"
-                  title="{{ 'Desactivar' if u.activo else 'Activar' }}"
+                  title="{{ 'Desactivar' if u.activo else 'Reactivar' }}"
                 >
                   <i class="bi bi-{{ 'pause' if u.activo else 'play' }}"></i>
                 </button>
