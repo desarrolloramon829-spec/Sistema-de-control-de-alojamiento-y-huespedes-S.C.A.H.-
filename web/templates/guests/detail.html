@@ -1,0 +1,136 @@
+{% extends "base.html" %} {% block title %}{{ huesped.apellido_nombre }} -
+S.C.A.H.{% endblock %} {% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-10 col-xl-8">
+    <!-- Header -->
+    <div
+      class="d-flex flex-wrap align-items-center justify-content-between mb-3"
+    >
+      <div>
+        <a
+          href="{{ url_for('guests.index') }}"
+          class="btn btn-sm btn-outline-secondary me-2"
+        >
+          <i class="bi bi-arrow-left"></i>
+        </a>
+        <span class="fw-bold fs-5">{{ huesped.apellido_nombre }}</span>
+      </div>
+      {% if current_user and current_user.rol in ('admin', 'operador') %}
+      <div class="mt-2 mt-md-0">
+        {% if current_user.rol == 'admin' %}
+        <form
+          method="POST"
+          action="{{ url_for('guests.eliminar', huesped_id=huesped.id) }}"
+          class="d-inline"
+          onsubmit="return confirm('¿Eliminar este huésped?')"
+        >
+          <button type="submit" class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-trash"></i> Eliminar
+          </button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Datos personales -->
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white border-0">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-person text-primary"></i> Datos Personales
+        </h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">DNI / Pasaporte</small>
+            <strong>{{ huesped.dni_pasaporte or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Nacionalidad</small>
+            <strong>{{ huesped.nacionalidad or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Procedencia</small>
+            <strong>{{ huesped.procedencia or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Profesión</small>
+            <strong>{{ huesped.profesion or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Edad</small>
+            <strong>{{ huesped.edad if huesped.edad else '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Fecha de Nacimiento</small>
+            <strong
+              >{{ huesped.fecha_nacimiento | fecha if huesped.fecha_nacimiento
+              else '-' }}</strong
+            >
+          </div>
+          <div class="col-12 col-md-6">
+            <small class="text-muted d-block">Domicilio</small>
+            <strong>{{ huesped.domicilio or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-3">
+            <small class="text-muted d-block">Teléfono</small>
+            <strong>{{ huesped.telefono or '-' }}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Datos de estadía -->
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white border-0">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-building text-success"></i> Estadía
+        </h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12 col-md-4">
+            <small class="text-muted d-block">Hotel</small>
+            <strong>{{ huesped.hotel_nombre or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-2">
+            <small class="text-muted d-block">Habitación</small>
+            <strong>{{ huesped.habitacion or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-3">
+            <small class="text-muted d-block">Fecha Entrada</small>
+            <strong
+              >{{ huesped.fecha_entrada | fecha if huesped.fecha_entrada else
+              '-' }}</strong
+            >
+          </div>
+          <div class="col-6 col-md-3">
+            <small class="text-muted d-block">Fecha Salida</small>
+            <strong
+              >{{ huesped.fecha_salida | fecha if huesped.fecha_salida else '-'
+              }}</strong
+            >
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Destino</small>
+            <strong>{{ huesped.destino or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Movilidad</small>
+            <strong>{{ huesped.movilidad or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Origen Carga</small>
+            <span
+              class="badge bg-{{ 'info' if huesped.origen_carga == 'manual' else 'success' }}"
+            >
+              {{ huesped.origen_carga or 'N/A' }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

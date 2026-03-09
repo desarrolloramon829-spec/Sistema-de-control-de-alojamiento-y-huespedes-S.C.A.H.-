@@ -1,0 +1,267 @@
+{% extends "base.html" %} {% block title %}Importar V2 - S.C.A.H.{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <a
+    href="{{ url_for('imports.index') }}"
+    class="btn btn-sm btn-outline-secondary me-2"
+  >
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h5 class="fw-bold mb-0">
+    <i class="bi bi-table text-primary"></i> Importar Formato V2
+  </h5>
+</div>
+
+{% if not preview %}
+<!-- Upload -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body">
+    <form method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="action" value="preview" />
+      <div class="mb-3">
+        <label class="form-label fw-semibold"
+          >Archivos Excel (.xlsx, .xls)</label
+        >
+        <input
+          type="file"
+          name="archivos"
+          class="form-control"
+          accept=".xlsx,.xls"
+          multiple
+          required
+        />
+        <div class="form-text">
+          Formato tabular con encabezados auto-detectados.
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-eye"></i> Vista Previa
+      </button>
+    </form>
+  </div>
+</div>
+{% else %}
+<!-- Preview -->
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center p-3">
+      <div class="fs-3 fw-bold text-success">
+        {{ preview.huespedes | length }}
+      </div>
+      <small class="text-muted">Huéspedes detectados</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center p-3">
+      <div class="fs-3 fw-bold text-info">
+        {{ preview.columnas_detectadas | length }}
+      </div>
+      <small class="text-muted">Columnas mapeadas</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center p-3">
+      <div class="fs-3 fw-bold text-danger">{{ preview.errores | length }}</div>
+      <small class="text-muted">Errores</small>
+    </div>
+  </div>
+</div>
+
+{% if preview.columnas_detectadas %}
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-header bg-white">
+    <h6 class="mb-0"><i class="bi bi-columns-gap"></i> Columnas detectadas</h6>
+  </div>
+  <div class="card-body">
+    <div class="d-flex flex-wrap gap-1">
+      {% for col in preview.columnas_detectadas %}
+      <span class="badge bg-light text-dark border">{{ col }}</span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %} {% if preview.errores %}
+<div class="card border-0 shadow-sm mb-3 border-start border-danger border-3">
+  <div class="card-header bg-white">
+    <h6 class="mb-0 text-danger">
+      <i class="bi bi-exclamation-triangle"></i> Errores
+    </h6>
+  </div>
+  <div class="card-body p-0">
+    <ul
+      class="list-group list-group-flush"
+      style="max-height:200px;overflow-y:auto"
+    >
+      {% for err in preview.errores %}
+      <li class="list-group-item small text-danger py-1">{{ err }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %} {% if preview.huespedes %}
+<!-- Selección de hotel -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-header bg-white">
+    <h6 class="mb-0"><i class="bi bi-building"></i> Asignar Hotel</h6>
+  </div>
+  <div class="card-body">
+    <form method="POST" id="importForm">
+      <input type="hidden" name="action" value="import" />
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Hotel existente</label>
+        <select name="hotel_nombre" class="form-select" id="hotelSelect">
+          <option value="">— Seleccione o cree uno nuevo —</option>
+          {% for h in hoteles %}
+          <option value="{{ h.nombre }}">
+            {{ h.nombre }} ({{ h.ciudad_localidad or 'Sin ciudad' }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-check mb-3">
+        <input
+          type="checkbox"
+          class="form-check-input"
+          id="nuevoHotelCheck"
+          name="nuevo_hotel"
+          value="1"
+          onchange="document.getElementById('nuevoHotelFields').style.display = this.checked ? 'block' : 'none'"
+        />
+        <label class="form-check-label" for="nuevoHotelCheck"
+          >Crear hotel nuevo</label
+        >
+      </div>
+
+      <div id="nuevoHotelFields" style="display:none" class="mb-3">
+        <div class="row g-2">
+          <div class="col-12">
+            <input
+              type="text"
+              name="hotel_nombre_nuevo"
+              class="form-control"
+              placeholder="Nombre del hotel"
+            />
+          </div>
+          <div class="col-12 col-md-4">
+            <input
+              type="text"
+              name="nro_orden"
+              class="form-control"
+              placeholder="Nro. Orden"
+            />
+          </div>
+          <div class="col-12 col-md-4">
+            <input
+              type="text"
+              name="ciudad"
+              class="form-control"
+              placeholder="Ciudad"
+            />
+          </div>
+          <div class="col-12 col-md-4">
+            <input
+              type="text"
+              name="direccion"
+              class="form-control"
+              placeholder="Dirección"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview table -->
+      <div class="table-responsive mb-3">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Nombre</th>
+              <th class="d-none d-md-table-cell">DNI</th>
+              <th class="d-none d-lg-table-cell">Nacionalidad</th>
+              <th class="d-none d-lg-table-cell">Procedencia</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in preview.huespedes[:50] %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>{{ h.get('apellido_nombre', '-') }}</td>
+              <td class="d-none d-md-table-cell">
+                {{ h.get('dni_pasaporte', '-') }}
+              </td>
+              <td class="d-none d-lg-table-cell">
+                {{ h.get('nacionalidad', '-') }}
+              </td>
+              <td class="d-none d-lg-table-cell">
+                {{ h.get('procedencia', '-') }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button
+          type="submit"
+          class="btn btn-primary"
+          onclick="this.disabled=true; this.innerHTML='<span class=\'spinner-border spinner-border-sm\'></span> Importando...'; this.form.submit();"
+        >
+          <i class="bi bi-download"></i> Importar {{ preview.huespedes | length
+          }} huéspedes
+        </button>
+        <a
+          href="{{ url_for('imports.importar_v2') }}"
+          class="btn btn-outline-secondary"
+          >Cancelar</a
+        >
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %} {% endif %} {% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      const check = document.getElementById('nuevoHotelCheck');
+      const select = document.getElementById('hotelSelect');
+      const form = document.getElementById('importForm');
+
+      if (check && select) {
+          check.addEventListener('change', function() {
+              if (this.checked) {
+                  select.value = '';
+                  select.disabled = true;
+              } else {
+                  select.disabled = false;
+              }
+          });
+      }
+
+      if (form) {
+          form.addEventListener('submit', function(e) {
+              const isNew = check && check.checked;
+              const hotelNombre = isNew
+                  ? form.querySelector('[name="hotel_nombre_nuevo"]').value.trim()
+                  : select.value.trim();
+
+              if (!hotelNombre) {
+                  e.preventDefault();
+                  alert('Debe seleccionar o crear un hotel.');
+                  return;
+              }
+
+              if (isNew) {
+                  // Copy new hotel name to hotel_nombre field
+                  select.disabled = false;
+                  const opt = document.createElement('option');
+                  opt.value = hotelNombre;
+                  opt.selected = true;
+                  select.appendChild(opt);
+              }
+          });
+      }
+  });
+</script>
+{% endblock %} {% endblock %}

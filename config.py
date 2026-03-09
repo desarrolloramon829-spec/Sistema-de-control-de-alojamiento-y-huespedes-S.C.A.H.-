@@ -88,6 +88,78 @@ EXCEL_HUESPED_COLS = {
 EXCEL_HUESPED_START_ROW = 2  # Fila donde comienzan los datos de huéspedes
 
 # ============================================================
+# MAPEO DE COLUMNAS DEL EXCEL - FORMATO V2 (Tabular con encabezados)
+# ============================================================
+# Formato tabular con encabezados en fila 1, datos desde fila 2
+# Columnas: FECHA | HABITACION | NOMBRE Y APELLIDO | EDAD | NACIONALIDAD |
+#           PROFESION | PROCEDE | DOMICILIO | DESTINO | DOC | SALIDA | MOVILIDAD | TELEFONO
+EXCEL_V2_HUESPED_COLS = {
+    "fecha_entrada": "A",
+    "habitacion": "B",
+    "apellido_nombre": "C",
+    "edad": "D",
+    "nacionalidad": "E",
+    "profesion": "F",
+    "procedencia": "G",
+    "domicilio": "H",
+    "destino": "I",
+    "dni_pasaporte": "J",
+    "fecha_salida": "K",
+    "movilidad": "L",
+    "telefono": "M",
+}
+
+EXCEL_V2_HUESPED_START_ROW = 2
+
+# Alias de encabezados para auto-detección del formato V2
+EXCEL_V2_HEADER_ALIASES = {
+    "fecha": "fecha_entrada",
+    "fecha de entrada": "fecha_entrada",
+    "entrada": "fecha_entrada",
+    "habitacion": "habitacion",
+    "habitación": "habitacion",
+    "hab": "habitacion",
+    "hab.": "habitacion",
+    "nro hab": "habitacion",
+    "nombre y apellido": "apellido_nombre",
+    "apellido y nombre": "apellido_nombre",
+    "nombre": "apellido_nombre",
+    "apellido": "apellido_nombre",
+    "huesped": "apellido_nombre",
+    "huésped": "apellido_nombre",
+    "edad": "edad",
+    "nacionalidad": "nacionalidad",
+    "nacion": "nacionalidad",
+    "profesion": "profesion",
+    "profesión": "profesion",
+    "ocupacion": "profesion",
+    "ocupación": "profesion",
+    "procede": "procedencia",
+    "procedencia": "procedencia",
+    "origen": "procedencia",
+    "domicilio": "domicilio",
+    "direccion": "domicilio",
+    "dirección": "domicilio",
+    "destino": "destino",
+    "doc": "dni_pasaporte",
+    "documento": "dni_pasaporte",
+    "dni": "dni_pasaporte",
+    "dni/pasaporte": "dni_pasaporte",
+    "pasaporte": "dni_pasaporte",
+    "salida": "fecha_salida",
+    "fecha de salida": "fecha_salida",
+    "fecha salida": "fecha_salida",
+    "movilidad": "movilidad",
+    "vehiculo": "movilidad",
+    "vehículo": "movilidad",
+    "telefono": "telefono",
+    "teléfono": "telefono",
+    "tel": "telefono",
+    "tel.": "telefono",
+    "celular": "telefono",
+}
+
+# ============================================================
 # CONFIGURACIÓN DE EXPORTACIÓN
 # ============================================================
 EXPORT_DIR = os.path.join(os.path.expanduser("~"), "Documents", "SCAH_Reportes")

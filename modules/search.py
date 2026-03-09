@@ -121,6 +121,20 @@ class SearchModule(ctk.CTkFrame):
         self.filtro_edad_max = InputConLabel(row3, "Edad máx.", "Ej: 65")
         self.filtro_edad_max.grid(row=0, column=3, sticky="ew")
 
+        # Fila 4: Habitación + Destino + Teléfono
+        row4 = ctk.CTkFrame(filtros_inner, fg_color="transparent")
+        row4.pack(fill="x", pady=3)
+        row4.grid_columnconfigure((0, 1, 2), weight=1)
+
+        self.filtro_habitacion = InputConLabel(row4, "Habitación", "Ej: 205")
+        self.filtro_habitacion.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+
+        self.filtro_destino = InputConLabel(row4, "Destino", "Ej: Jujuy")
+        self.filtro_destino.grid(row=0, column=1, sticky="ew", padx=(0, 10))
+
+        self.filtro_telefono = InputConLabel(row4, "Teléfono", "Búsqueda parcial")
+        self.filtro_telefono.grid(row=0, column=2, sticky="ew")
+
         # Botones de filtro
         filtro_btn_frame = ctk.CTkFrame(filtros_inner, fg_color="transparent")
         filtro_btn_frame.pack(fill="x", pady=(10, 0))
@@ -170,16 +184,18 @@ class SearchModule(ctk.CTkFrame):
             results_card,
             columnas=[
                 {"id": "id", "texto": "ID", "ancho": 50},
-                {"id": "hotel", "texto": "Hotel", "ancho": 150},
-                {"id": "apellido_nombre", "texto": "Apellido y Nombre", "ancho": 180},
-                {"id": "dni_pasaporte", "texto": "DNI/Pasaporte", "ancho": 110},
-                {"id": "nacionalidad", "texto": "Nacionalidad", "ancho": 100},
-                {"id": "procedencia", "texto": "Procedencia", "ancho": 120},
-                {"id": "edad", "texto": "Edad", "ancho": 55},
-                {"id": "profesion", "texto": "Profesión", "ancho": 120},
-                {"id": "fecha_entrada", "texto": "Entrada", "ancho": 100},
-                {"id": "fecha_salida", "texto": "Salida", "ancho": 100},
-                {"id": "origen", "texto": "Origen", "ancho": 70},
+                {"id": "hotel", "texto": "Hotel", "ancho": 140},
+                {"id": "apellido_nombre", "texto": "Apellido y Nombre", "ancho": 170},
+                {"id": "dni_pasaporte", "texto": "DNI/Pasaporte", "ancho": 100},
+                {"id": "nacionalidad", "texto": "Nacionalidad", "ancho": 90},
+                {"id": "procedencia", "texto": "Procedencia", "ancho": 100},
+                {"id": "edad", "texto": "Edad", "ancho": 50},
+                {"id": "profesion", "texto": "Profesión", "ancho": 100},
+                {"id": "fecha_entrada", "texto": "Entrada", "ancho": 90},
+                {"id": "fecha_salida", "texto": "Salida", "ancho": 90},
+                {"id": "habitacion", "texto": "Hab.", "ancho": 50},
+                {"id": "telefono", "texto": "Teléfono", "ancho": 95},
+                {"id": "origen", "texto": "Origen", "ancho": 65},
             ],
             on_doble_click=self._ver_detalle,
             altura=14
@@ -242,7 +258,8 @@ class SearchModule(ctk.CTkFrame):
         query = """
             SELECT h.id, ht.nombre as hotel, h.apellido_nombre, h.dni_pasaporte,
                    h.nacionalidad, h.procedencia, h.edad, h.profesion,
-                   h.fecha_entrada, h.fecha_salida, h.origen_carga
+                   h.fecha_entrada, h.fecha_salida, h.habitacion, h.telefono,
+                   h.domicilio, h.destino, h.movilidad, h.origen_carga
             FROM huespedes h
             JOIN hoteles ht ON h.hotel_id = ht.id
             WHERE h.apellido_nombre ILIKE %s
@@ -252,9 +269,13 @@ class SearchModule(ctk.CTkFrame):
                OR h.nacionalidad ILIKE %s
                OR h.procedencia ILIKE %s
                OR h.profesion ILIKE %s
+               OR h.habitacion ILIKE %s
+               OR h.telefono ILIKE %s
+               OR h.domicilio ILIKE %s
+               OR h.destino ILIKE %s
             ORDER BY h.fecha_registro DESC
         """
-        params = [patron] * 7
+        params = [patron] * 11
 
         self._query_actual = query
         self._params_actuales = params
@@ -265,7 +286,8 @@ class SearchModule(ctk.CTkFrame):
         query = """
             SELECT h.id, ht.nombre as hotel, h.apellido_nombre, h.dni_pasaporte,
                    h.nacionalidad, h.procedencia, h.edad, h.profesion,
-                   h.fecha_entrada, h.fecha_salida, h.origen_carga
+                   h.fecha_entrada, h.fecha_salida, h.habitacion, h.telefono,
+                   h.domicilio, h.destino, h.movilidad, h.origen_carga
             FROM huespedes h
             JOIN hoteles ht ON h.hotel_id = ht.id
             WHERE 1=1
@@ -332,6 +354,21 @@ class SearchModule(ctk.CTkFrame):
             except ValueError:
                 pass
 
+        # Habitación
+        if self.filtro_habitacion.get():
+            query += " AND h.habitacion ILIKE %s"
+            params.append(f"%{self.filtro_habitacion.get()}%")
+
+        # Destino
+        if self.filtro_destino.get():
+            query += " AND h.destino ILIKE %s"
+            params.append(f"%{self.filtro_destino.get()}%")
+
+        # Teléfono
+        if self.filtro_telefono.get():
+            query += " AND h.telefono ILIKE %s"
+            params.append(f"%{self.filtro_telefono.get()}%")
+
         query += " ORDER BY h.fecha_registro DESC"
 
         self._query_actual = query
@@ -366,6 +403,8 @@ class SearchModule(ctk.CTkFrame):
                     "profesion": r["profesion"] or "",
                     "fecha_entrada": formato_fecha(r["fecha_entrada"]),
                     "fecha_salida": formato_fecha(r["fecha_salida"]),
+                    "habitacion": r.get("habitacion", "") or "",
+                    "telefono": r.get("telefono", "") or "",
                     "origen": r["origen_carga"] or "",
                 })
             self.tabla.cargar_datos(datos_tabla)
@@ -421,6 +460,11 @@ class SearchModule(ctk.CTkFrame):
                     f"Profesión: {resultado.get('profesion', 'N/A')}\n"
                     f"Entrada: {formato_fecha(resultado.get('fecha_entrada'))}\n"
                     f"Salida: {formato_fecha(resultado.get('fecha_salida'))}\n\n"
+                    f"Habitación: {resultado.get('habitacion', 'N/A') or 'N/A'}\n"
+                    f"Domicilio: {resultado.get('domicilio', 'N/A') or 'N/A'}\n"
+                    f"Destino: {resultado.get('destino', 'N/A') or 'N/A'}\n"
+                    f"Movilidad: {resultado.get('movilidad', 'N/A') or 'N/A'}\n"
+                    f"Teléfono: {resultado.get('telefono', 'N/A') or 'N/A'}\n\n"
                     f"Origen: {resultado.get('origen_carga', 'N/A')}\n"
                     f"Cargado por: {resultado.get('cargado_por', 'N/A')}\n"
                     f"Fecha registro: {formato_fecha(resultado.get('fecha_registro'))}"
@@ -534,5 +578,6 @@ class SearchModule(ctk.CTkFrame):
         for filtro in [self.filtro_hotel, self.filtro_ciudad, self.filtro_nacionalidad,
                        self.filtro_dni, self.filtro_profesion, self.filtro_procedencia,
                        self.filtro_fecha_desde, self.filtro_fecha_hasta,
-                       self.filtro_edad_min, self.filtro_edad_max]:
+                       self.filtro_edad_min, self.filtro_edad_max,
+                       self.filtro_habitacion, self.filtro_destino, self.filtro_telefono]:
             filtro.limpiar()

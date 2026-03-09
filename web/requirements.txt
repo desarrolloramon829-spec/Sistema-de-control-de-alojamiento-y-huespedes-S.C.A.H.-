@@ -1,16 +1,8 @@
 # S.C.A.H. - Sistema de Control de Alojamiento y Huéspedes
-# Dependencias del proyecto
+# Dependencias del proyecto (Web)
 
 # === Framework Web ===
 Flask>=3.0.0
-
-# === Interfaz de escritorio ===
-customtkinter>=5.2.2
-Pillow>=10.0.0
-matplotlib>=3.8.0
-
-# === Servidor de producción ===
-gunicorn>=21.2.0
 
 # === Base de datos ===
 psycopg2-binary>=2.9.9
@@ -24,3 +16,6 @@ reportlab>=4.1.0
 
 # === Autenticación ===
 bcrypt>=4.1.2
+
+# === Servidor producción ===
+gunicorn>=21.2.0

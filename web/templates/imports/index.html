@@ -1,0 +1,84 @@
+{% extends "base.html" %} {% block title %}Importar Excel - S.C.A.H.{% endblock
+%} {% block content %}
+<h5 class="fw-bold mb-3">
+  <i class="bi bi-file-earmark-excel text-success"></i> Importar desde Excel
+</h5>
+
+<div class="row g-3">
+  <!-- V1 -->
+  <div class="col-12 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center">
+        <div class="mb-3">
+          <i
+            class="bi bi-file-earmark-spreadsheet text-success"
+            style="font-size:3rem"
+          ></i>
+        </div>
+        <h6 class="fw-bold">Formato V1</h6>
+        <p class="text-muted small">
+          Cada hoja del Excel corresponde a un hotel. Los datos del hotel están
+          en las primeras filas y los huéspedes se listan debajo con columnas
+          fijas.
+        </p>
+        <ul class="list-unstyled text-start small text-muted">
+          <li>
+            <i class="bi bi-check-circle text-success"></i> Hotel auto-detectado
+            por hoja
+          </li>
+          <li>
+            <i class="bi bi-check-circle text-success"></i> Múltiples archivos
+            simultáneos
+          </li>
+          <li>
+            <i class="bi bi-check-circle text-success"></i> Validación de
+            duplicados por DNI
+          </li>
+        </ul>
+        <a
+          href="{{ url_for('imports.importar_v1') }}"
+          class="btn btn-success w-100"
+        >
+          <i class="bi bi-upload"></i> Importar V1
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- V2 -->
+  <div class="col-12 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center">
+        <div class="mb-3">
+          <i class="bi bi-table text-primary" style="font-size:3rem"></i>
+        </div>
+        <h6 class="fw-bold">Formato V2</h6>
+        <p class="text-muted small">
+          Formato tabular donde los encabezados de columna se detectan
+          automáticamente. Se selecciona el hotel manualmente.
+        </p>
+        <ul class="list-unstyled text-start small text-muted">
+          <li>
+            <i class="bi bi-check-circle text-primary"></i> Detección automática
+            de columnas
+          </li>
+          <li>
+            <i class="bi bi-check-circle text-primary"></i> Selección manual de
+            hotel
+          </li>
+          <li>
+            <i class="bi bi-check-circle text-primary"></i> Validación de
+            duplicados por DNI
+          </li>
+        </ul>
+        <a
+          href="{{ url_for('imports.importar_v2') }}"
+          class="btn btn-primary w-100"
+        >
+          <i class="bi bi-upload"></i> Importar V2
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

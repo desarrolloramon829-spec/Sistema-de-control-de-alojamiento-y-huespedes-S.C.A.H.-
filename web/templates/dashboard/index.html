@@ -1,0 +1,179 @@
+{% extends "base.html" %} {% block title %}Dashboard - S.C.A.H.{% endblock %} {%
+block content %}
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center">
+        <div
+          class="kpi-icon bg-primary bg-opacity-10 text-primary mx-auto mb-2"
+        >
+          <i class="bi bi-people-fill"></i>
+        </div>
+        <h3 class="fw-bold mb-0">{{ kpis.total_huespedes | default(0) }}</h3>
+        <small class="text-muted">Huéspedes Total</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center">
+        <div
+          class="kpi-icon bg-success bg-opacity-10 text-success mx-auto mb-2"
+        >
+          <i class="bi bi-building-fill"></i>
+        </div>
+        <h3 class="fw-bold mb-0">{{ kpis.hoteles_activos | default(0) }}</h3>
+        <small class="text-muted">Hoteles Activos</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center">
+        <div class="kpi-icon bg-info bg-opacity-10 text-info mx-auto mb-2">
+          <i class="bi bi-calendar-check"></i>
+        </div>
+        <h3 class="fw-bold mb-0">{{ kpis.alojados_hoy | default(0) }}</h3>
+        <small class="text-muted">Alojados Hoy</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center">
+        <div
+          class="kpi-icon bg-warning bg-opacity-10 text-warning mx-auto mb-2"
+        >
+          <i class="bi bi-file-earmark-arrow-up"></i>
+        </div>
+        <h3 class="fw-bold mb-0">{{ kpis.importaciones | default(0) }}</h3>
+        <small class="text-muted">Importaciones</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Últimos huéspedes -->
+  <div class="col-12 col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div
+        class="card-header bg-white border-0 d-flex align-items-center justify-content-between"
+      >
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-clock-history text-primary"></i> Últimos Huéspedes
+          Registrados
+        </h6>
+        <a
+          href="{{ url_for('guests.index') }}"
+          class="btn btn-sm btn-outline-primary"
+        >
+          Ver todos
+        </a>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Nombre</th>
+                <th class="d-none d-md-table-cell">DNI</th>
+                <th class="d-none d-md-table-cell">Hotel</th>
+                <th>Entrada</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for h in ultimos %}
+              <tr>
+                <td>
+                  <a
+                    href="{{ url_for('guests.detalle', huesped_id=h.id) }}"
+                    class="text-decoration-none"
+                  >
+                    {{ h.apellido_nombre | truncar(25) }}
+                  </a>
+                </td>
+                <td class="d-none d-md-table-cell text-muted">
+                  {{ h.dni_pasaporte }}
+                </td>
+                <td class="d-none d-md-table-cell text-muted">
+                  {{ h.hotel | truncar(20) }}
+                </td>
+                <td><small>{{ h.fecha_entrada }}</small></td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4" class="text-center text-muted py-4">
+                  No hay huéspedes registrados
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top ciudades -->
+  <div class="col-12 col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-geo-alt text-success"></i> Top Ciudades
+        </h6>
+      </div>
+      <div class="card-body">
+        {% for c in ciudades %}
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div>
+            <span class="fw-semibold">{{ c.ciudad }}</span>
+          </div>
+          <span class="badge bg-primary rounded-pill">{{ c.total }}</span>
+        </div>
+        {% if not loop.last %}
+        <hr class="my-0" />
+        {% endif %} {% else %}
+        <p class="text-muted text-center mb-0">Sin datos</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Accesos rápidos -->
+    <div class="card border-0 shadow-sm mt-3">
+      <div class="card-header bg-white border-0">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-lightning text-warning"></i> Acceso Rápido
+        </h6>
+      </div>
+      <div class="card-body d-grid gap-2">
+        <a
+          href="{{ url_for('guests.nuevo') }}"
+          class="btn btn-outline-primary btn-sm text-start"
+        >
+          <i class="bi bi-plus-circle"></i> Cargar Huésped
+        </a>
+        <a
+          href="{{ url_for('guests.index') }}"
+          class="btn btn-outline-primary btn-sm text-start"
+        >
+          <i class="bi bi-search"></i> Buscar Huésped
+        </a>
+        <a
+          href="{{ url_for('imports.index') }}"
+          class="btn btn-outline-primary btn-sm text-start"
+        >
+          <i class="bi bi-file-earmark-excel"></i> Importar Excel
+        </a>
+        <a
+          href="{{ url_for('reports.index') }}"
+          class="btn btn-outline-primary btn-sm text-start"
+        >
+          <i class="bi bi-file-bar-graph"></i> Generar Reporte
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

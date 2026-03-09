@@ -1,0 +1,66 @@
+{% extends "base.html" %} {% block title %}Vista Previa: {{ titulo }} -
+S.C.A.H.{% endblock %} {% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
+  <div class="d-flex align-items-center">
+    <a
+      href="{{ url_for('reports.index') }}"
+      class="btn btn-sm btn-outline-secondary me-2"
+    >
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <h5 class="fw-bold mb-0">{{ titulo }}</h5>
+  </div>
+  <small class="text-muted mt-2 mt-md-0">
+    Mostrando {{ datos | length }} de {{ total }} registros
+  </small>
+</div>
+
+{% if datos %}
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          {% if datos[0] is mapping %} {% for key in datos[0].keys() %}
+          <th
+            class="{% if loop.index > 4 %}d-none d-lg-table-cell{% elif loop.index > 2 %}d-none d-md-table-cell{% endif %}"
+          >
+            {{ key | replace('_', ' ') | title }}
+          </th>
+          {% endfor %} {% else %} {% for val in datos[0] %}
+          <th
+            class="{% if loop.index > 4 %}d-none d-lg-table-cell{% elif loop.index > 2 %}d-none d-md-table-cell{% endif %}"
+          >
+            Col {{ loop.index }}
+          </th>
+          {% endfor %} {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in datos %}
+        <tr>
+          {% if row is mapping %} {% for key, val in row.items() %}
+          <td
+            class="{% if loop.index > 4 %}d-none d-lg-table-cell{% elif loop.index > 2 %}d-none d-md-table-cell{% endif %}"
+          >
+            {{ val if val is not none else '-' }}
+          </td>
+          {% endfor %} {% else %} {% for val in row %}
+          <td
+            class="{% if loop.index > 4 %}d-none d-lg-table-cell{% elif loop.index > 2 %}d-none d-md-table-cell{% endif %}"
+          >
+            {{ val if val is not none else '-' }}
+          </td>
+          {% endfor %} {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+  No se encontraron datos para este reporte.
+</div>
+{% endif %} {% endblock %}

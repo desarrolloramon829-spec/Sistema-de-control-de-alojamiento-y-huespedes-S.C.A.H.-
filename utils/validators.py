@@ -137,3 +137,65 @@ def calcular_edad(fecha_nacimiento: date, fecha_referencia: date = None) -> int 
         edad -= 1
 
     return edad
+
+
+def validar_telefono(valor) -> tuple[bool, str, str]:
+    """
+    Valida un número de teléfono (flexible).
+    Acepta dígitos, espacios, guiones, paréntesis y '+'.
+    Retorna (es_valido, mensaje_error, valor_limpio).
+    """
+    if valor is None or str(valor).strip() == "":
+        return True, "", ""
+
+    valor_str = str(valor).strip()
+    # Limpiar caracteres comunes en teléfonos
+    limpio = re.sub(r'[^0-9+\-\s()]', '', valor_str)
+
+    if not limpio:
+        return False, "Formato de teléfono inválido", ""
+
+    # Verificar que tenga al menos algunos dígitos
+    solo_digitos = re.sub(r'[^0-9]', '', limpio)
+    if len(solo_digitos) < 6:
+        return False, "El teléfono debe tener al menos 6 dígitos", ""
+    if len(solo_digitos) > 15:
+        return False, "El teléfono no debe exceder 15 dígitos", ""
+
+    return True, "", valor_str
+
+
+def validar_habitacion(valor) -> tuple[bool, str, str]:
+    """
+    Valida un número/código de habitación.
+    Acepta alfanuméricos, guiones y puntos (ej: '205', 'PB-A', '1.02').
+    Retorna (es_valido, mensaje_error, valor_limpio).
+    """
+    if valor is None or str(valor).strip() == "":
+        return True, "", ""
+
+    valor_str = str(valor).strip()
+
+    # Limpiar .0 de valores numéricos leídos de Excel
+    if valor_str.endswith('.0'):
+        valor_str = valor_str[:-2]
+
+    if len(valor_str) > 20:
+        return False, "El código de habitación no debe exceder 20 caracteres", ""
+
+    if not re.match(r'^[A-Za-z0-9\s\-\.]+$', valor_str):
+        return False, "Habitación solo acepta letras, números, guiones y puntos", ""
+
+    return True, "", valor_str
+
+
+def validar_texto_opcional(valor, nombre_campo: str = "", max_len: int = 500) -> tuple[bool, str]:
+    """Valida un campo de texto opcional (puede estar vacío)."""
+    if not valor or not str(valor).strip():
+        return True, ""
+
+    valor_str = str(valor).strip()
+    if len(valor_str) > max_len:
+        return False, f"{nombre_campo} no debe exceder {max_len} caracteres"
+
+    return True, ""
