@@ -53,15 +53,16 @@ def _init_database():
     """Inicializa la conexión a la BD y ejecuta migraciones."""
     try:
         from database.connection import db
-        if db.test_conexion():
+        conexion_ok, _ = db.test_conexion()
+        if conexion_ok:
             from database.migrations import ejecutar_migraciones
             ejecutar_migraciones()
         else:
             # Intentar crear la BD
             from database.connection import DatabaseConnection
-            DatabaseConnection.crear_base_datos()
-            from database.migrations import ejecutar_migraciones
-            ejecutar_migraciones()
+            if DatabaseConnection.crear_base_datos():
+                from database.migrations import ejecutar_migraciones
+                ejecutar_migraciones()
     except Exception as e:
         print(f"[WARN] Error inicializando BD: {e}")
 
