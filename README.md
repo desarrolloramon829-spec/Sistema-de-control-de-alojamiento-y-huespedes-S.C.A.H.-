@@ -29,13 +29,13 @@ pip install -r requirements.txt
 
 Asegúrese de tener PostgreSQL en ejecución. La configuración por defecto está en `config.py`:
 
-| Parámetro | Valor por defecto |
-|-----------|-------------------|
-| Host      | localhost         |
-| Puerto    | 5432              |
-| Base de datos | scah_db       |
-| Usuario   | postgres          |
-| Contraseña | postgres         |
+| Parámetro     | Valor por defecto |
+| ------------- | ----------------- |
+| Host          | localhost         |
+| Puerto        | 5432              |
+| Base de datos | scah_db           |
+| Usuario       | postgres          |
+| Contraseña    | postgres          |
 
 Modifique `config.py` si sus credenciales son diferentes.
 
@@ -54,8 +54,8 @@ La aplicación creará automáticamente la base de datos y las tablas necesarias
 
 ## Credenciales por defecto
 
-| Usuario | Contraseña | Rol |
-|---------|------------|-----|
+| Usuario | Contraseña | Rol           |
+| ------- | ---------- | ------------- |
 | admin   | admin123   | Administrador |
 
 > **Importante:** Cambie la contraseña del administrador después del primer inicio de sesión.
@@ -98,24 +98,31 @@ HOTELES/
 ## Módulos Principales
 
 ### Importar Excel
+
 Importa archivos `.xlsx` con mapeo específico de columnas:
+
 - **Hotel:** A2=nombre, A4=nro_orden, A5=dirección, A6=ciudad
 - **Huéspedes (fila 2+):** C=nacionalidad, D=procedencia, E=nombre, F=DNI, G=nacimiento, H=edad, I=profesión, J=entrada, K=salida
 
 ### Registro Manual
+
 Formulario para registrar huéspedes uno a uno con validación en tiempo real, detección de duplicados y cálculo automático de edad.
 
 ### Búsqueda
+
 - Búsqueda rápida por texto libre (nombre, DNI, nacionalidad, etc.)
 - Filtros avanzados: hotel, ciudad, nacionalidad, profesión, procedencia, rango de fechas, rango de edades
 - Exportación de resultados a Excel
 
 ### Estadísticas
+
 - Dashboard con indicadores: total huéspedes, hoteles activos, alojados hoy
 - Gráficos: nacionalidades, profesiones, procedencias, edades, tendencia mensual
 
 ### Reportes
+
 Generación de reportes en Excel y PDF:
+
 - Listado general de huéspedes
 - Huéspedes por hotel
 - Huéspedes por rango de fechas
@@ -125,11 +132,11 @@ Generación de reportes en Excel y PDF:
 
 ## Roles de Usuario
 
-| Rol | Permisos |
-|-----|----------|
+| Rol               | Permisos                                                                                  |
+| ----------------- | ----------------------------------------------------------------------------------------- |
 | **Administrador** | Acceso total: gestión de usuarios, hoteles, importación, búsqueda, reportes, estadísticas |
-| **Operador** | Importación, registro manual, búsqueda, reportes |
-| **Consulta** | Solo búsqueda y visualización de estadísticas |
+| **Operador**      | Importación, registro manual, búsqueda, reportes                                          |
+| **Consulta**      | Solo búsqueda y visualización de estadísticas                                             |
 
 ## Tecnologías
 
