@@ -100,7 +100,6 @@ document.addEventListener('DOMContentLoaded', function () {
     e.preventDefault();
     deferredPrompt = e;
 
-    // Show install button if exists
     installButtons.forEach(function (button) {
       button.style.display = 'inline-block';
       button.onclick = function () {
@@ -131,9 +130,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const connectivityTargets = document.querySelectorAll('[data-online-status]');
   const offlineBanner = document.querySelector('[data-offline-banner]');
-  const onlineRequiredForms = document.querySelectorAll(
-    'form[data-requires-online]'
-  );
+  const onlineRequiredForms = document.querySelectorAll('form[data-requires-online]');
 
   function updateConnectivityState() {
     const online = navigator.onLine;

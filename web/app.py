@@ -33,7 +33,7 @@ def create_app(config_name: str = None) -> Flask:
     # Registrar blueprints
     _register_blueprints(app)
 
-    # Registrar rutas PWA
+    # Registrar assets PWA con scope raíz
     _register_pwa_routes(app)
 
     # Registrar filtros Jinja2
@@ -94,7 +94,7 @@ def _register_blueprints(app: Flask):
 
 
 def _register_pwa_routes(app: Flask):
-    """Expone assets PWA con el scope correcto para instalación."""
+    """Expone el service worker desde la raíz para permitir instalación."""
 
     @app.route('/sw.js')
     def service_worker():

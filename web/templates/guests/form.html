@@ -47,39 +47,39 @@
                         <div class="form-section-block__title">Asignación principal</div>
                         <div class="row g-3">
                             <div class="col-12 col-lg-6">
-                        <label class="form-label form-label-ops">Hotel <span class="text-danger">*</span></label>
-                        <select class="form-select" name="hotel_id" id="hotel_id" required>
-                            <option value="">Seleccione un hotel</option>
-                            {% for h in hoteles %}
-                            <option value="{{ h.id }}" {% if datos.get('hotel_id')|string == h.id|string %}selected{% endif %}>
-                                {{ h.nombre }}
-                            </option>
-                            {% endfor %}
-                        </select>
+                                <label class="form-label form-label-ops">Hotel <span class="text-danger">*</span></label>
+                                <select class="form-select" name="hotel_id" id="hotel_id" required>
+                                    <option value="">Seleccione un hotel</option>
+                                    {% for h in hoteles %}
+                                    <option value="{{ h.id }}" {% if datos.get('hotel_id')|string == h.id|string %}selected{% endif %}>
+                                        {{ h.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
                             </div>
                         </div>
                     </div>
 
                     <div class="form-section-block mb-4" id="seccion-identidad">
                         <div class="form-section-block__title">Identidad</div>
-                    <div class="row g-3">
-                        <div class="col-12 col-md-8">
-                            <label class="form-label form-label-ops">
-                                Apellido y Nombre <span class="text-danger">*</span>
-                            </label>
-                            <input type="text" class="form-control" name="apellido_nombre" id="apellido_nombre"
-                                   value="{{ datos.get('apellido_nombre', '') }}" required
-                                   placeholder="Ej: García, Juan Carlos">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-8">
+                                <label class="form-label form-label-ops">
+                                    Apellido y Nombre <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" name="apellido_nombre" id="apellido_nombre"
+                                       value="{{ datos.get('apellido_nombre', '') }}" required
+                                       placeholder="Ej: García, Juan Carlos">
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label form-label-ops">
+                                    DNI / Pasaporte <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" name="dni_pasaporte" id="dni_pasaporte"
+                                       value="{{ datos.get('dni_pasaporte', '') }}" required
+                                       placeholder="12345678">
+                            </div>
                         </div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label form-label-ops">
-                                DNI / Pasaporte <span class="text-danger">*</span>
-                            </label>
-                            <input type="text" class="form-control" name="dni_pasaporte" id="dni_pasaporte"
-                                   value="{{ datos.get('dni_pasaporte', '') }}" required
-                                   placeholder="12345678">
-                        </div>
-                    </div>
                     </div>
 
                     <div id="duplicateAlert" class="alert alert-warning app-alert {% if not duplicados %}d-none{% endif %} mb-4" role="alert">
@@ -106,85 +106,85 @@
 
                     <div class="form-section-block mb-4" id="seccion-perfil">
                         <div class="form-section-block__title">Perfil y origen</div>
-                    <div class="row g-3 mt-1">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label form-label-ops">Nacionalidad</label>
-                            <input type="text" class="form-control" name="nacionalidad"
-                                   value="{{ datos.get('nacionalidad', '') }}" placeholder="Argentina">
+                        <div class="row g-3 mt-1">
+                            <div class="col-12 col-md-4">
+                                <label class="form-label form-label-ops">Nacionalidad</label>
+                                <input type="text" class="form-control" name="nacionalidad"
+                                       value="{{ datos.get('nacionalidad', '') }}" placeholder="Argentina">
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label form-label-ops">Procedencia</label>
+                                <input type="text" class="form-control" name="procedencia"
+                                       value="{{ datos.get('procedencia', '') }}" placeholder="Buenos Aires">
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label form-label-ops">Profesión</label>
+                                <input type="text" class="form-control" name="profesion"
+                                       value="{{ datos.get('profesion', '') }}" placeholder="Comerciante">
+                            </div>
                         </div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label form-label-ops">Procedencia</label>
-                            <input type="text" class="form-control" name="procedencia"
-                                   value="{{ datos.get('procedencia', '') }}" placeholder="Buenos Aires">
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label form-label-ops">Profesión</label>
-                            <input type="text" class="form-control" name="profesion"
-                                   value="{{ datos.get('profesion', '') }}" placeholder="Comerciante">
-                        </div>
-                    </div>
                     </div>
 
                     <div class="form-section-block mb-4" id="seccion-fechas">
                         <div class="form-section-block__title">Fechas clave</div>
-                    <div class="row g-3 mt-1">
-                        <div class="col-6 col-md-3">
-                            <label class="form-label form-label-ops">Edad</label>
-                            <input type="number" class="form-control" name="edad" id="edad"
-                                   value="{{ datos.get('edad', '') }}" min="0" max="150"
-                                   placeholder="30">
+                        <div class="row g-3 mt-1">
+                            <div class="col-6 col-md-3">
+                                <label class="form-label form-label-ops">Edad</label>
+                                <input type="number" class="form-control" name="edad" id="edad"
+                                       value="{{ datos.get('edad', '') }}" min="0" max="150"
+                                       placeholder="30">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label form-label-ops">Fecha Nac.</label>
+                                <input type="date" class="form-control" name="fecha_nacimiento"
+                                       id="fecha_nacimiento"
+                                       value="{{ datos.get('fecha_nacimiento', '') }}"
+                                       onchange="calcularEdad()">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label form-label-ops">
+                                    Fecha Entrada <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control" name="fecha_entrada" id="fecha_entrada"
+                                       value="{{ datos.get('fecha_entrada', '') }}" required>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label form-label-ops">Fecha Salida</label>
+                                <input type="date" class="form-control" name="fecha_salida"
+                                       value="{{ datos.get('fecha_salida', '') }}">
+                            </div>
                         </div>
-                        <div class="col-6 col-md-3">
-                            <label class="form-label form-label-ops">Fecha Nac.</label>
-                            <input type="date" class="form-control" name="fecha_nacimiento"
-                                   id="fecha_nacimiento"
-                                   value="{{ datos.get('fecha_nacimiento', '') }}"
-                                   onchange="calcularEdad()">
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <label class="form-label form-label-ops">
-                                Fecha Entrada <span class="text-danger">*</span>
-                            </label>
-                            <input type="date" class="form-control" name="fecha_entrada" id="fecha_entrada"
-                                   value="{{ datos.get('fecha_entrada', '') }}" required>
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <label class="form-label form-label-ops">Fecha Salida</label>
-                            <input type="date" class="form-control" name="fecha_salida"
-                                   value="{{ datos.get('fecha_salida', '') }}">
-                        </div>
-                    </div>
                     </div>
 
                     <div class="form-section-block mb-4" id="seccion-estadia">
                         <div class="form-section-block__title">Estadía y contacto</div>
-                    <div class="row g-3 mt-1">
-                        <div class="col-4 col-md-2">
-                            <label class="form-label form-label-ops">Habitación</label>
-                            <input type="text" class="form-control" name="habitacion"
-                                   value="{{ datos.get('habitacion', '') }}" placeholder="101">
+                        <div class="row g-3 mt-1">
+                            <div class="col-4 col-md-2">
+                                <label class="form-label form-label-ops">Habitación</label>
+                                <input type="text" class="form-control" name="habitacion"
+                                       value="{{ datos.get('habitacion', '') }}" placeholder="101">
+                            </div>
+                            <div class="col-8 col-md-4">
+                                <label class="form-label form-label-ops">Domicilio</label>
+                                <input type="text" class="form-control" name="domicilio"
+                                       value="{{ datos.get('domicilio', '') }}">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label form-label-ops">Destino</label>
+                                <input type="text" class="form-control" name="destino"
+                                       value="{{ datos.get('destino', '') }}">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label form-label-ops">Movilidad</label>
+                                <input type="text" class="form-control" name="movilidad"
+                                       value="{{ datos.get('movilidad', '') }}">
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label form-label-ops">Teléfono</label>
+                                <input type="tel" class="form-control" name="telefono" id="telefono"
+                                       value="{{ datos.get('telefono', '') }}" placeholder="+54 11 1234-5678">
+                            </div>
                         </div>
-                        <div class="col-8 col-md-4">
-                            <label class="form-label form-label-ops">Domicilio</label>
-                            <input type="text" class="form-control" name="domicilio"
-                                   value="{{ datos.get('domicilio', '') }}">
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <label class="form-label form-label-ops">Destino</label>
-                            <input type="text" class="form-control" name="destino"
-                                   value="{{ datos.get('destino', '') }}">
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <label class="form-label form-label-ops">Movilidad</label>
-                            <input type="text" class="form-control" name="movilidad"
-                                   value="{{ datos.get('movilidad', '') }}">
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label form-label-ops">Teléfono</label>
-                            <input type="tel" class="form-control" name="telefono" id="telefono"
-                                   value="{{ datos.get('telefono', '') }}" placeholder="+54 11 1234-5678">
-                        </div>
-                    </div>
                     </div>
 
                     <div class="d-flex justify-content-between flex-wrap gap-2 mt-4 form-action-row mobile-hide-duplicate-action-row">
