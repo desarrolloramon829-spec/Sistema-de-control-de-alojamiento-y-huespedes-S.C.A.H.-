@@ -35,6 +35,16 @@ body {
   min-height: 100%;
 }
 
+img,
+svg,
+canvas {
+  max-width: 100%;
+}
+
+canvas {
+  display: block;
+}
+
 html {
   scroll-padding-top: 96px;
 }
@@ -149,14 +159,20 @@ textarea {
   backdrop-filter: blur(18px);
   border-bottom: 1px solid rgba(103, 183, 255, 0.12);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  z-index: 1045;
 }
 
 .app-brand {
   display: inline-flex;
   align-items: center;
   gap: 0.95rem;
+  min-width: 0;
   text-decoration: none;
   color: var(--text-primary);
+}
+
+.app-brand > span:last-child {
+  min-width: 0;
 }
 
 .app-brand strong {
@@ -164,6 +180,7 @@ textarea {
   font-family: 'Rajdhani', sans-serif;
   font-size: 1.55rem;
   letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
 }
 
 .app-brand small {
@@ -245,11 +262,15 @@ textarea {
 .topbar-user__meta {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   line-height: 1.05;
 }
 
 .topbar-user__meta strong {
   font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .topbar-user__meta span {
@@ -516,6 +537,7 @@ textarea {
   font-family: 'Rajdhani', sans-serif;
   font-size: clamp(2rem, 3vw, 2.6rem);
   line-height: 0.95;
+  overflow-wrap: anywhere;
 }
 
 .page-shell-subtitle {
@@ -550,6 +572,7 @@ textarea {
   margin-top: 0.25rem;
   color: var(--text-primary);
   font-size: 1rem;
+  overflow-wrap: anywhere;
 }
 
 .page-stage {
@@ -796,6 +819,7 @@ textarea {
   font-family: 'Rajdhani', sans-serif;
   font-size: clamp(2rem, 4vw, 2.7rem);
   line-height: 0.9;
+  overflow-wrap: anywhere;
 }
 
 .metric-card__meta {
@@ -1015,6 +1039,24 @@ textarea {
   gap: 0.8rem;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.app-topbar .container-fluid,
+.page-shell-header,
+.page-shell-header > div,
+.module-hero,
+.module-hero > div,
+.panel-card__header,
+.panel-card__header > div,
+.metric-card__top,
+.guest-mobile-card__header,
+.entity-mobile-card__header,
+.preview-mobile-card__header,
+.hotel-card__top,
+.mobile-user-bar,
+.topbar-user,
+.topbar-user > div {
+  min-width: 0;
 }
 
 .compact-chip {
@@ -1853,9 +1895,38 @@ textarea {
 }
 
 @media (max-width: 991.98px) {
+  .app-topbar {
+    min-height: 82px;
+  }
+
+  .app-topbar .container-fluid {
+    min-height: 82px;
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .app-topbar .container-fluid > .d-flex:first-child {
+    min-width: 0;
+    flex: 1 1 auto;
+    gap: 0.65rem !important;
+  }
+
+  .offcanvas-start.sidebar-offcanvas {
+    width: min(88vw, 340px) !important;
+  }
+
   .main-content {
     margin-left: 0;
+    margin-top: 88px;
     padding: 0.8rem;
+  }
+
+  .page-shell-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .module-hero {
@@ -1868,6 +1939,12 @@ textarea {
     width: 100%;
   }
 
+  .module-hero__actions,
+  .page-shell-side,
+  .mobile-user-bar {
+    align-items: stretch;
+  }
+
   .panel-card__header {
     flex-direction: column;
     align-items: flex-start;
@@ -1875,6 +1952,15 @@ textarea {
 
   .module-hero__actions {
     justify-content: flex-start;
+    flex-direction: column;
+  }
+
+  .module-hero__actions > *,
+  .page-shell-side > *,
+  .hotel-card__actions > *,
+  .guest-mobile-card__actions > *,
+  .entity-mobile-card__actions > * {
+    width: 100%;
   }
 
   .shell-stat-chip.compact-chip {
@@ -1902,6 +1988,56 @@ textarea {
 }
 
 @media (max-width: 767.98px) {
+  .app-topbar {
+    min-height: 74px;
+  }
+
+  .app-topbar .container-fluid {
+    min-height: 74px;
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
+    gap: 0.5rem;
+  }
+
+  .app-brand {
+    gap: 0.65rem;
+    max-width: calc(100% - 58px);
+    margin-right: 0;
+  }
+
+  .app-brand > span:last-child {
+    overflow: hidden;
+  }
+
+  .brand-mark {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    font-size: 1.05rem;
+  }
+
+  .app-brand strong {
+    font-size: 1.22rem;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .app-brand small {
+    display: none;
+  }
+
+  .app-nav-toggle {
+    flex: 0 0 auto;
+    padding: 0.35rem 0.45rem;
+    margin-left: 0;
+  }
+
+  .main-content {
+    margin-top: 84px;
+  }
+
   .module-hero {
     padding-top: 1rem;
     padding-bottom: 1rem;
@@ -1949,7 +2085,7 @@ textarea {
   }
 
   .page-shell-title {
-    font-size: 2rem;
+    font-size: 1.72rem;
   }
 
   .page-shell-header,
@@ -1965,6 +2101,32 @@ textarea {
   .search-toolbar,
   .form-action-row {
     width: 100%;
+  }
+
+  .mobile-user-bar {
+    flex-direction: column;
+    justify-content: flex-start !important;
+    gap: 0.8rem;
+  }
+
+  .mobile-user-bar .btn,
+  .hotel-card__actions .btn,
+  .guest-mobile-card__actions .btn,
+  .entity-mobile-card__actions .btn,
+  .form-mobile-submitbar .btn,
+  .form-mobile-submitbar form,
+  .form-mobile-submitbar form .btn {
+    width: 100%;
+  }
+
+  .panel-card .btn-group,
+  .stats-chart-switcher {
+    width: 100%;
+  }
+
+  .panel-card .btn-group > .btn,
+  .stats-chart-switcher .btn {
+    flex: 1 1 0;
   }
 
   .search-toolbar > .col,
@@ -2052,6 +2214,7 @@ textarea {
   .form-mobile-submitbar {
     left: 0;
     right: 0;
+    flex-direction: column;
     gap: 0.6rem;
     padding: 0.7rem 0.65rem calc(0.7rem + env(safe-area-inset-bottom));
   }
@@ -2059,16 +2222,17 @@ textarea {
 
 @media (max-width: 575.98px) {
   .main-content {
+    margin-top: 80px;
     padding: 0.55rem;
   }
 
   .module-hero__title,
   .ops-hero-copy h2 {
-    font-size: 1.95rem;
+    font-size: 1.72rem;
   }
 
   .metric-card__value {
-    font-size: 1.9rem;
+    font-size: 1.62rem;
   }
 
   .page-shell-header,
@@ -2140,10 +2304,6 @@ textarea {
   .panel-card,
   .card {
     border-radius: 18px;
-  }
-
-  .ops-hero-copy h2 {
-    font-size: 2.25rem;
   }
 
   .app-brand small,
