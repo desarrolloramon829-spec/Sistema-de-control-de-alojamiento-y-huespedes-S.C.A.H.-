@@ -1,17 +1,17 @@
 /* S.C.A.H. Web - Command Center Theme */
 
 :root {
-  --text-secondary: #bdd1e4;
-  --text-muted: #8fa7bc;
+  --sidebar-width: 290px;
+  --topbar-height: 76px;
   --bg-absolute: #0a1220;
   --bg-main: #0f1b2d;
   --surface-1: #14243a;
-  line-height: 1.5;
+  --surface-2: #1a2e47;
   --surface-3: #203956;
   --border-subtle: #294766;
   --text-primary: #eaf4ff;
-  --text-secondary: #a8bed3;
-  --text-muted: #6f879d;
+  --text-secondary: #bdd1e4;
+  --text-muted: #8fa7bc;
   --primary: #23c0ff;
   --primary-hover: #11a8e6;
   --success: #2bd67b;
@@ -19,8 +19,7 @@
   --danger: #e25555;
   --info: #67b7ff;
   --overlay: rgba(6, 14, 24, 0.72);
-  outline-offset: 3px;
-  box-shadow: 0 0 0 4px rgba(35, 192, 255, 0.18);
+  --glow: rgba(35, 192, 255, 0.18);
   --shadow-soft: 0 18px 45px rgba(2, 10, 22, 0.32);
   --shadow-panel: 0 24px 60px rgba(1, 7, 18, 0.42);
   --transition-fast: 0.18s ease;
@@ -28,16 +27,19 @@
   --radius-xl: 24px;
   --radius-lg: 18px;
   --radius-md: 14px;
-  font-size: 0.82rem;
-  font-weight: 650;
+  --radius-sm: 10px;
+}
 
 html,
 body {
   min-height: 100%;
 }
 
+html {
+  scroll-padding-top: 96px;
+}
+
 body {
-  min-height: 42px;
   font-family:
     'Inter Tight',
     'Segoe UI',
@@ -47,40 +49,33 @@ body {
   background:
     radial-gradient(
       circle at top right,
-  color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
+      rgba(35, 192, 255, 0.12),
+      transparent 26%
+    ),
     radial-gradient(
       circle at bottom left,
       rgba(103, 183, 255, 0.08),
       transparent 22%
-  background: rgba(255, 255, 255, 0.12);
+    ),
     linear-gradient(180deg, #0a1220 0%, #0d1727 48%, #0f1b2d 100%);
   color: var(--text-primary);
-  line-height: 1.45;
+  line-height: 1.5;
 }
-  min-width: 44px;
-  min-height: 44px;
 
 a {
   color: inherit;
-  min-width: 44px;
-  min-height: 44px;
   transition:
     color var(--transition-fast),
     opacity var(--transition-fast);
-  color: var(--text-secondary);
+}
 
 button,
 input,
-  color: #6fd7ff;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.18em;
+select,
 textarea {
   transition:
     transform var(--transition-fast),
-  color: #eaf9ff;
+    border-color var(--transition-fast),
     background-color var(--transition-fast),
     box-shadow var(--transition-fast),
     color var(--transition-fast);
@@ -89,55 +84,51 @@ textarea {
 :where(
   a,
   button,
-  min-height: 64px;
   input,
   select,
   textarea,
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
   .nav-link,
   .quick-action-tile
 ):focus-visible {
   outline: 2px solid rgba(35, 192, 255, 0.9);
-  outline-offset: 2px;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(35, 192, 255, 0.18);
 }
 
 .app-body {
   overflow-x: hidden;
 }
-  color: var(--text-primary);
 
 .fade-up {
   opacity: 0;
   transform: translateY(14px);
   transition:
-  min-height: 44px;
-  padding-top: 0.55rem;
-  padding-bottom: 0.55rem;
     opacity 0.32s ease,
     transform 0.32s ease;
 }
 
 .is-loaded .fade-up,
 .login-body .fade-up {
-  .form-control,
-  .form-select,
-  .status-pill,
-  .btn-close,
-  .app-nav-toggle,
-  .chart-type-btn,
-  .stats-selector-grid .stat-btn,
-  .form-mobile-nav a,
-  .report-format-check {
+  opacity: 1;
+  transform: none;
+}
+
+.form-control,
+.form-select,
+.status-pill,
+.btn-close,
+.app-nav-toggle,
+.chart-type-btn,
+.stats-selector-grid .stat-btn,
+.form-mobile-nav a,
+.report-format-check,
+.ops-link,
+.sidebar-nav .nav-link,
+.quick-action-tile {
+  min-height: 44px;
 }
 
 .section-kicker {
-  .ops-link,
-  .sidebar-nav .nav-link,
-  .quick-action-tile {
-    min-height: 44px;
-  }
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
