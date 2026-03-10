@@ -1,7 +1,153 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Editar' if es_edicion else 'Nuevo' }} Huésped - S.C.A.H.{% endblock %}
 
+{% block extra_css %}
+<style>
+    .guest-form-screen {
+        color: var(--text-primary, #eaf4ff);
+    }
+
+    .guest-form-screen .module-hero,
+    .guest-form-screen .panel-card {
+        border-radius: 22px;
+        border: 1px solid rgba(103, 183, 255, 0.1);
+        background: linear-gradient(180deg, rgba(20, 36, 58, 0.96), rgba(14, 27, 44, 0.96));
+        box-shadow: 0 18px 45px rgba(2, 10, 22, 0.32);
+    }
+
+    .guest-form-screen .module-hero {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.35rem 1.45rem;
+    }
+
+    .guest-form-screen .module-hero__title {
+        margin: 0.35rem 0 0.55rem;
+        font-family: 'Rajdhani', sans-serif;
+        font-size: clamp(1.9rem, 3vw, 2.8rem);
+        line-height: 0.94;
+    }
+
+    .guest-form-screen .module-hero__subtitle,
+    .guest-form-screen .offline-module-note,
+    .guest-form-screen .duplicate-alert-item span {
+        color: var(--text-secondary, #a8bed3);
+    }
+
+    .guest-form-screen .panel-card__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.05rem 1.15rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .guest-form-screen .panel-card__body {
+        padding: 0 1rem 1rem;
+    }
+
+    .guest-form-screen .form-section-block {
+        padding: 1rem 0.95rem;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .guest-form-screen .form-section-block__title {
+        margin-bottom: 0.9rem;
+        font-size: 0.8rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-muted, #6f879d);
+        font-weight: 700;
+    }
+
+    .guest-form-screen .duplicate-alert-list {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .guest-form-screen .duplicate-alert-item {
+        display: grid;
+        gap: 0.2rem;
+        padding: 0.95rem 1rem;
+        border-radius: 14px;
+        background: rgba(243, 182, 63, 0.08);
+        border: 1px solid rgba(243, 182, 63, 0.18);
+    }
+
+    .guest-form-screen .form-mobile-nav {
+        display: flex;
+        gap: 0.55rem;
+        overflow-x: auto;
+        padding-bottom: 0.2rem;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .guest-form-screen .form-mobile-nav a {
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .guest-form-screen .form-mobile-submitbar {
+        position: sticky;
+        bottom: 0;
+        z-index: 40;
+        display: flex;
+        gap: 0.75rem;
+        padding: 0.85rem 0.75rem calc(0.85rem + env(safe-area-inset-bottom));
+        background: linear-gradient(180deg, rgba(8, 17, 29, 0), rgba(8, 17, 29, 0.96) 36%);
+        backdrop-filter: blur(12px);
+    }
+
+    @media (max-width: 991.98px) {
+        .guest-form-screen .module-hero {
+            flex-direction: column;
+        }
+
+        .guest-form-screen .module-hero__actions,
+        .guest-form-screen .panel-card__header {
+            width: 100%;
+        }
+
+        .guest-form-screen .panel-card__header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .guest-form-screen .module-hero,
+        .guest-form-screen .panel-card__header,
+        .guest-form-screen .panel-card__body {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        .guest-form-screen .mobile-hide-duplicate-action,
+        .guest-form-screen .mobile-hide-duplicate-action-row {
+            display: none !important;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .guest-form-screen .form-section-block {
+            padding: 0.85rem 0.8rem;
+        }
+
+        .guest-form-screen .form-mobile-submitbar {
+            gap: 0.6rem;
+            padding: 0.7rem 0.65rem calc(0.7rem + env(safe-area-inset-bottom));
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="guest-form-screen">
 <section class="module-hero mb-4">
     <div>
         <span class="section-kicker">Formulario operativo</span>
@@ -292,4 +438,5 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+</div>
 {% endblock %}

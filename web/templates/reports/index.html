@@ -1,169 +1,226 @@
 {% extends "base.html" %} {% block title %}Reportes - S.C.A.H.{% endblock %} {%
-block content %}
-<section class="module-hero mb-4">
-  <div>
-    <span class="section-kicker">Sala de análisis</span>
-    <h2 class="module-hero__title">
-      Generación y previsualización de reportes.
-    </h2>
-    <p class="module-hero__subtitle mb-0">
-      Configura salidas documentales, acota por fechas y exporta información
-      operacional en Excel o PDF.
-    </p>
-  </div>
-  <div class="module-hero__actions">
-    <div class="shell-stat-chip compact-chip">
-      <span>Formatos</span>
-      <strong>Excel / PDF</strong>
+block extra_css %}
+<style>
+  .reports-screen {
+    color: var(--text-primary, #eaf4ff);
+  }
+
+  .reports-screen .module-hero,
+  .reports-screen .panel-card,
+  .reports-screen .form-section-block,
+  .reports-screen .report-format-check {
+    border-radius: 22px;
+    border: 1px solid rgba(103, 183, 255, 0.1);
+    background: linear-gradient(180deg, rgba(20, 36, 58, 0.96), rgba(14, 27, 44, 0.96));
+    box-shadow: 0 18px 45px rgba(2, 10, 22, 0.32);
+  }
+
+  .reports-screen .module-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.35rem 1.45rem;
+  }
+
+  .reports-screen .panel-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.05rem 1.15rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .reports-screen .form-mobile-submitbar {
+    position: sticky;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.85rem 0.75rem calc(0.85rem + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(8, 17, 29, 0), rgba(8, 17, 29, 0.96) 36%);
+    backdrop-filter: blur(12px);
+  }
+
+  @media (max-width: 991.98px) {
+    .reports-screen .module-hero,
+    .reports-screen .panel-card__header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="reports-screen">
+  <section class="module-hero mb-4">
+    <div>
+      <span class="section-kicker">Sala de análisis</span>
+      <h2 class="module-hero__title">
+        Generación y previsualización de reportes.
+      </h2>
+      <p class="module-hero__subtitle mb-0">
+        Configura salidas documentales, acota por fechas y exporta información
+        operacional en Excel o PDF.
+      </p>
+    </div>
+    <div class="module-hero__actions">
+      <div class="shell-stat-chip compact-chip">
+        <span>Formatos</span>
+        <strong>Excel / PDF</strong>
+      </div>
+    </div>
+  </section>
+
+  <div class="row g-3 justify-content-center">
+    <div class="col-12 col-xl-8">
+      <section class="panel-card">
+        <header class="panel-card__header">
+          <div>
+            <span class="section-kicker">Configuración documental</span>
+            <h3>Parámetros del reporte</h3>
+          </div>
+        </header>
+        <div class="panel-card__body px-3 pb-3">
+          <nav
+            class="form-mobile-nav d-md-none mb-4"
+            aria-label="Secciones del reporte"
+          >
+            <a href="#seccion-tipo-reporte" class="status-pill muted small-pill"
+              >Tipo</a
+            >
+            <a
+              href="#seccion-fechas-reporte"
+              class="status-pill muted small-pill"
+              >Fechas</a
+            >
+            <a
+              href="#seccion-formato-reporte"
+              class="status-pill muted small-pill"
+              >Formato</a
+            >
+          </nav>
+          <form
+            method="POST"
+            action="{{ url_for('reports.generar') }}"
+            id="reportForm"
+            data-requires-online="true"
+          >
+            <div class="offline-module-note d-none mb-4" data-offline-note>
+              La generación y exportación de reportes requiere conexión activa.
+            </div>
+
+            <div class="form-section-block mb-4" id="seccion-tipo-reporte">
+              <div class="form-section-block__title">Tipo de reporte</div>
+              <select name="tipo" class="form-select" id="tipoReporte">
+                <option value="general">General - Todos los huéspedes</option>
+                <option value="por_hotel">Por Hotel</option>
+                <option value="por_fechas">Por Rango de Fechas</option>
+                <option value="estadistico">Estadístico</option>
+                <option value="importaciones">Log de Importaciones</option>
+                <option value="auditoria">Auditoría del Sistema</option>
+              </select>
+            </div>
+
+            <div
+              id="fechasContainer"
+              class="form-section-block mb-4"
+              style="display:none"
+              data-report-date-section
+            >
+              <div class="form-section-block__title">Ventana temporal</div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label form-label-ops">Desde</label>
+                  <input type="date" name="desde" class="form-control" />
+                </div>
+                <div class="col-6">
+                  <label class="form-label form-label-ops">Hasta</label>
+                  <input type="date" name="hasta" class="form-control" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-section-block mb-4" id="seccion-formato-reporte">
+              <div class="form-section-block__title">Formato de salida</div>
+              <div class="d-flex gap-3 flex-wrap">
+                <div class="form-check report-format-check">
+                  <input
+                    type="radio"
+                    name="formato"
+                    value="excel"
+                    class="form-check-input"
+                    id="fmtExcel"
+                    checked
+                  />
+                  <label class="form-check-label" for="fmtExcel">
+                    <i class="bi bi-file-earmark-excel text-success"></i> Excel
+                  </label>
+                </div>
+                <div class="form-check report-format-check">
+                  <input
+                    type="radio"
+                    name="formato"
+                    value="pdf"
+                    class="form-check-input"
+                    id="fmtPdf"
+                  />
+                  <label class="form-check-label" for="fmtPdf">
+                    <i class="bi bi-file-earmark-pdf text-danger"></i> PDF
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="d-flex gap-2 flex-wrap form-action-row mobile-hide-duplicate-action-row"
+            >
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-download"></i> Generar y Descargar
+              </button>
+              <a href="#" class="btn btn-ghost-secondary" id="btnPreview">
+                <i class="bi bi-eye"></i> Vista Previa
+              </a>
+            </div>
+          </form>
+        </div>
+      </section>
     </div>
   </div>
-</section>
 
-<div class="row g-3 justify-content-center">
-  <div class="col-12 col-xl-8">
-    <section class="panel-card">
-      <header class="panel-card__header">
-        <div>
-          <span class="section-kicker">Configuración documental</span>
-          <h3>Parámetros del reporte</h3>
-        </div>
-      </header>
-      <div class="panel-card__body px-3 pb-3">
-        <nav
-          class="form-mobile-nav d-md-none mb-4"
-          aria-label="Secciones del reporte"
-        >
-          <a href="#seccion-tipo-reporte" class="status-pill muted small-pill"
-            >Tipo</a
-          >
-          <a href="#seccion-fechas-reporte" class="status-pill muted small-pill"
-            >Fechas</a
-          >
-          <a
-            href="#seccion-formato-reporte"
-            class="status-pill muted small-pill"
-            >Formato</a
-          >
-        </nav>
-        <form
-          method="POST"
-          action="{{ url_for('reports.generar') }}"
-          id="reportForm"
-          data-requires-online="true"
-        >
-          <div class="offline-module-note d-none mb-4" data-offline-note>
-            La generación y exportación de reportes requiere conexión activa.
-          </div>
-
-          <div class="form-section-block mb-4" id="seccion-tipo-reporte">
-            <div class="form-section-block__title">Tipo de reporte</div>
-            <select name="tipo" class="form-select" id="tipoReporte">
-              <option value="general">General - Todos los huéspedes</option>
-              <option value="por_hotel">Por Hotel</option>
-              <option value="por_fechas">Por Rango de Fechas</option>
-              <option value="estadistico">Estadístico</option>
-              <option value="importaciones">Log de Importaciones</option>
-              <option value="auditoria">Auditoría del Sistema</option>
-            </select>
-          </div>
-
-          <div
-            id="fechasContainer"
-            class="form-section-block mb-4"
-            style="display:none"
-            data-report-date-section
-          >
-            <div class="form-section-block__title">Ventana temporal</div>
-            <div class="row g-2">
-              <div class="col-6">
-                <label class="form-label form-label-ops">Desde</label>
-                <input type="date" name="desde" class="form-control" />
-              </div>
-              <div class="col-6">
-                <label class="form-label form-label-ops">Hasta</label>
-                <input type="date" name="hasta" class="form-control" />
-              </div>
-            </div>
-          </div>
-
-          <div class="form-section-block mb-4" id="seccion-formato-reporte">
-            <div class="form-section-block__title">Formato de salida</div>
-            <div class="d-flex gap-3 flex-wrap">
-              <div class="form-check report-format-check">
-                <input
-                  type="radio"
-                  name="formato"
-                  value="excel"
-                  class="form-check-input"
-                  id="fmtExcel"
-                  checked
-                />
-                <label class="form-check-label" for="fmtExcel">
-                  <i class="bi bi-file-earmark-excel text-success"></i> Excel
-                </label>
-              </div>
-              <div class="form-check report-format-check">
-                <input
-                  type="radio"
-                  name="formato"
-                  value="pdf"
-                  class="form-check-input"
-                  id="fmtPdf"
-                />
-                <label class="form-check-label" for="fmtPdf">
-                  <i class="bi bi-file-earmark-pdf text-danger"></i> PDF
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div
-            class="d-flex gap-2 flex-wrap form-action-row mobile-hide-duplicate-action-row"
-          >
-            <button type="submit" class="btn btn-primary">
-              <i class="bi bi-download"></i> Generar y Descargar
-            </button>
-            <a href="#" class="btn btn-ghost-secondary" id="btnPreview">
-              <i class="bi bi-eye"></i> Vista Previa
-            </a>
-          </div>
-        </form>
-      </div>
-    </section>
+  <div class="form-mobile-submitbar d-md-none">
+    <a href="#" class="btn btn-ghost-secondary flex-fill" id="btnPreviewMobile">
+      <i class="bi bi-eye"></i> Vista previa
+    </a>
+    <button type="submit" form="reportForm" class="btn btn-primary flex-fill">
+      <i class="bi bi-download"></i> Generar
+    </button>
   </div>
+
+  {% block extra_js %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tipo = document.getElementById('tipoReporte');
+        const fechas = document.getElementById('fechasContainer');
+        const btnPreview = document.getElementById('btnPreview');
+        const btnPreviewMobile = document.getElementById('btnPreviewMobile');
+
+        tipo.addEventListener('change', function() {
+            fechas.style.display = (this.value === 'por_fechas') ? 'block' : 'none';
+        });
+
+        function goPreview(e) {
+            e.preventDefault();
+            const t = tipo.value;
+            const desde = document.querySelector('[name="desde"]').value || '';
+            const hasta = document.querySelector('[name="hasta"]').value || '';
+            window.location.href = `{{ url_for('reports.preview') }}?tipo=${t}&desde=${desde}&hasta=${hasta}`;
+        }
+
+        btnPreview.addEventListener('click', goPreview);
+        if (btnPreviewMobile) btnPreviewMobile.addEventListener('click', goPreview);
+    });
+  </script>
+  {% endblock %}
 </div>
-
-<div class="form-mobile-submitbar d-md-none">
-  <a href="#" class="btn btn-ghost-secondary flex-fill" id="btnPreviewMobile">
-    <i class="bi bi-eye"></i> Vista previa
-  </a>
-  <button type="submit" form="reportForm" class="btn btn-primary flex-fill">
-    <i class="bi bi-download"></i> Generar
-  </button>
-</div>
-
-{% block extra_js %}
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-      const tipo = document.getElementById('tipoReporte');
-      const fechas = document.getElementById('fechasContainer');
-      const btnPreview = document.getElementById('btnPreview');
-      const btnPreviewMobile = document.getElementById('btnPreviewMobile');
-
-      tipo.addEventListener('change', function() {
-          fechas.style.display = (this.value === 'por_fechas') ? 'block' : 'none';
-      });
-
-      function goPreview(e) {
-          e.preventDefault();
-          const t = tipo.value;
-          const desde = document.querySelector('[name="desde"]').value || '';
-          const hasta = document.querySelector('[name="hasta"]').value || '';
-          window.location.href = `{{ url_for('reports.preview') }}?tipo=${t}&desde=${desde}&hasta=${hasta}`;
-      }
-
-      btnPreview.addEventListener('click', goPreview);
-      if (btnPreviewMobile) btnPreviewMobile.addEventListener('click', goPreview);
-  });
-</script>
-{% endblock %} {% endblock %}
+{% endblock %}

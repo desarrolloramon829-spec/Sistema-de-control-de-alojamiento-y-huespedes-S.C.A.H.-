@@ -1,378 +1,429 @@
 {% extends "base.html" %} {% block title %}Estadísticas - S.C.A.H.{% endblock %}
-{% block content %}
-<section class="module-hero mb-4">
-  <div>
-    <span class="section-kicker">Inteligencia operativa</span>
-    <h2 class="module-hero__title">
-      Panel de estadísticas y patrones de ocupación.
-    </h2>
-    <p class="module-hero__subtitle mb-0">
-      Analiza distribución de huéspedes, comportamiento por hotel y tendencias
-      de registro con lectura gráfica inmediata.
-    </p>
-  </div>
-  <div class="module-hero__actions">
-    <div class="shell-stat-chip compact-chip">
-      <span>Fuentes</span>
-      <strong>API interna</strong>
-    </div>
-    <div class="shell-stat-chip compact-chip">
-      <span>Visualización</span>
-      <strong>Barras / Pie / Línea</strong>
-    </div>
-  </div>
-</section>
+{% block extra_css %}
+<style>
+  .stats-screen {
+    color: var(--text-primary, #eaf4ff);
+  }
 
-<section class="panel-card mb-3">
-  <header class="panel-card__header compact">
+  .stats-screen .module-hero,
+  .stats-screen .panel-card,
+  .stats-screen .metric-card,
+  .stats-screen .preview-mobile-card {
+    border-radius: 22px;
+    border: 1px solid rgba(103, 183, 255, 0.1);
+    background: linear-gradient(180deg, rgba(20, 36, 58, 0.96), rgba(14, 27, 44, 0.96));
+    box-shadow: 0 18px 45px rgba(2, 10, 22, 0.32);
+  }
+
+  .stats-screen .module-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.35rem 1.45rem;
+  }
+
+  .stats-screen .panel-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.05rem 1.15rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .stats-screen .stats-chart-shell {
+    min-height: 320px;
+  }
+
+  @media (max-width: 991.98px) {
+    .stats-screen .module-hero,
+    .stats-screen .panel-card__header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="stats-screen">
+  <section class="module-hero mb-4">
     <div>
-      <span class="section-kicker">Serie analítica</span>
-      <h3>Seleccionar dimensión</h3>
+      <span class="section-kicker">Inteligencia operativa</span>
+      <h2 class="module-hero__title">
+        Panel de estadísticas y patrones de ocupación.
+      </h2>
+      <p class="module-hero__subtitle mb-0">
+        Analiza distribución de huéspedes, comportamiento por hotel y tendencias
+        de registro con lectura gráfica inmediata.
+      </p>
     </div>
-  </header>
-  <div class="panel-card__body px-3 pb-3">
-    <div class="stats-selector-grid stats-selector-grid-mobile-scroll">
-      <button
-        class="btn btn-sm btn-primary stat-btn active"
-        data-tipo="nacionalidades"
-      >
-        <i class="bi bi-globe"></i>
-        <span class="d-none d-sm-inline">Nacionalidades</span>
-      </button>
-      <button
-        class="btn btn-sm btn-ghost-primary stat-btn"
-        data-tipo="profesiones"
-      >
-        <i class="bi bi-briefcase"></i>
-        <span class="d-none d-sm-inline">Profesiones</span>
-      </button>
-      <button
-        class="btn btn-sm btn-ghost-primary stat-btn"
-        data-tipo="procedencia"
-      >
-        <i class="bi bi-geo-alt"></i>
-        <span class="d-none d-sm-inline">Procedencia</span>
-      </button>
-      <button
-        class="btn btn-sm btn-ghost-primary stat-btn"
-        data-tipo="destinos"
-      >
-        <i class="bi bi-signpost-2"></i>
-        <span class="d-none d-sm-inline">Destinos</span>
-      </button>
-      <button
-        class="btn btn-sm btn-ghost-primary stat-btn"
-        data-tipo="por_hotel"
-      >
-        <i class="bi bi-building"></i>
-        <span class="d-none d-sm-inline">Por Hotel</span>
-      </button>
-      <button class="btn btn-sm btn-ghost-primary stat-btn" data-tipo="edades">
-        <i class="bi bi-people"></i>
-        <span class="d-none d-sm-inline">Edades</span>
-      </button>
-      <button
-        class="btn btn-sm btn-ghost-primary stat-btn"
-        data-tipo="tendencia"
-      >
-        <i class="bi bi-graph-up"></i>
-        <span class="d-none d-sm-inline">Tendencia</span>
-      </button>
+    <div class="module-hero__actions">
+      <div class="shell-stat-chip compact-chip">
+        <span>Fuentes</span>
+        <strong>API interna</strong>
+      </div>
+      <div class="shell-stat-chip compact-chip">
+        <span>Visualización</span>
+        <strong>Barras / Pie / Línea</strong>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<section class="row g-3 mb-3">
-  <div class="col-12 col-md-6 col-xl-3">
-    <article class="metric-card metric-card-primary h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Dimensión activa</span>
-        <span class="metric-card__icon"><i class="bi bi-radar"></i></span>
+  <section class="panel-card mb-3">
+    <header class="panel-card__header compact">
+      <div>
+        <span class="section-kicker">Serie analítica</span>
+        <h3>Seleccionar dimensión</h3>
       </div>
-      <strong class="metric-card__value" id="activeStatLabel"
-        >Nacionalidades</strong
-      >
-      <small class="metric-card__meta">Serie actualmente consultada.</small>
-    </article>
-  </div>
-  <div class="col-12 col-md-6 col-xl-3">
-    <article class="metric-card metric-card-info h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Categorías</span>
-        <span class="metric-card__icon"><i class="bi bi-diagram-3"></i></span>
+    </header>
+    <div class="panel-card__body px-3 pb-3">
+      <div class="stats-selector-grid stats-selector-grid-mobile-scroll">
+        <button
+          class="btn btn-sm btn-primary stat-btn active"
+          data-tipo="nacionalidades"
+        >
+          <i class="bi bi-globe"></i>
+          <span class="d-none d-sm-inline">Nacionalidades</span>
+        </button>
+        <button
+          class="btn btn-sm btn-ghost-primary stat-btn"
+          data-tipo="profesiones"
+        >
+          <i class="bi bi-briefcase"></i>
+          <span class="d-none d-sm-inline">Profesiones</span>
+        </button>
+        <button
+          class="btn btn-sm btn-ghost-primary stat-btn"
+          data-tipo="procedencia"
+        >
+          <i class="bi bi-geo-alt"></i>
+          <span class="d-none d-sm-inline">Procedencia</span>
+        </button>
+        <button
+          class="btn btn-sm btn-ghost-primary stat-btn"
+          data-tipo="destinos"
+        >
+          <i class="bi bi-signpost-2"></i>
+          <span class="d-none d-sm-inline">Destinos</span>
+        </button>
+        <button
+          class="btn btn-sm btn-ghost-primary stat-btn"
+          data-tipo="por_hotel"
+        >
+          <i class="bi bi-building"></i>
+          <span class="d-none d-sm-inline">Por Hotel</span>
+        </button>
+        <button
+          class="btn btn-sm btn-ghost-primary stat-btn"
+          data-tipo="edades"
+        >
+          <i class="bi bi-people"></i>
+          <span class="d-none d-sm-inline">Edades</span>
+        </button>
+        <button
+          class="btn btn-sm btn-ghost-primary stat-btn"
+          data-tipo="tendencia"
+        >
+          <i class="bi bi-graph-up"></i>
+          <span class="d-none d-sm-inline">Tendencia</span>
+        </button>
       </div>
-      <strong class="metric-card__value" id="statsCategoryCount">0</strong>
-      <small class="metric-card__meta"
-        >Etiquetas disponibles en la serie.</small
-      >
-    </article>
-  </div>
-  <div class="col-12 col-md-6 col-xl-3">
-    <article class="metric-card metric-card-success h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Registros</span>
-        <span class="metric-card__icon"><i class="bi bi-123"></i></span>
-      </div>
-      <strong class="metric-card__value" id="statsTotalCount">0</strong>
-      <small class="metric-card__meta">Total agregado del conjunto.</small>
-    </article>
-  </div>
-  <div class="col-12 col-md-6 col-xl-3">
-    <article class="metric-card metric-card-warning h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Mayor incidencia</span>
-        <span class="metric-card__icon"><i class="bi bi-trophy"></i></span>
-      </div>
-      <strong class="metric-card__value" id="statsTopLabel">-</strong>
-      <small class="metric-card__meta" id="statsTopMeta"
-        >Esperando datos.</small
-      >
-    </article>
-  </div>
-</section>
+    </div>
+  </section>
 
-<section class="panel-card">
-  <header
-    class="panel-card__header compact d-flex justify-content-between align-items-center flex-wrap gap-2"
-  >
-    <div>
-      <span class="section-kicker">Visualización</span>
-      <h3 id="chartTitle">Nacionalidades</h3>
+  <section class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <article class="metric-card metric-card-primary h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Dimensión activa</span>
+          <span class="metric-card__icon"><i class="bi bi-radar"></i></span>
+        </div>
+        <strong class="metric-card__value" id="activeStatLabel"
+          >Nacionalidades</strong
+        >
+        <small class="metric-card__meta">Serie actualmente consultada.</small>
+      </article>
     </div>
-    <div class="btn-group btn-group-sm stats-chart-switcher">
-      <button
-        class="btn btn-ghost-secondary chart-type-btn active"
-        data-chart="bar"
-        title="Barras"
-        aria-label="Mostrar gráfico de barras"
-        aria-pressed="true"
-      >
-        <i class="bi bi-bar-chart"></i>
-      </button>
-      <button
-        class="btn btn-ghost-secondary chart-type-btn"
-        data-chart="pie"
-        title="Circular"
-        aria-label="Mostrar gráfico circular"
-        aria-pressed="false"
-      >
-        <i class="bi bi-pie-chart"></i>
-      </button>
-      <button
-        class="btn btn-ghost-secondary chart-type-btn"
-        data-chart="line"
-        title="Línea"
-        aria-label="Mostrar gráfico de línea"
-        aria-pressed="false"
-      >
-        <i class="bi bi-graph-up"></i>
-      </button>
+    <div class="col-12 col-md-6 col-xl-3">
+      <article class="metric-card metric-card-info h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Categorías</span>
+          <span class="metric-card__icon"><i class="bi bi-diagram-3"></i></span>
+        </div>
+        <strong class="metric-card__value" id="statsCategoryCount">0</strong>
+        <small class="metric-card__meta"
+          >Etiquetas disponibles en la serie.</small
+        >
+      </article>
     </div>
-  </header>
-  <div class="panel-card__body px-3 pb-3">
-    <div id="chartLoading" class="text-center py-5" style="display:none">
-      <div class="spinner-border text-primary" role="status"></div>
-      <p class="text-muted mt-2">Cargando datos...</p>
+    <div class="col-12 col-md-6 col-xl-3">
+      <article class="metric-card metric-card-success h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Registros</span>
+          <span class="metric-card__icon"><i class="bi bi-123"></i></span>
+        </div>
+        <strong class="metric-card__value" id="statsTotalCount">0</strong>
+        <small class="metric-card__meta">Total agregado del conjunto.</small>
+      </article>
     </div>
-    <div
-      class="stats-chart-shell"
-      style="position:relative; height:400px; max-height:50vh"
+    <div class="col-12 col-md-6 col-xl-3">
+      <article class="metric-card metric-card-warning h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Mayor incidencia</span>
+          <span class="metric-card__icon"><i class="bi bi-trophy"></i></span>
+        </div>
+        <strong class="metric-card__value" id="statsTopLabel">-</strong>
+        <small class="metric-card__meta" id="statsTopMeta"
+          >Esperando datos.</small
+        >
+      </article>
+    </div>
+  </section>
+
+  <section class="panel-card">
+    <header
+      class="panel-card__header compact d-flex justify-content-between align-items-center flex-wrap gap-2"
     >
-      <canvas id="mainChart"></canvas>
+      <div>
+        <span class="section-kicker">Visualización</span>
+        <h3 id="chartTitle">Nacionalidades</h3>
+      </div>
+      <div class="btn-group btn-group-sm stats-chart-switcher">
+        <button
+          class="btn btn-ghost-secondary chart-type-btn active"
+          data-chart="bar"
+          title="Barras"
+          aria-label="Mostrar gráfico de barras"
+          aria-pressed="true"
+        >
+          <i class="bi bi-bar-chart"></i>
+        </button>
+        <button
+          class="btn btn-ghost-secondary chart-type-btn"
+          data-chart="pie"
+          title="Circular"
+          aria-label="Mostrar gráfico circular"
+          aria-pressed="false"
+        >
+          <i class="bi bi-pie-chart"></i>
+        </button>
+        <button
+          class="btn btn-ghost-secondary chart-type-btn"
+          data-chart="line"
+          title="Línea"
+          aria-label="Mostrar gráfico de línea"
+          aria-pressed="false"
+        >
+          <i class="bi bi-graph-up"></i>
+        </button>
+      </div>
+    </header>
+    <div class="panel-card__body px-3 pb-3">
+      <div id="chartLoading" class="text-center py-5" style="display:none">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="text-muted mt-2">Cargando datos...</p>
+      </div>
+      <div
+        class="stats-chart-shell"
+        style="position:relative; height:400px; max-height:50vh"
+      >
+        <canvas id="mainChart"></canvas>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<section class="panel-card mt-3">
-  <header class="panel-card__header compact">
-    <div>
-      <span class="section-kicker">Detalle tabular</span>
-      <h3>Datos de la serie</h3>
+  <section class="panel-card mt-3">
+    <header class="panel-card__header compact">
+      <div>
+        <span class="section-kicker">Detalle tabular</span>
+        <h3>Datos de la serie</h3>
+      </div>
+    </header>
+    <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
+      <div class="preview-mobile-list" id="statsMobileBody"></div>
     </div>
-  </header>
-  <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
-    <div class="preview-mobile-list" id="statsMobileBody"></div>
-  </div>
-  <div class="table-responsive ops-table-wrapper">
-    <table
-      class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
-      id="dataTable"
-    >
-      <thead>
-        <tr>
-          <th>Categoría</th>
-          <th class="text-end">Cantidad</th>
-          <th class="text-end d-none d-md-table-cell">Porcentaje</th>
-        </tr>
-      </thead>
-      <tbody id="dataBody"></tbody>
-    </table>
-  </div>
-</section>
+    <div class="table-responsive ops-table-wrapper">
+      <table
+        class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
+        id="dataTable"
+      >
+        <thead>
+          <tr>
+            <th>Categoría</th>
+            <th class="text-end">Cantidad</th>
+            <th class="text-end d-none d-md-table-cell">Porcentaje</th>
+          </tr>
+        </thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+    </div>
+  </section>
 
-{% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-      let mainChart = null;
-      let currentData = null;
-      let currentType = 'bar';
-      let currentLabel = 'Nacionalidades';
+  {% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let mainChart = null;
+        let currentData = null;
+        let currentType = 'bar';
+        let currentLabel = 'Nacionalidades';
 
-      const ctx = document.getElementById('mainChart').getContext('2d');
-      const activeStatLabel = document.getElementById('activeStatLabel');
-      const statsCategoryCount = document.getElementById('statsCategoryCount');
-      const statsTotalCount = document.getElementById('statsTotalCount');
-      const statsTopLabel = document.getElementById('statsTopLabel');
-      const statsTopMeta = document.getElementById('statsTopMeta');
-        const statsMobileBody = document.getElementById('statsMobileBody');
-      const colors = [
-          '#0d6efd', '#198754', '#dc3545', '#ffc107', '#0dcaf0',
-          '#6f42c1', '#fd7e14', '#20c997', '#d63384', '#6610f2',
-          '#0d6efd80', '#19875480', '#dc354580', '#ffc10780', '#0dcaf080'
-      ];
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        const activeStatLabel = document.getElementById('activeStatLabel');
+        const statsCategoryCount = document.getElementById('statsCategoryCount');
+        const statsTotalCount = document.getElementById('statsTotalCount');
+        const statsTopLabel = document.getElementById('statsTopLabel');
+        const statsTopMeta = document.getElementById('statsTopMeta');
+          const statsMobileBody = document.getElementById('statsMobileBody');
+        const colors = [
+            '#0d6efd', '#198754', '#dc3545', '#ffc107', '#0dcaf0',
+            '#6f42c1', '#fd7e14', '#20c997', '#d63384', '#6610f2',
+            '#0d6efd80', '#19875480', '#dc354580', '#ffc10780', '#0dcaf080'
+        ];
 
-      function loadData(tipo) {
-          const loading = document.getElementById('chartLoading');
-          loading.style.display = 'block';
+        function loadData(tipo) {
+            const loading = document.getElementById('chartLoading');
+            loading.style.display = 'block';
 
-          fetch(`/estadisticas/api/${tipo}`)
-              .then(r => r.json())
-              .then(data => {
-                  loading.style.display = 'none';
-                  currentData = data;
-                  currentLabel = document.querySelector(`.stat-btn[data-tipo="${tipo}"]`).textContent.trim();
-                  renderChart(data, currentType);
-                  renderTable(data);
-                  document.getElementById('chartTitle').textContent = currentLabel;
-                  renderSummary(data, currentLabel);
-              })
-              .catch(err => {
-                  loading.style.display = 'none';
-                  console.error(err);
-              });
-      }
+            fetch(`/estadisticas/api/${tipo}`)
+                .then(r => r.json())
+                .then(data => {
+                    loading.style.display = 'none';
+                    currentData = data;
+                    currentLabel = document.querySelector(`.stat-btn[data-tipo="${tipo}"]`).textContent.trim();
+                    renderChart(data, currentType);
+                    renderTable(data);
+                    document.getElementById('chartTitle').textContent = currentLabel;
+                    renderSummary(data, currentLabel);
+                })
+                .catch(err => {
+                    loading.style.display = 'none';
+                    console.error(err);
+                });
+        }
 
-      function renderChart(data, type) {
-          if (mainChart) mainChart.destroy();
+        function renderChart(data, type) {
+            if (mainChart) mainChart.destroy();
 
-          const labels = data.labels || [];
-          const values = data.valores || data.values || [];
+            const labels = data.labels || [];
+            const values = data.valores || data.values || [];
 
-          const bgColors = labels.map((_, i) => colors[i % colors.length]);
+            const bgColors = labels.map((_, i) => colors[i % colors.length]);
 
-          mainChart = new Chart(ctx, {
-              type: type,
-              data: {
-                  labels: labels,
-                  datasets: [{
-                      label: 'Cantidad',
-                      data: values,
-                      backgroundColor: type === 'line' ? colors[0] + '33' : bgColors,
-                      borderColor: type === 'line' ? colors[0] : bgColors,
-                      borderWidth: type === 'line' ? 2 : 1,
-                      fill: type === 'line',
-                      tension: 0.3
-                  }]
-              },
-              options: {
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                      legend: { display: type === 'pie' }
-                  },
-                  scales: type === 'pie' ? {} : {
-                      y: { beginAtZero: true }
-                  }
-              }
-          });
-      }
-
-            function renderSummary(data, label) {
-              const labels = data.labels || [];
-              const values = data.valores || data.values || [];
-              const total = values.reduce((a, b) => a + b, 0);
-              let topIndex = -1;
-
-              values.forEach((value, index) => {
-                if (topIndex === -1 || value > values[topIndex]) {
-                  topIndex = index;
+            mainChart = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cantidad',
+                        data: values,
+                        backgroundColor: type === 'line' ? colors[0] + '33' : bgColors,
+                        borderColor: type === 'line' ? colors[0] : bgColors,
+                        borderWidth: type === 'line' ? 2 : 1,
+                        fill: type === 'line',
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: type === 'pie' }
+                    },
+                    scales: type === 'pie' ? {} : {
+                        y: { beginAtZero: true }
+                    }
                 }
-              });
-
-              activeStatLabel.textContent = label || 'Sin serie';
-              statsCategoryCount.textContent = labels.length;
-              statsTotalCount.textContent = total;
-
-              if (topIndex >= 0) {
-                const pct = total > 0 ? ((values[topIndex] / total) * 100).toFixed(1) : '0.0';
-                statsTopLabel.textContent = labels[topIndex];
-                statsTopMeta.textContent = `${values[topIndex]} registros · ${pct}% del total`;
-              } else {
-                statsTopLabel.textContent = '-';
-                statsTopMeta.textContent = 'Sin datos disponibles.';
-              }
-            }
-
-      function renderTable(data) {
-          const labels = data.labels || [];
-          const values = data.valores || data.values || [];
-          const total = values.reduce((a, b) => a + b, 0);
-          const tbody = document.getElementById('dataBody');
-
-          tbody.innerHTML = labels.map((label, i) => {
-              const pct = total > 0 ? ((values[i] / total) * 100).toFixed(1) : '0.0';
-              return `<tr>
-                <td class="fw-semibold">${label}</td>
-                  <td class="text-end fw-semibold">${values[i]}</td>
-                  <td class="text-end d-none d-md-table-cell">${pct}%</td>
-              </tr>`;
-          }).join('');
-
-          if (statsMobileBody) {
-              statsMobileBody.innerHTML = labels.map((label, i) => {
-                  const pct = total > 0 ? ((values[i] / total) * 100).toFixed(1) : '0.0';
-                  return `<article class="preview-mobile-card">
-                    <div class="preview-mobile-card__header">
-                      <strong>${label}</strong>
-                      <span class="status-pill muted small-pill">${pct}%</span>
-                    </div>
-                    <span><strong>Cantidad:</strong> ${values[i]}</span>
-                    <span><strong>Participación:</strong> ${pct}% del total</span>
-                  </article>`;
-              }).join('');
-          }
-      }
-
-      // Stat type buttons
-      document.querySelectorAll('.stat-btn').forEach(btn => {
-          btn.addEventListener('click', function() {
-              document.querySelectorAll('.stat-btn').forEach(b => {
-                  b.classList.remove('btn-primary', 'active');
-                  b.classList.add('btn-ghost-primary');
-              });
-                this.classList.remove('btn-ghost-primary');
-              this.classList.add('btn-primary', 'active');
-              loadData(this.dataset.tipo);
-          });
-      });
-
-      // Chart type buttons
-      document.querySelectorAll('.chart-type-btn').forEach(btn => {
-          btn.addEventListener('click', function() {
-            document.querySelectorAll('.chart-type-btn').forEach(b => {
-              b.classList.remove('active');
-              b.setAttribute('aria-pressed', 'false');
             });
-              this.classList.add('active');
-            this.setAttribute('aria-pressed', 'true');
-              currentType = this.dataset.chart;
-              if (currentData) renderChart(currentData, currentType);
-          });
-      });
+        }
 
-      // Load initial
-      loadData('nacionalidades');
-  });
-</script>
-{% endblock %} {% endblock %}
+              function renderSummary(data, label) {
+                const labels = data.labels || [];
+                const values = data.valores || data.values || [];
+                const total = values.reduce((a, b) => a + b, 0);
+                let topIndex = -1;
+
+                values.forEach((value, index) => {
+                  if (topIndex === -1 || value > values[topIndex]) {
+                    topIndex = index;
+                  }
+                });
+
+                activeStatLabel.textContent = label || 'Sin serie';
+                statsCategoryCount.textContent = labels.length;
+                statsTotalCount.textContent = total;
+
+                if (topIndex >= 0) {
+                  const pct = total > 0 ? ((values[topIndex] / total) * 100).toFixed(1) : '0.0';
+                  statsTopLabel.textContent = labels[topIndex];
+                  statsTopMeta.textContent = `${values[topIndex]} registros · ${pct}% del total`;
+                } else {
+                  statsTopLabel.textContent = '-';
+                  statsTopMeta.textContent = 'Sin datos disponibles.';
+                }
+              }
+
+        function renderTable(data) {
+            const labels = data.labels || [];
+            const values = data.valores || data.values || [];
+            const total = values.reduce((a, b) => a + b, 0);
+            const tbody = document.getElementById('dataBody');
+
+            tbody.innerHTML = labels.map((label, i) => {
+                const pct = total > 0 ? ((values[i] / total) * 100).toFixed(1) : '0.0';
+                return `<tr>
+                  <td class="fw-semibold">${label}</td>
+                    <td class="text-end fw-semibold">${values[i]}</td>
+                    <td class="text-end d-none d-md-table-cell">${pct}%</td>
+                </tr>`;
+            }).join('');
+
+            if (statsMobileBody) {
+                statsMobileBody.innerHTML = labels.map((label, i) => {
+                    const pct = total > 0 ? ((values[i] / total) * 100).toFixed(1) : '0.0';
+                    return `<article class="preview-mobile-card">
+                      <div class="preview-mobile-card__header">
+                        <strong>${label}</strong>
+                        <span class="status-pill muted small-pill">${pct}%</span>
+                      </div>
+                      <span><strong>Cantidad:</strong> ${values[i]}</span>
+                      <span><strong>Participación:</strong> ${pct}% del total</span>
+                    </article>`;
+                }).join('');
+            }
+        }
+
+        // Stat type buttons
+        document.querySelectorAll('.stat-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.stat-btn').forEach(b => {
+                    b.classList.remove('btn-primary', 'active');
+                    b.classList.add('btn-ghost-primary');
+                });
+                  this.classList.remove('btn-ghost-primary');
+                this.classList.add('btn-primary', 'active');
+                loadData(this.dataset.tipo);
+            });
+        });
+
+        // Chart type buttons
+        document.querySelectorAll('.chart-type-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+              document.querySelectorAll('.chart-type-btn').forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+              });
+                this.classList.add('active');
+              this.setAttribute('aria-pressed', 'true');
+                currentType = this.dataset.chart;
+                if (currentData) renderChart(currentData, currentType);
+            });
+        });
+
+        // Load initial
+        loadData('nacionalidades');
+    });
+  </script>
+  {% endblock %}
+</div>
+{% endblock %}

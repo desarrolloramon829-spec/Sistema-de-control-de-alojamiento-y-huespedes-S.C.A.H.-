@@ -1,131 +1,174 @@
 {% extends "base.html" %} {% block title %}{{ 'Editar' if es_edicion else
-'Nuevo' }} Hotel - S.C.A.H.{% endblock %} {% block content %}
-<section class="module-hero mb-4">
-  <div>
-    <span class="section-kicker">Gestión de infraestructura</span>
-    <h2 class="module-hero__title">
-      {{ 'Editar' if es_edicion else 'Registrar nuevo' }} hotel
-    </h2>
-    <p class="module-hero__subtitle mb-0">
-      Administra identidad, localización y orden interno de cada
-      establecimiento.
-    </p>
-  </div>
-  <div class="module-hero__actions mobile-hide-duplicate-action">
-    <a href="{{ url_for('hotels.index') }}" class="btn btn-ghost-secondary">
-      <i class="bi bi-arrow-left"></i> Volver
-    </a>
-  </div>
-</section>
+'Nuevo' }} Hotel - S.C.A.H.{% endblock %} {% block extra_css %}
+<style>
+  .hotel-form-screen {
+    color: var(--text-primary, #eaf4ff);
+  }
 
-<div class="row justify-content-center">
-  <div class="col-12 col-xl-8">
-    <div class="panel-card">
-      <header class="panel-card__header">
-        <div>
-          <span class="section-kicker">Ficha de establecimiento</span>
-          <h3>{{ 'Editar' if es_edicion else 'Alta de hotel' }}</h3>
-        </div>
-      </header>
-      <div class="panel-card__body px-3 pb-3">
-        <nav
-          class="form-mobile-nav d-md-none mb-4"
-          aria-label="Secciones del hotel"
-        >
-          <a
-            href="#seccion-identidad-hotel"
-            class="status-pill muted small-pill"
-            >Identidad</a
-          >
-          <a
-            href="#seccion-ubicacion-hotel"
-            class="status-pill muted small-pill"
-            >Ubicación</a
-          >
-        </nav>
-        <form
-          method="POST"
-          id="hotelForm"
-          action="{{ url_for('hotels.editar', hotel_id=hotel_id) if es_edicion else url_for('hotels.nuevo') }}"
-        >
-          <div class="form-section-block mb-4" id="seccion-identidad-hotel">
-            <div class="form-section-block__title">Identidad operativa</div>
-            <div class="row g-3">
-              <div class="col-12 col-lg-8">
-                <label class="form-label form-label-ops"
-                  >Nombre <span class="text-danger">*</span></label
-                >
-                <input
-                  type="text"
-                  name="nombre"
-                  class="form-control"
-                  value="{{ datos.get('nombre', '') if datos is mapping else datos.nombre if datos else '' }}"
-                  required
-                />
-              </div>
-              <div class="col-12 col-lg-4">
-                <label class="form-label form-label-ops">Nro. Orden</label>
-                <input
-                  type="text"
-                  name="nro_orden"
-                  class="form-control"
-                  value="{{ datos.get('nro_orden', '') if datos is mapping else datos.nro_orden if datos else '' }}"
-                />
-              </div>
-            </div>
+  .hotel-form-screen .module-hero,
+  .hotel-form-screen .panel-card,
+  .hotel-form-screen .form-section-block {
+    border-radius: 22px;
+    border: 1px solid rgba(103, 183, 255, 0.1);
+    background: linear-gradient(180deg, rgba(20, 36, 58, 0.96), rgba(14, 27, 44, 0.96));
+    box-shadow: 0 18px 45px rgba(2, 10, 22, 0.32);
+  }
+
+  .hotel-form-screen .module-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.35rem 1.45rem;
+  }
+
+  .hotel-form-screen .panel-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.05rem 1.15rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  @media (max-width: 991.98px) {
+    .hotel-form-screen .module-hero,
+    .hotel-form-screen .panel-card__header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="hotel-form-screen">
+  <section class="module-hero mb-4">
+    <div>
+      <span class="section-kicker">Gestión de infraestructura</span>
+      <h2 class="module-hero__title">
+        {{ 'Editar' if es_edicion else 'Registrar nuevo' }} hotel
+      </h2>
+      <p class="module-hero__subtitle mb-0">
+        Administra identidad, localización y orden interno de cada
+        establecimiento.
+      </p>
+    </div>
+    <div class="module-hero__actions mobile-hide-duplicate-action">
+      <a href="{{ url_for('hotels.index') }}" class="btn btn-ghost-secondary">
+        <i class="bi bi-arrow-left"></i> Volver
+      </a>
+    </div>
+  </section>
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-8">
+      <div class="panel-card">
+        <header class="panel-card__header">
+          <div>
+            <span class="section-kicker">Ficha de establecimiento</span>
+            <h3>{{ 'Editar' if es_edicion else 'Alta de hotel' }}</h3>
           </div>
-          <div class="form-section-block mb-4" id="seccion-ubicacion-hotel">
-            <div class="form-section-block__title">Ubicación</div>
-            <div class="row g-3">
-              <div class="col-12 col-lg-5">
-                <label class="form-label form-label-ops"
-                  >Ciudad / Localidad</label
-                >
-                <input
-                  type="text"
-                  name="ciudad_localidad"
-                  class="form-control"
-                  value="{{ datos.get('ciudad_localidad', '') if datos is mapping else datos.ciudad_localidad if datos else '' }}"
-                />
-              </div>
-              <div class="col-12 col-lg-7">
-                <label class="form-label form-label-ops">Dirección</label>
-                <input
-                  type="text"
-                  name="direccion"
-                  class="form-control"
-                  value="{{ datos.get('direccion', '') if datos is mapping else datos.direccion if datos else '' }}"
-                />
-              </div>
-            </div>
-          </div>
-          <div
-            class="d-flex gap-2 flex-wrap form-action-row mobile-hide-duplicate-action-row"
+        </header>
+        <div class="panel-card__body px-3 pb-3">
+          <nav
+            class="form-mobile-nav d-md-none mb-4"
+            aria-label="Secciones del hotel"
           >
-            <button type="submit" class="btn btn-primary">
-              <i class="bi bi-check-lg"></i> {{ 'Actualizar' if es_edicion else
-              'Crear' }}
-            </button>
             <a
-              href="{{ url_for('hotels.index') }}"
-              class="btn btn-ghost-secondary"
-              >Cancelar</a
+              href="#seccion-identidad-hotel"
+              class="status-pill muted small-pill"
+              >Identidad</a
             >
-          </div>
-        </form>
+            <a
+              href="#seccion-ubicacion-hotel"
+              class="status-pill muted small-pill"
+              >Ubicación</a
+            >
+          </nav>
+          <form
+            method="POST"
+            id="hotelForm"
+            action="{{ url_for('hotels.editar', hotel_id=hotel_id) if es_edicion else url_for('hotels.nuevo') }}"
+          >
+            <div class="form-section-block mb-4" id="seccion-identidad-hotel">
+              <div class="form-section-block__title">Identidad operativa</div>
+              <div class="row g-3">
+                <div class="col-12 col-lg-8">
+                  <label class="form-label form-label-ops"
+                    >Nombre <span class="text-danger">*</span></label
+                  >
+                  <input
+                    type="text"
+                    name="nombre"
+                    class="form-control"
+                    value="{{ datos.get('nombre', '') if datos is mapping else datos.nombre if datos else '' }}"
+                    required
+                  />
+                </div>
+                <div class="col-12 col-lg-4">
+                  <label class="form-label form-label-ops">Nro. Orden</label>
+                  <input
+                    type="text"
+                    name="nro_orden"
+                    class="form-control"
+                    value="{{ datos.get('nro_orden', '') if datos is mapping else datos.nro_orden if datos else '' }}"
+                  />
+                </div>
+              </div>
+            </div>
+            <div class="form-section-block mb-4" id="seccion-ubicacion-hotel">
+              <div class="form-section-block__title">Ubicación</div>
+              <div class="row g-3">
+                <div class="col-12 col-lg-5">
+                  <label class="form-label form-label-ops"
+                    >Ciudad / Localidad</label
+                  >
+                  <input
+                    type="text"
+                    name="ciudad_localidad"
+                    class="form-control"
+                    value="{{ datos.get('ciudad_localidad', '') if datos is mapping else datos.ciudad_localidad if datos else '' }}"
+                  />
+                </div>
+                <div class="col-12 col-lg-7">
+                  <label class="form-label form-label-ops">Dirección</label>
+                  <input
+                    type="text"
+                    name="direccion"
+                    class="form-control"
+                    value="{{ datos.get('direccion', '') if datos is mapping else datos.direccion if datos else '' }}"
+                  />
+                </div>
+              </div>
+            </div>
+            <div
+              class="d-flex gap-2 flex-wrap form-action-row mobile-hide-duplicate-action-row"
+            >
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg"></i> {{ 'Actualizar' if es_edicion
+                else 'Crear' }}
+              </button>
+              <a
+                href="{{ url_for('hotels.index') }}"
+                class="btn btn-ghost-secondary"
+                >Cancelar</a
+              >
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<div class="form-mobile-submitbar d-md-none">
-  <a
-    href="{{ url_for('hotels.index') }}"
-    class="btn btn-ghost-secondary flex-fill"
-    >Cancelar</a
-  >
-  <button type="submit" form="hotelForm" class="btn btn-primary flex-fill">
-    <i class="bi bi-check-lg"></i> {{ 'Actualizar' if es_edicion else 'Crear' }}
-  </button>
+  <div class="form-mobile-submitbar d-md-none">
+    <a
+      href="{{ url_for('hotels.index') }}"
+      class="btn btn-ghost-secondary flex-fill"
+      >Cancelar</a
+    >
+    <button type="submit" form="hotelForm" class="btn btn-primary flex-fill">
+      <i class="bi bi-check-lg"></i> {{ 'Actualizar' if es_edicion else 'Crear'
+      }}
+    </button>
+  </div>
 </div>
 {% endblock %}

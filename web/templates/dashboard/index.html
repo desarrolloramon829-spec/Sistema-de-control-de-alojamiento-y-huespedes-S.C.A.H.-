@@ -1,263 +1,482 @@
 {% extends "base.html" %} {% block title %}Dashboard - S.C.A.H.{% endblock %} {%
-block content %}
-<section class="ops-hero-panel mb-4">
-  <div class="ops-hero-copy">
-    <span class="section-kicker">Centro de mando</span>
-    <h2>
-      Visibilidad inmediata sobre huéspedes, hoteles y movimiento operativo.
-    </h2>
-    <p>
-      Supervisa actividad reciente, ocupación activa e importaciones desde un
-      tablero diseñado para lectura rápida y toma de decisión.
-    </p>
-  </div>
-  <div class="ops-hero-rail">
-    <div class="hero-rail-card">
-      <span>Monitoreo</span>
-      <strong>Activo</strong>
-    </div>
-    <div class="hero-rail-card">
-      <span>Modo</span>
-      <strong>Operación premium</strong>
-    </div>
-  </div>
-</section>
+block extra_css %}
+<style>
+  .dashboard-screen {
+    color: var(--text-primary, #eaf4ff);
+  }
 
-<section class="row g-3 mb-4 kpi-grid">
-  <div class="col-12 col-sm-6 col-xl-3">
-    <article class="metric-card metric-card-primary h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Huéspedes total</span>
-        <span class="metric-card__icon"><i class="bi bi-people-fill"></i></span>
-      </div>
-      <strong class="metric-card__value"
-        >{{ kpis.total_huespedes | default(0) }}</strong
-      >
-      <small class="metric-card__meta"
-        >Base consolidada de huéspedes registrados.</small
-      >
-    </article>
-  </div>
-  <div class="col-12 col-sm-6 col-xl-3">
-    <article class="metric-card metric-card-success h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Hoteles activos</span>
-        <span class="metric-card__icon"
-          ><i class="bi bi-buildings-fill"></i
-        ></span>
-      </div>
-      <strong class="metric-card__value"
-        >{{ kpis.hoteles_activos | default(0) }}</strong
-      >
-      <small class="metric-card__meta"
-        >Infraestructura operativa disponible.</small
-      >
-    </article>
-  </div>
-  <div class="col-12 col-sm-6 col-xl-3">
-    <article class="metric-card metric-card-info h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Alojados hoy</span>
-        <span class="metric-card__icon"
-          ><i class="bi bi-calendar-check"></i
-        ></span>
-      </div>
-      <strong class="metric-card__value"
-        >{{ kpis.alojados_hoy | default(0) }}</strong
-      >
-      <small class="metric-card__meta"
-        >Movimientos con presencia vigente.</small
-      >
-    </article>
-  </div>
-  <div class="col-12 col-sm-6 col-xl-3">
-    <article class="metric-card metric-card-warning h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Importaciones</span>
-        <span class="metric-card__icon"
-          ><i class="bi bi-file-earmark-arrow-up"></i
-        ></span>
-      </div>
-      <strong class="metric-card__value"
-        >{{ kpis.importaciones | default(0) }}</strong
-      >
-      <small class="metric-card__meta"
-        >Procesos documentales registrados.</small
-      >
-    </article>
-  </div>
-</section>
+  .dashboard-screen .ops-hero-panel,
+  .dashboard-screen .metric-card,
+  .dashboard-screen .panel-card,
+  .dashboard-screen .hero-rail-card,
+  .dashboard-screen .city-list__item,
+  .dashboard-screen .quick-action-tile,
+  .dashboard-screen .preview-mobile-card {
+    border-radius: 22px;
+    border: 1px solid rgba(103, 183, 255, 0.1);
+    background: linear-gradient(180deg, rgba(20, 36, 58, 0.96), rgba(14, 27, 44, 0.96));
+    box-shadow: 0 18px 45px rgba(2, 10, 22, 0.32);
+  }
 
-<section class="row g-3">
-  <div class="col-12 col-xxl-8">
-    <article class="panel-card h-100">
-      <header class="panel-card__header">
-        <div>
-          <span class="section-kicker">Actividad reciente</span>
-          <h3>Últimos huéspedes registrados</h3>
+  .dashboard-screen .ops-hero-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(220px, 0.7fr);
+    gap: 1rem;
+    padding: 1.55rem;
+  }
+
+  .dashboard-screen .ops-hero-copy h2 {
+    margin: 0.4rem 0 0.75rem;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: clamp(2rem, 3vw, 3rem);
+    line-height: 0.95;
+  }
+
+  .dashboard-screen .ops-hero-copy p,
+  .dashboard-screen .metric-card__meta,
+  .dashboard-screen .preview-mobile-card,
+  .dashboard-screen .city-list__item small {
+    color: var(--text-secondary, #a8bed3);
+  }
+
+  .dashboard-screen .ops-hero-rail,
+  .dashboard-screen .preview-mobile-list,
+  .dashboard-screen .city-list {
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .dashboard-screen .hero-rail-card {
+    padding: 1rem;
+  }
+
+  .dashboard-screen .metric-card {
+    position: relative;
+    overflow: hidden;
+    padding: 1.18rem;
+  }
+
+  .dashboard-screen .metric-card__top {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .dashboard-screen .metric-card__label {
+    color: var(--text-secondary, #a8bed3);
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .dashboard-screen .metric-card__icon {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.06);
+    font-size: 1.1rem;
+  }
+
+  .dashboard-screen .metric-card__value {
+    display: block;
+    margin-top: 0.9rem;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: clamp(2rem, 4vw, 2.7rem);
+    line-height: 0.9;
+  }
+
+  .dashboard-screen .panel-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.05rem 1.15rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .dashboard-screen .city-list,
+  .dashboard-screen .quick-actions-grid {
+    padding: 0 1.25rem 1.25rem;
+  }
+
+  .dashboard-screen .city-list__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.95rem 1rem;
+  }
+
+  .dashboard-screen .city-list__value {
+    display: inline-flex;
+    min-width: 42px;
+    justify-content: center;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(35, 192, 255, 0.12);
+    color: var(--primary, #23c0ff);
+    font-weight: 700;
+  }
+
+  .dashboard-screen .quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+  }
+
+  .dashboard-screen .quick-action-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 118px;
+    padding: 1rem;
+    text-decoration: none;
+    color: var(--text-primary, #eaf4ff);
+  }
+
+  .dashboard-screen .quick-action-tile i {
+    font-size: 1.2rem;
+    color: var(--primary, #23c0ff);
+  }
+
+  .dashboard-screen .preview-mobile-card {
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.95rem 1rem;
+    font-size: 0.92rem;
+  }
+
+  .dashboard-screen .preview-mobile-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .dashboard-screen .ops-link {
+    color: var(--text-primary, #eaf4ff);
+    text-decoration: none;
+  }
+
+  .dashboard-screen .ops-link:hover {
+    color: var(--primary, #23c0ff);
+  }
+
+  @media (max-width: 1399.98px) {
+    .dashboard-screen .ops-hero-panel {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 991.98px) {
+    .dashboard-screen .panel-card__header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .dashboard-screen .ops-hero-panel,
+    .dashboard-screen .panel-card__header,
+    .dashboard-screen .d-md-none.panel-card__body {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    .dashboard-screen .quick-actions-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .dashboard-screen .ops-hero-copy h2 {
+      font-size: 2.25rem;
+    }
+
+    .dashboard-screen .metric-card__value {
+      font-size: 1.9rem;
+    }
+
+    .dashboard-screen .ops-hero-panel,
+    .dashboard-screen .metric-card,
+    .dashboard-screen .panel-card,
+    .dashboard-screen .quick-action-tile,
+    .dashboard-screen .preview-mobile-card {
+      border-radius: 18px;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="dashboard-screen">
+  <section class="ops-hero-panel mb-4">
+    <div class="ops-hero-copy">
+      <span class="section-kicker">Centro de mando</span>
+      <h2>
+        Visibilidad inmediata sobre huéspedes, hoteles y movimiento operativo.
+      </h2>
+      <p>
+        Supervisa actividad reciente, ocupación activa e importaciones desde un
+        tablero diseñado para lectura rápida y toma de decisión.
+      </p>
+    </div>
+    <div class="ops-hero-rail">
+      <div class="hero-rail-card">
+        <span>Monitoreo</span>
+        <strong>Activo</strong>
+      </div>
+      <div class="hero-rail-card">
+        <span>Modo</span>
+        <strong>Operación premium</strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="row g-3 mb-4 kpi-grid">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <article class="metric-card metric-card-primary h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Huéspedes total</span>
+          <span class="metric-card__icon"
+            ><i class="bi bi-people-fill"></i
+          ></span>
         </div>
-        <a
-          href="{{ url_for('guests.index') }}"
-          class="btn btn-ghost-primary btn-sm"
+        <strong class="metric-card__value"
+          >{{ kpis.total_huespedes | default(0) }}</strong
         >
-          Ver todos
-        </a>
-      </header>
+        <small class="metric-card__meta"
+          >Base consolidada de huéspedes registrados.</small
+        >
+      </article>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <article class="metric-card metric-card-success h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Hoteles activos</span>
+          <span class="metric-card__icon"
+            ><i class="bi bi-buildings-fill"></i
+          ></span>
+        </div>
+        <strong class="metric-card__value"
+          >{{ kpis.hoteles_activos | default(0) }}</strong
+        >
+        <small class="metric-card__meta"
+          >Infraestructura operativa disponible.</small
+        >
+      </article>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <article class="metric-card metric-card-info h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Alojados hoy</span>
+          <span class="metric-card__icon"
+            ><i class="bi bi-calendar-check"></i
+          ></span>
+        </div>
+        <strong class="metric-card__value"
+          >{{ kpis.alojados_hoy | default(0) }}</strong
+        >
+        <small class="metric-card__meta"
+          >Movimientos con presencia vigente.</small
+        >
+      </article>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <article class="metric-card metric-card-warning h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Importaciones</span>
+          <span class="metric-card__icon"
+            ><i class="bi bi-file-earmark-arrow-up"></i
+          ></span>
+        </div>
+        <strong class="metric-card__value"
+          >{{ kpis.importaciones | default(0) }}</strong
+        >
+        <small class="metric-card__meta"
+          >Procesos documentales registrados.</small
+        >
+      </article>
+    </div>
+  </section>
 
-      <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
-        <div class="preview-mobile-list">
-          {% for h in ultimos %}
-          <article class="preview-mobile-card">
-            <div class="preview-mobile-card__header">
-              <strong>{{ h.apellido_nombre | truncar(32) }}</strong>
-              <span class="status-pill muted small-pill"
-                >{{ h.fecha_entrada or 'Sin fecha' }}</span
-              >
-            </div>
-            <span
-              ><strong>Documento:</strong> {{ h.dni_pasaporte or 'S/D' }}</span
-            >
-            <span
-              ><strong>Hotel:</strong> {{ h.hotel | truncar(22) or 'Sin hotel'
-              }}</span
-            >
-            <span
-              ><strong>Nacionalidad:</strong> {{ h.nacionalidad or 'Sin
-              nacionalidad' }}</span
-            >
-            <a
-              href="{{ url_for('guests.detalle', huesped_id=h.id) }}"
-              class="btn btn-ghost-primary btn-sm mt-2"
-            >
-              <i class="bi bi-eye"></i> Ver expediente
-            </a>
-          </article>
-          {% else %}
-          <div class="empty-state empty-state-compact">
-            <i class="bi bi-database-exclamation"></i>
-            <p class="mb-0">No hay huéspedes registrados todavía.</p>
+  <section class="row g-3">
+    <div class="col-12 col-xxl-8">
+      <article class="panel-card h-100">
+        <header class="panel-card__header">
+          <div>
+            <span class="section-kicker">Actividad reciente</span>
+            <h3>Últimos huéspedes registrados</h3>
           </div>
-          {% endfor %}
-        </div>
-      </div>
+          <a
+            href="{{ url_for('guests.index') }}"
+            class="btn btn-ghost-primary btn-sm"
+          >
+            Ver todos
+          </a>
+        </header>
 
-      <div class="table-responsive ops-table-wrapper">
-        <table
-          class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
-        >
-          <thead>
-            <tr>
-              <th>Huésped</th>
-              <th class="d-none d-md-table-cell">Documento</th>
-              <th class="d-none d-xl-table-cell">Hotel</th>
-              <th>Ingreso</th>
-            </tr>
-          </thead>
-          <tbody>
+        <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
+          <div class="preview-mobile-list">
             {% for h in ultimos %}
-            <tr>
-              <td>
-                <div class="ops-person-cell">
-                  <span class="ops-person-cell__dot"></span>
-                  <div>
-                    <a
-                      href="{{ url_for('guests.detalle', huesped_id=h.id) }}"
-                      class="ops-link"
-                    >
-                      {{ h.apellido_nombre | truncar(28) }}
-                    </a>
-                    <small>{{ h.nacionalidad or 'Sin nacionalidad' }}</small>
-                  </div>
-                </div>
-              </td>
-              <td class="d-none d-md-table-cell ops-mono">
-                {{ h.dni_pasaporte or 'S/D' }}
-              </td>
-              <td class="d-none d-xl-table-cell text-secondary">
-                {{ h.hotel | truncar(22) or 'Sin hotel' }}
-              </td>
-              <td>
+            <article class="preview-mobile-card">
+              <div class="preview-mobile-card__header">
+                <strong>{{ h.apellido_nombre | truncar(32) }}</strong>
                 <span class="status-pill muted small-pill"
                   >{{ h.fecha_entrada or 'Sin fecha' }}</span
                 >
-              </td>
-            </tr>
+              </div>
+              <span
+                ><strong>Documento:</strong> {{ h.dni_pasaporte or 'S/D'
+                }}</span
+              >
+              <span
+                ><strong>Hotel:</strong> {{ h.hotel | truncar(22) or 'Sin hotel'
+                }}</span
+              >
+              <span
+                ><strong>Nacionalidad:</strong> {{ h.nacionalidad or 'Sin
+                nacionalidad' }}</span
+              >
+              <a
+                href="{{ url_for('guests.detalle', huesped_id=h.id) }}"
+                class="btn btn-ghost-primary btn-sm mt-2"
+              >
+                <i class="bi bi-eye"></i> Ver expediente
+              </a>
+            </article>
             {% else %}
-            <tr>
-              <td colspan="4">
-                <div class="empty-state empty-state-compact d-none d-md-block">
-                  <i class="bi bi-database-exclamation"></i>
-                  <p class="mb-0">No hay huéspedes registrados todavía.</p>
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </article>
-  </div>
-
-  <div class="col-12 col-xxl-4">
-    <div class="d-grid gap-3">
-      <article class="panel-card">
-        <header class="panel-card__header compact">
-          <div>
-            <span class="section-kicker">Cobertura</span>
-            <h3>Top ciudades</h3>
-          </div>
-        </header>
-        <div class="city-list">
-          {% for c in ciudades %}
-          <div class="city-list__item">
-            <div>
-              <strong>{{ c.ciudad }}</strong>
-              <small>Actividad consolidada</small>
+            <div class="empty-state empty-state-compact">
+              <i class="bi bi-database-exclamation"></i>
+              <p class="mb-0">No hay huéspedes registrados todavía.</p>
             </div>
-            <span class="city-list__value">{{ c.total }}</span>
+            {% endfor %}
           </div>
-          {% else %}
-          <div class="empty-state empty-state-compact">
-            <i class="bi bi-geo-alt"></i>
-            <p class="mb-0">Sin datos geográficos disponibles.</p>
-          </div>
-          {% endfor %}
         </div>
-      </article>
 
-      <article class="panel-card quick-actions-panel">
-        <header class="panel-card__header compact">
-          <div>
-            <span class="section-kicker">Acción inmediata</span>
-            <h3>Operaciones rápidas</h3>
-          </div>
-        </header>
-        <div class="quick-actions-grid">
-          <a href="{{ url_for('guests.nuevo') }}" class="quick-action-tile">
-            <i class="bi bi-plus-circle"></i>
-            <span>Cargar huésped</span>
-          </a>
-          <a href="{{ url_for('guests.index') }}" class="quick-action-tile">
-            <i class="bi bi-search"></i>
-            <span>Buscar huésped</span>
-          </a>
-          <a href="{{ url_for('imports.index') }}" class="quick-action-tile">
-            <i class="bi bi-file-earmark-excel"></i>
-            <span>Importar Excel</span>
-          </a>
-          <a href="{{ url_for('reports.index') }}" class="quick-action-tile">
-            <i class="bi bi-file-bar-graph"></i>
-            <span>Generar reporte</span>
-          </a>
-          {% if current_user and current_user.rol == 'admin' %}
-          <a href="{{ url_for('backups.index') }}" class="quick-action-tile">
-            <i class="bi bi-shield-lock"></i>
-            <span>Generar backup</span>
-          </a>
-          {% endif %}
+        <div class="table-responsive ops-table-wrapper">
+          <table
+            class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
+          >
+            <thead>
+              <tr>
+                <th>Huésped</th>
+                <th class="d-none d-md-table-cell">Documento</th>
+                <th class="d-none d-xl-table-cell">Hotel</th>
+                <th>Ingreso</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for h in ultimos %}
+              <tr>
+                <td>
+                  <div class="ops-person-cell">
+                    <span class="ops-person-cell__dot"></span>
+                    <div>
+                      <a
+                        href="{{ url_for('guests.detalle', huesped_id=h.id) }}"
+                        class="ops-link"
+                      >
+                        {{ h.apellido_nombre | truncar(28) }}
+                      </a>
+                      <small>{{ h.nacionalidad or 'Sin nacionalidad' }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td class="d-none d-md-table-cell ops-mono">
+                  {{ h.dni_pasaporte or 'S/D' }}
+                </td>
+                <td class="d-none d-xl-table-cell text-secondary">
+                  {{ h.hotel | truncar(22) or 'Sin hotel' }}
+                </td>
+                <td>
+                  <span class="status-pill muted small-pill"
+                    >{{ h.fecha_entrada or 'Sin fecha' }}</span
+                  >
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4">
+                  <div
+                    class="empty-state empty-state-compact d-none d-md-block"
+                  >
+                    <i class="bi bi-database-exclamation"></i>
+                    <p class="mb-0">No hay huéspedes registrados todavía.</p>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </article>
     </div>
-  </div>
-</section>
+
+    <div class="col-12 col-xxl-4">
+      <div class="d-grid gap-3">
+        <article class="panel-card">
+          <header class="panel-card__header compact">
+            <div>
+              <span class="section-kicker">Cobertura</span>
+              <h3>Top ciudades</h3>
+            </div>
+          </header>
+          <div class="city-list">
+            {% for c in ciudades %}
+            <div class="city-list__item">
+              <div>
+                <strong>{{ c.ciudad }}</strong>
+                <small>Actividad consolidada</small>
+              </div>
+              <span class="city-list__value">{{ c.total }}</span>
+            </div>
+            {% else %}
+            <div class="empty-state empty-state-compact">
+              <i class="bi bi-geo-alt"></i>
+              <p class="mb-0">Sin datos geográficos disponibles.</p>
+            </div>
+            {% endfor %}
+          </div>
+        </article>
+
+        <article class="panel-card quick-actions-panel">
+          <header class="panel-card__header compact">
+            <div>
+              <span class="section-kicker">Acción inmediata</span>
+              <h3>Operaciones rápidas</h3>
+            </div>
+          </header>
+          <div class="quick-actions-grid">
+            <a href="{{ url_for('guests.nuevo') }}" class="quick-action-tile">
+              <i class="bi bi-plus-circle"></i>
+              <span>Cargar huésped</span>
+            </a>
+            <a href="{{ url_for('guests.index') }}" class="quick-action-tile">
+              <i class="bi bi-search"></i>
+              <span>Buscar huésped</span>
+            </a>
+            <a href="{{ url_for('imports.index') }}" class="quick-action-tile">
+              <i class="bi bi-file-earmark-excel"></i>
+              <span>Importar Excel</span>
+            </a>
+            <a href="{{ url_for('reports.index') }}" class="quick-action-tile">
+              <i class="bi bi-file-bar-graph"></i>
+              <span>Generar reporte</span>
+            </a>
+            {% if current_user and current_user.rol == 'admin' %}
+            <a href="{{ url_for('backups.index') }}" class="quick-action-tile">
+              <i class="bi bi-shield-lock"></i>
+              <span>Generar backup</span>
+            </a>
+            {% endif %}
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+</div>
 {% endblock %}

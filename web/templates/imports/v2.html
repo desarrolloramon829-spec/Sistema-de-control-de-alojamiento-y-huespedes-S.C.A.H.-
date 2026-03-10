@@ -1,379 +1,446 @@
 {% extends "base.html" %} {% block title %}Importar V2 - S.C.A.H.{% endblock %}
-{% block content %}
-<section class="module-hero mb-4">
-  <div>
-    <a
-      href="{{ url_for('imports.index') }}"
-      class="btn btn-ghost-secondary btn-sm mb-3"
-    >
-      <i class="bi bi-arrow-left"></i> Volver al centro de importaciones
-    </a>
-    <span class="section-kicker">Formato V2</span>
-    <h2 class="module-hero__title">
-      Carga tabular con mapeo y asignación hotelera.
-    </h2>
-    <p class="module-hero__subtitle mb-0">
-      Detecta columnas, valida registros y asigna o crea el hotel antes de
-      consolidar huéspedes.
-    </p>
-  </div>
-  <div class="module-hero__actions">
-    <div class="shell-stat-chip compact-chip">
-      <span>Modo</span>
-      <strong>Asignación guiada</strong>
-    </div>
-  </div>
-</section>
+{% block extra_css %}
+<style>
+  .import-v2-screen {
+    color: var(--text-primary, #eaf4ff);
+  }
 
-{% if not preview %}
-<section class="panel-card upload-station-panel">
-  <header class="panel-card__header">
+  .import-v2-screen .module-hero,
+  .import-v2-screen .panel-card,
+  .import-v2-screen .metric-card,
+  .import-v2-screen .preview-mobile-card,
+  .import-v2-screen .upload-dropzone,
+  .import-v2-screen .form-section-block {
+    border-radius: 22px;
+    border: 1px solid rgba(103, 183, 255, 0.1);
+    background: linear-gradient(180deg, rgba(20, 36, 58, 0.96), rgba(14, 27, 44, 0.96));
+    box-shadow: 0 18px 45px rgba(2, 10, 22, 0.32);
+  }
+
+  .import-v2-screen .module-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.35rem 1.45rem;
+  }
+
+  .import-v2-screen .panel-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.05rem 1.15rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .import-v2-screen .upload-dropzone {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1.15rem;
+    border-style: dashed;
+  }
+
+  .import-v2-screen .preview-mobile-list {
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  @media (max-width: 991.98px) {
+    .import-v2-screen .module-hero,
+    .import-v2-screen .panel-card__header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="import-v2-screen">
+  <section class="module-hero mb-4">
     <div>
-      <span class="section-kicker">Carga documental</span>
-      <h3>Subir archivos tabulares</h3>
+      <a
+        href="{{ url_for('imports.index') }}"
+        class="btn btn-ghost-secondary btn-sm mb-3"
+      >
+        <i class="bi bi-arrow-left"></i> Volver al centro de importaciones
+      </a>
+      <span class="section-kicker">Formato V2</span>
+      <h2 class="module-hero__title">
+        Carga tabular con mapeo y asignación hotelera.
+      </h2>
+      <p class="module-hero__subtitle mb-0">
+        Detecta columnas, valida registros y asigna o crea el hotel antes de
+        consolidar huéspedes.
+      </p>
     </div>
-  </header>
-  <div class="panel-card__body px-3 pb-3">
-    <form
-      method="POST"
-      enctype="multipart/form-data"
-      data-requires-online="true"
-    >
-      <input type="hidden" name="action" value="preview" />
-      <div class="offline-module-note d-none mb-3" data-offline-note>
-        La carga tabular necesita conexión para procesar y validar los archivos.
+    <div class="module-hero__actions">
+      <div class="shell-stat-chip compact-chip">
+        <span>Modo</span>
+        <strong>Asignación guiada</strong>
       </div>
-      <div class="upload-dropzone mb-3">
-        <div class="upload-dropzone__icon alt"><i class="bi bi-table"></i></div>
-        <div class="upload-dropzone__copy">
-          <strong>Selecciona archivos tabulares</strong>
-          <p class="mb-0">
-            El sistema detectará encabezados y preparará el mapeo
-            automáticamente.
-          </p>
+    </div>
+  </section>
+
+  {% if not preview %}
+  <section class="panel-card upload-station-panel">
+    <header class="panel-card__header">
+      <div>
+        <span class="section-kicker">Carga documental</span>
+        <h3>Subir archivos tabulares</h3>
+      </div>
+    </header>
+    <div class="panel-card__body px-3 pb-3">
+      <form
+        method="POST"
+        enctype="multipart/form-data"
+        data-requires-online="true"
+      >
+        <input type="hidden" name="action" value="preview" />
+        <div class="offline-module-note d-none mb-3" data-offline-note>
+          La carga tabular necesita conexión para procesar y validar los
+          archivos.
         </div>
-        <input
-          type="file"
-          name="archivos"
-          class="form-control"
-          accept=".xlsx,.xls"
-          multiple
-          required
-        />
-      </div>
-      <div class="upload-station-panel__meta">
-        <span class="status-pill muted"
-          ><i class="bi bi-columns-gap"></i> Detección de columnas</span
-        >
-        <span class="status-pill muted"
-          ><i class="bi bi-building-add"></i> Hotel asignable o nuevo</span
-        >
-      </div>
-      <button type="submit" class="btn btn-primary mt-3">
-        <i class="bi bi-eye"></i> Vista Previa
-      </button>
-    </form>
-  </div>
-</section>
-{% else %}
-<section class="row g-3 mb-3">
-  <div class="col-6 col-md-3">
-    <article class="metric-card metric-card-success h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Huéspedes</span
-        ><span class="metric-card__icon"><i class="bi bi-people"></i></span>
-      </div>
-      <strong class="metric-card__value"
-        >{{ preview.huespedes | length }}</strong
-      >
-      <small class="metric-card__meta"
-        >Registros detectados en planillas.</small
-      >
-    </article>
-  </div>
-  <div class="col-6 col-md-3">
-    <article class="metric-card metric-card-info h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Columnas</span
-        ><span class="metric-card__icon"
-          ><i class="bi bi-columns-gap"></i
-        ></span>
-      </div>
-      <strong class="metric-card__value"
-        >{{ preview.columnas_detectadas | length }}</strong
-      >
-      <small class="metric-card__meta">Campos reconocidos en el origen.</small>
-    </article>
-  </div>
-  <div class="col-6 col-md-3">
-    <article class="metric-card metric-card-warning h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Incidencias</span
-        ><span class="metric-card__icon"
-          ><i class="bi bi-exclamation-triangle"></i
-        ></span>
-      </div>
-      <strong class="metric-card__value">{{ preview.errores | length }}</strong>
-      <small class="metric-card__meta">Observaciones antes de importar.</small>
-    </article>
-  </div>
-  <div class="col-6 col-md-3">
-    <article class="metric-card metric-card-primary h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Estado</span
-        ><span class="metric-card__icon"><i class="bi bi-radar"></i></span>
-      </div>
-      <strong class="metric-card__value">Preview</strong>
-      <small class="metric-card__meta">Asignación hotelera pendiente.</small>
-    </article>
-  </div>
-</section>
-
-{% if preview.columnas_detectadas %}
-<section class="panel-card mb-3">
-  <header class="panel-card__header compact">
-    <div>
-      <span class="section-kicker">Mapeo</span>
-      <h3>Columnas detectadas</h3>
-    </div>
-  </header>
-  <div class="panel-card__body px-3 pb-3">
-    <div class="d-flex flex-wrap gap-2">
-      {% for col in preview.columnas_detectadas %}
-      <span class="status-pill muted small-pill">{{ col }}</span>
-      {% endfor %}
-    </div>
-  </div>
-</section>
-{% endif %} {% if preview.errores %}
-<section class="panel-card mb-3 import-errors-panel">
-  <header class="panel-card__header compact">
-    <div>
-      <span class="section-kicker">Incidencias detectadas</span>
-      <h3>Errores</h3>
-    </div>
-  </header>
-  <div class="panel-card__body p-0">
-    <ul
-      class="list-group list-group-flush import-error-list"
-      style="max-height:200px;overflow-y:auto"
-    >
-      {% for err in preview.errores %}
-      <li class="list-group-item small text-danger py-1">{{ err }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-</section>
-{% endif %} {% if preview.huespedes %}
-<section class="panel-card mb-3">
-  <header class="panel-card__header">
-    <div>
-      <span class="section-kicker">Asignación hotelera</span>
-      <h3>Seleccionar o crear hotel</h3>
-    </div>
-  </header>
-  <div class="panel-card__body px-3 pb-3">
-    <form method="POST" id="importForm" data-requires-online="true">
-      <input type="hidden" name="action" value="import" />
-      <div class="offline-module-note d-none mb-3" data-offline-note>
-        Sin conexión solo queda disponible la lectura de la vista previa ya
-        cargada.
-      </div>
-
-      <div class="form-section-block mb-4">
-        <div class="form-section-block__title">Hotel existente</div>
-        <select name="hotel_nombre" class="form-select" id="hotelSelect">
-          <option value="">— Seleccione o cree uno nuevo —</option>
-          {% for h in hoteles %}
-          <option value="{{ h.nombre }}">
-            {{ h.nombre }} ({{ h.ciudad_localidad or 'Sin ciudad' }})
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="form-check mb-3 ms-1">
-        <input
-          type="checkbox"
-          class="form-check-input"
-          id="nuevoHotelCheck"
-          name="nuevo_hotel"
-          value="1"
-          onchange="document.getElementById('nuevoHotelFields').style.display = this.checked ? 'block' : 'none'"
-        />
-        <label class="form-check-label" for="nuevoHotelCheck"
-          >Crear hotel nuevo</label
-        >
-      </div>
-
-      <div
-        id="nuevoHotelFields"
-        style="display:none"
-        class="form-section-block mb-4"
-      >
-        <div class="form-section-block__title">Alta rápida de hotel</div>
-        <div class="row g-2">
-          <div class="col-12">
-            <input
-              type="text"
-              name="hotel_nombre_nuevo"
-              class="form-control"
-              placeholder="Nombre del hotel"
-            />
+        <div class="upload-dropzone mb-3">
+          <div class="upload-dropzone__icon alt">
+            <i class="bi bi-table"></i>
           </div>
-          <div class="col-12 col-md-4">
-            <input
-              type="text"
-              name="nro_orden"
-              class="form-control"
-              placeholder="Nro. Orden"
-            />
+          <div class="upload-dropzone__copy">
+            <strong>Selecciona archivos tabulares</strong>
+            <p class="mb-0">
+              El sistema detectará encabezados y preparará el mapeo
+              automáticamente.
+            </p>
           </div>
-          <div class="col-12 col-md-4">
-            <input
-              type="text"
-              name="ciudad"
-              class="form-control"
-              placeholder="Ciudad"
-            />
-          </div>
-          <div class="col-12 col-md-4">
-            <input
-              type="text"
-              name="direccion"
-              class="form-control"
-              placeholder="Dirección"
-            />
-          </div>
+          <input
+            type="file"
+            name="archivos"
+            class="form-control"
+            accept=".xlsx,.xls"
+            multiple
+            required
+          />
         </div>
-      </div>
-
-      <div class="panel-card inner-panel mb-3">
-        <header class="panel-card__header compact">
-          <div>
-            <span class="section-kicker">Muestra operativa</span>
-            <h3>Vista previa de registros</h3>
-          </div>
-          <span class="status-pill muted small-pill">Primeros 50</span>
-        </header>
-        <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
-          <div class="preview-mobile-list">
-            {% for h in preview.huespedes[:50] %}
-            <article class="preview-mobile-card">
-              <div class="preview-mobile-card__header">
-                <strong>{{ h.get('apellido_nombre', '-') }}</strong>
-                <span class="status-pill muted small-pill"
-                  >{{ loop.index }}</span
-                >
-              </div>
-              <span
-                ><strong>DNI:</strong> {{ h.get('dni_pasaporte', '-') }}</span
-              >
-              <span
-                ><strong>Nacionalidad:</strong> {{ h.get('nacionalidad', '-')
-                }}</span
-              >
-              <span
-                ><strong>Procedencia:</strong> {{ h.get('procedencia', '-')
-                }}</span
-              >
-            </article>
-            {% endfor %}
-          </div>
-        </div>
-        <div class="table-responsive ops-table-wrapper mb-0">
-          <table
-            class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
+        <div class="upload-station-panel__meta">
+          <span class="status-pill muted"
+            ><i class="bi bi-columns-gap"></i> Detección de columnas</span
           >
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Nombre</th>
-                <th class="d-none d-md-table-cell">DNI</th>
-                <th class="d-none d-lg-table-cell">Nacionalidad</th>
-                <th class="d-none d-lg-table-cell">Procedencia</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for h in preview.huespedes[:50] %}
-              <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ h.get('apellido_nombre', '-') }}</td>
-                <td class="d-none d-md-table-cell">
-                  {{ h.get('dni_pasaporte', '-') }}
-                </td>
-                <td class="d-none d-lg-table-cell">
-                  {{ h.get('nacionalidad', '-') }}
-                </td>
-                <td class="d-none d-lg-table-cell">
-                  {{ h.get('procedencia', '-') }}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+          <span class="status-pill muted"
+            ><i class="bi bi-building-add"></i> Hotel asignable o nuevo</span
+          >
         </div>
-      </div>
-
-      <div class="d-flex gap-2 flex-wrap form-action-row">
-        <button
-          type="submit"
-          class="btn btn-primary"
-          onclick="this.disabled=true; this.innerHTML='<span class=\'spinner-border spinner-border-sm\'></span> Importando...'; this.form.submit();"
-        >
-          <i class="bi bi-download"></i> Importar {{ preview.huespedes | length
-          }} huéspedes
+        <button type="submit" class="btn btn-primary mt-3">
+          <i class="bi bi-eye"></i> Vista Previa
         </button>
-        <a
-          href="{{ url_for('imports.importar_v2') }}"
-          class="btn btn-ghost-secondary"
-          >Cancelar</a
+      </form>
+    </div>
+  </section>
+  {% else %}
+  <section class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+      <article class="metric-card metric-card-success h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Huéspedes</span
+          ><span class="metric-card__icon"><i class="bi bi-people"></i></span>
+        </div>
+        <strong class="metric-card__value"
+          >{{ preview.huespedes | length }}</strong
         >
+        <small class="metric-card__meta"
+          >Registros detectados en planillas.</small
+        >
+      </article>
+    </div>
+    <div class="col-6 col-md-3">
+      <article class="metric-card metric-card-info h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Columnas</span
+          ><span class="metric-card__icon"
+            ><i class="bi bi-columns-gap"></i
+          ></span>
+        </div>
+        <strong class="metric-card__value"
+          >{{ preview.columnas_detectadas | length }}</strong
+        >
+        <small class="metric-card__meta"
+          >Campos reconocidos en el origen.</small
+        >
+      </article>
+    </div>
+    <div class="col-6 col-md-3">
+      <article class="metric-card metric-card-warning h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Incidencias</span
+          ><span class="metric-card__icon"
+            ><i class="bi bi-exclamation-triangle"></i
+          ></span>
+        </div>
+        <strong class="metric-card__value"
+          >{{ preview.errores | length }}</strong
+        >
+        <small class="metric-card__meta"
+          >Observaciones antes de importar.</small
+        >
+      </article>
+    </div>
+    <div class="col-6 col-md-3">
+      <article class="metric-card metric-card-primary h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Estado</span
+          ><span class="metric-card__icon"><i class="bi bi-radar"></i></span>
+        </div>
+        <strong class="metric-card__value">Preview</strong>
+        <small class="metric-card__meta">Asignación hotelera pendiente.</small>
+      </article>
+    </div>
+  </section>
+
+  {% if preview.columnas_detectadas %}
+  <section class="panel-card mb-3">
+    <header class="panel-card__header compact">
+      <div>
+        <span class="section-kicker">Mapeo</span>
+        <h3>Columnas detectadas</h3>
       </div>
-    </form>
-  </div>
-</section>
-{% endif %} {% endif %} {% block extra_js %}
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-      const check = document.getElementById('nuevoHotelCheck');
-      const select = document.getElementById('hotelSelect');
-      const form = document.getElementById('importForm');
+    </header>
+    <div class="panel-card__body px-3 pb-3">
+      <div class="d-flex flex-wrap gap-2">
+        {% for col in preview.columnas_detectadas %}
+        <span class="status-pill muted small-pill">{{ col }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %} {% if preview.errores %}
+  <section class="panel-card mb-3 import-errors-panel">
+    <header class="panel-card__header compact">
+      <div>
+        <span class="section-kicker">Incidencias detectadas</span>
+        <h3>Errores</h3>
+      </div>
+    </header>
+    <div class="panel-card__body p-0">
+      <ul
+        class="list-group list-group-flush import-error-list"
+        style="max-height:200px;overflow-y:auto"
+      >
+        {% for err in preview.errores %}
+        <li class="list-group-item small text-danger py-1">{{ err }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+  {% endif %} {% if preview.huespedes %}
+  <section class="panel-card mb-3">
+    <header class="panel-card__header">
+      <div>
+        <span class="section-kicker">Asignación hotelera</span>
+        <h3>Seleccionar o crear hotel</h3>
+      </div>
+    </header>
+    <div class="panel-card__body px-3 pb-3">
+      <form method="POST" id="importForm" data-requires-online="true">
+        <input type="hidden" name="action" value="import" />
+        <div class="offline-module-note d-none mb-3" data-offline-note>
+          Sin conexión solo queda disponible la lectura de la vista previa ya
+          cargada.
+        </div>
 
-      if (check && select) {
-          check.addEventListener('change', function() {
-              if (this.checked) {
-                  select.value = '';
-                  select.disabled = true;
-              } else {
-                  select.disabled = false;
-              }
-          });
-      }
+        <div class="form-section-block mb-4">
+          <div class="form-section-block__title">Hotel existente</div>
+          <select name="hotel_nombre" class="form-select" id="hotelSelect">
+            <option value="">— Seleccione o cree uno nuevo —</option>
+            {% for h in hoteles %}
+            <option value="{{ h.nombre }}">
+              {{ h.nombre }} ({{ h.ciudad_localidad or 'Sin ciudad' }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
 
-      if (form) {
-          form.addEventListener('submit', function(e) {
-              const isNew = check && check.checked;
-              const hotelNombre = isNew
-                  ? form.querySelector('[name="hotel_nombre_nuevo"]').value.trim()
-                  : select.value.trim();
+        <div class="form-check mb-3 ms-1">
+          <input
+            type="checkbox"
+            class="form-check-input"
+            id="nuevoHotelCheck"
+            name="nuevo_hotel"
+            value="1"
+            onchange="document.getElementById('nuevoHotelFields').style.display = this.checked ? 'block' : 'none'"
+          />
+          <label class="form-check-label" for="nuevoHotelCheck"
+            >Crear hotel nuevo</label
+          >
+        </div>
 
-              if (!hotelNombre) {
-                  e.preventDefault();
-                  alert('Debe seleccionar o crear un hotel.');
-                  return;
-              }
+        <div
+          id="nuevoHotelFields"
+          style="display:none"
+          class="form-section-block mb-4"
+        >
+          <div class="form-section-block__title">Alta rápida de hotel</div>
+          <div class="row g-2">
+            <div class="col-12">
+              <input
+                type="text"
+                name="hotel_nombre_nuevo"
+                class="form-control"
+                placeholder="Nombre del hotel"
+              />
+            </div>
+            <div class="col-12 col-md-4">
+              <input
+                type="text"
+                name="nro_orden"
+                class="form-control"
+                placeholder="Nro. Orden"
+              />
+            </div>
+            <div class="col-12 col-md-4">
+              <input
+                type="text"
+                name="ciudad"
+                class="form-control"
+                placeholder="Ciudad"
+              />
+            </div>
+            <div class="col-12 col-md-4">
+              <input
+                type="text"
+                name="direccion"
+                class="form-control"
+                placeholder="Dirección"
+              />
+            </div>
+          </div>
+        </div>
 
-              if (isNew) {
-                  // Copy new hotel name to hotel_nombre field
-                  select.disabled = false;
-                  const opt = document.createElement('option');
-                  opt.value = hotelNombre;
-                  opt.selected = true;
-                  select.appendChild(opt);
-              }
-          });
-      }
-  });
-</script>
-{% endblock %} {% endblock %}
+        <div class="panel-card inner-panel mb-3">
+          <header class="panel-card__header compact">
+            <div>
+              <span class="section-kicker">Muestra operativa</span>
+              <h3>Vista previa de registros</h3>
+            </div>
+            <span class="status-pill muted small-pill">Primeros 50</span>
+          </header>
+          <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
+            <div class="preview-mobile-list">
+              {% for h in preview.huespedes[:50] %}
+              <article class="preview-mobile-card">
+                <div class="preview-mobile-card__header">
+                  <strong>{{ h.get('apellido_nombre', '-') }}</strong>
+                  <span class="status-pill muted small-pill"
+                    >{{ loop.index }}</span
+                  >
+                </div>
+                <span
+                  ><strong>DNI:</strong> {{ h.get('dni_pasaporte', '-') }}</span
+                >
+                <span
+                  ><strong>Nacionalidad:</strong> {{ h.get('nacionalidad', '-')
+                  }}</span
+                >
+                <span
+                  ><strong>Procedencia:</strong> {{ h.get('procedencia', '-')
+                  }}</span
+                >
+              </article>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="table-responsive ops-table-wrapper mb-0">
+            <table
+              class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
+            >
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nombre</th>
+                  <th class="d-none d-md-table-cell">DNI</th>
+                  <th class="d-none d-lg-table-cell">Nacionalidad</th>
+                  <th class="d-none d-lg-table-cell">Procedencia</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for h in preview.huespedes[:50] %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td>{{ h.get('apellido_nombre', '-') }}</td>
+                  <td class="d-none d-md-table-cell">
+                    {{ h.get('dni_pasaporte', '-') }}
+                  </td>
+                  <td class="d-none d-lg-table-cell">
+                    {{ h.get('nacionalidad', '-') }}
+                  </td>
+                  <td class="d-none d-lg-table-cell">
+                    {{ h.get('procedencia', '-') }}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap form-action-row">
+          <button
+            type="submit"
+            class="btn btn-primary"
+            onclick="this.disabled=true; this.innerHTML='<span class=\'spinner-border spinner-border-sm\'></span> Importando...'; this.form.submit();"
+          >
+            <i class="bi bi-download"></i> Importar {{ preview.huespedes |
+            length }} huéspedes
+          </button>
+          <a
+            href="{{ url_for('imports.importar_v2') }}"
+            class="btn btn-ghost-secondary"
+            >Cancelar</a
+          >
+        </div>
+      </form>
+    </div>
+  </section>
+  {% endif %} {% endif %} {% block extra_js %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const check = document.getElementById('nuevoHotelCheck');
+        const select = document.getElementById('hotelSelect');
+        const form = document.getElementById('importForm');
+
+        if (check && select) {
+            check.addEventListener('change', function() {
+                if (this.checked) {
+                    select.value = '';
+                    select.disabled = true;
+                } else {
+                    select.disabled = false;
+                }
+            });
+        }
+
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const isNew = check && check.checked;
+                const hotelNombre = isNew
+                    ? form.querySelector('[name="hotel_nombre_nuevo"]').value.trim()
+                    : select.value.trim();
+
+                if (!hotelNombre) {
+                    e.preventDefault();
+                    alert('Debe seleccionar o crear un hotel.');
+                    return;
+                }
+
+                if (isNew) {
+                    // Copy new hotel name to hotel_nombre field
+                    select.disabled = false;
+                    const opt = document.createElement('option');
+                    opt.value = hotelNombre;
+                    opt.selected = true;
+                    select.appendChild(opt);
+                }
+            });
+        }
+    });
+  </script>
+  {% endblock %}
+</div>
+{% endblock %}

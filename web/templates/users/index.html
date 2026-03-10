@@ -1,149 +1,132 @@
 {% extends "base.html" %} {% block title %}Usuarios - S.C.A.H.{% endblock %} {%
-block content %}
-<section class="module-hero mb-4">
-  <div>
-    <span class="section-kicker">Control de accesos</span>
-    <h2 class="module-hero__title">Administración de usuarios y permisos.</h2>
-    <p class="module-hero__subtitle mb-0">
-      Supervisa identidades internas, roles operativos y estado de acceso al
-      sistema central.
-    </p>
-  </div>
-  <div class="module-hero__actions">
-    <a href="{{ url_for('users.nuevo') }}" class="btn btn-primary">
-      <i class="bi bi-person-plus"></i> Nuevo Usuario
-    </a>
-  </div>
-</section>
+block extra_css %}
+<style>
+  .users-screen {
+    color: var(--text-primary, #eaf4ff);
+  }
 
-<section class="row g-3 mb-3">
-  <div class="col-12 col-md-4">
-    <article class="metric-card metric-card-primary h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Usuarios</span
-        ><span class="metric-card__icon"><i class="bi bi-people"></i></span>
-      </div>
-      <strong class="metric-card__value">{{ usuarios | length }}</strong>
-      <small class="metric-card__meta"
-        >Identidades registradas en el sistema.</small
-      >
-    </article>
-  </div>
-  <div class="col-12 col-md-4">
-    <article class="metric-card metric-card-success h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Activos</span
-        ><span class="metric-card__icon"
-          ><i class="bi bi-shield-check"></i
-        ></span>
-      </div>
-      <strong class="metric-card__value"
-        >{{ usuarios | selectattr('activo') | list | length }}</strong
-      >
-      <small class="metric-card__meta">Accesos actualmente habilitados.</small>
-    </article>
-  </div>
-  <div class="col-12 col-md-4">
-    <article class="metric-card metric-card-warning h-100">
-      <div class="metric-card__top">
-        <span class="metric-card__label">Administradores</span
-        ><span class="metric-card__icon"
-          ><i class="bi bi-person-badge"></i
-        ></span>
-      </div>
-      <strong class="metric-card__value"
-        >{{ usuarios | selectattr('rol', 'equalto', 'admin') | list | length
-        }}</strong
-      >
-      <small class="metric-card__meta">Perfiles con control total.</small>
-    </article>
-  </div>
-</section>
+  .users-screen .module-hero,
+  .users-screen .panel-card,
+  .users-screen .metric-card,
+  .users-screen .entity-mobile-card {
+    border-radius: 22px;
+    border: 1px solid rgba(103, 183, 255, 0.1);
+    background: linear-gradient(180deg, rgba(20, 36, 58, 0.96), rgba(14, 27, 44, 0.96));
+    box-shadow: 0 18px 45px rgba(2, 10, 22, 0.32);
+  }
 
-<section class="panel-card">
-  <header class="panel-card__header compact">
+  .users-screen .module-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.35rem 1.45rem;
+  }
+
+  .users-screen .panel-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.05rem 1.15rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .users-screen .entity-mobile-list {
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .users-screen .entity-mobile-card {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1rem;
+  }
+
+  @media (max-width: 991.98px) {
+    .users-screen .module-hero,
+    .users-screen .panel-card__header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="users-screen">
+  <section class="module-hero mb-4">
     <div>
-      <span class="section-kicker">Directorio interno</span>
-      <h3>Usuarios registrados</h3>
+      <span class="section-kicker">Control de accesos</span>
+      <h2 class="module-hero__title">Administración de usuarios y permisos.</h2>
+      <p class="module-hero__subtitle mb-0">
+        Supervisa identidades internas, roles operativos y estado de acceso al
+        sistema central.
+      </p>
     </div>
-  </header>
-  <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
-    <div class="entity-mobile-list">
-      {% for u in usuarios %}
-      <article class="entity-mobile-card">
-        <div class="entity-mobile-card__header">
-          <div class="user-identity-cell">
-            <span class="user-avatar-badge"
-              >{{ (u.username[:1] or 'U') | upper }}</span
-            >
-            <div>
-              <div class="fw-semibold">{{ u.username }}</div>
-              <small class="text-muted">ID {{ u.id }}</small>
-            </div>
-          </div>
-          <span
-            class="status-pill {{ 'danger' if u.rol == 'admin' else 'info' if u.rol == 'operador' else 'muted' }} small-pill"
-          >
-            {{ u.rol | title }}
-          </span>
+    <div class="module-hero__actions">
+      <a href="{{ url_for('users.nuevo') }}" class="btn btn-primary">
+        <i class="bi bi-person-plus"></i> Nuevo Usuario
+      </a>
+    </div>
+  </section>
+
+  <section class="row g-3 mb-3">
+    <div class="col-12 col-md-4">
+      <article class="metric-card metric-card-primary h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Usuarios</span
+          ><span class="metric-card__icon"><i class="bi bi-people"></i></span>
         </div>
-        <div class="entity-mobile-card__meta">
-          <span><strong>Nombre:</strong> {{ u.nombre_completo or '-' }}</span>
-          <span
-            ><strong>Estado:</strong> {{ 'Activo' if u.activo else 'Inactivo'
-            }}</span
-          >
-        </div>
-        <div class="entity-mobile-card__actions">
-          <a
-            href="{{ url_for('users.editar', user_id=u.id) }}"
-            class="btn btn-ghost-primary btn-sm flex-fill"
-          >
-            <i class="bi bi-pencil"></i> Editar
-          </a>
-          {% if u.id != session['user']['id'] %}
-          <form
-            method="POST"
-            action="{{ url_for('users.toggle', user_id=u.id) }}"
-            class="flex-fill"
-            data-confirm="{{ '¿Desactivar al usuario ' ~ u.username ~ '?' if u.activo else '¿Reactivar al usuario ' ~ u.username ~ '?' }}"
-          >
-            <button
-              type="submit"
-              class="btn btn-sm {{ 'btn-ghost-warning' if u.activo else 'btn-ghost-success' }} w-100"
-            >
-              <i class="bi bi-{{ 'pause' if u.activo else 'play' }}"></i>
-              {{ 'Desactivar' if u.activo else 'Reactivar' }}
-            </button>
-          </form>
-          {% endif %}
-        </div>
+        <strong class="metric-card__value">{{ usuarios | length }}</strong>
+        <small class="metric-card__meta"
+          >Identidades registradas en el sistema.</small
+        >
       </article>
-      {% else %}
-      <div class="empty-state empty-state-compact">
-        <i class="bi bi-people"></i>
-        <p class="mb-0">No hay usuarios registrados.</p>
-      </div>
-      {% endfor %}
     </div>
-  </div>
-  <div class="table-responsive ops-table-wrapper">
-    <table
-      class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
-    >
-      <thead>
-        <tr>
-          <th>Usuario</th>
-          <th>Nombre</th>
-          <th class="d-none d-md-table-cell">Rol</th>
-          <th class="text-center">Estado</th>
-          <th class="text-end">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
+    <div class="col-12 col-md-4">
+      <article class="metric-card metric-card-success h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Activos</span
+          ><span class="metric-card__icon"
+            ><i class="bi bi-shield-check"></i
+          ></span>
+        </div>
+        <strong class="metric-card__value"
+          >{{ usuarios | selectattr('activo') | list | length }}</strong
+        >
+        <small class="metric-card__meta"
+          >Accesos actualmente habilitados.</small
+        >
+      </article>
+    </div>
+    <div class="col-12 col-md-4">
+      <article class="metric-card metric-card-warning h-100">
+        <div class="metric-card__top">
+          <span class="metric-card__label">Administradores</span
+          ><span class="metric-card__icon"
+            ><i class="bi bi-person-badge"></i
+          ></span>
+        </div>
+        <strong class="metric-card__value"
+          >{{ usuarios | selectattr('rol', 'equalto', 'admin') | list | length
+          }}</strong
+        >
+        <small class="metric-card__meta">Perfiles con control total.</small>
+      </article>
+    </div>
+  </section>
+
+  <section class="panel-card">
+    <header class="panel-card__header compact">
+      <div>
+        <span class="section-kicker">Directorio interno</span>
+        <h3>Usuarios registrados</h3>
+      </div>
+    </header>
+    <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
+      <div class="entity-mobile-list">
         {% for u in usuarios %}
-        <tr>
-          <td>
+        <article class="entity-mobile-card">
+          <div class="entity-mobile-card__header">
             <div class="user-identity-cell">
               <span class="user-avatar-badge"
                 >{{ (u.username[:1] or 'U') | upper }}</span
@@ -153,62 +136,135 @@ block content %}
                 <small class="text-muted">ID {{ u.id }}</small>
               </div>
             </div>
-          </td>
-          <td>{{ u.nombre_completo or '-' }}</td>
-          <td class="d-none d-md-table-cell">
             <span
               class="status-pill {{ 'danger' if u.rol == 'admin' else 'info' if u.rol == 'operador' else 'muted' }} small-pill"
             >
               {{ u.rol | title }}
             </span>
-          </td>
-          <td class="text-center">
-            {% if u.activo %}
-            <span class="status-pill success small-pill">Activo</span>
-            {% else %}
-            <span class="status-pill muted small-pill">Inactivo</span>
+          </div>
+          <div class="entity-mobile-card__meta">
+            <span><strong>Nombre:</strong> {{ u.nombre_completo or '-' }}</span>
+            <span
+              ><strong>Estado:</strong> {{ 'Activo' if u.activo else 'Inactivo'
+              }}</span
+            >
+          </div>
+          <div class="entity-mobile-card__actions">
+            <a
+              href="{{ url_for('users.editar', user_id=u.id) }}"
+              class="btn btn-ghost-primary btn-sm flex-fill"
+            >
+              <i class="bi bi-pencil"></i> Editar
+            </a>
+            {% if u.id != session['user']['id'] %}
+            <form
+              method="POST"
+              action="{{ url_for('users.toggle', user_id=u.id) }}"
+              class="flex-fill"
+              data-confirm="{{ '¿Desactivar al usuario ' ~ u.username ~ '?' if u.activo else '¿Reactivar al usuario ' ~ u.username ~ '?' }}"
+            >
+              <button
+                type="submit"
+                class="btn btn-sm {{ 'btn-ghost-warning' if u.activo else 'btn-ghost-success' }} w-100"
+              >
+                <i class="bi bi-{{ 'pause' if u.activo else 'play' }}"></i>
+                {{ 'Desactivar' if u.activo else 'Reactivar' }}
+              </button>
+            </form>
             {% endif %}
-          </td>
-          <td class="text-end">
-            <div class="btn-group btn-group-sm">
-              <a
-                href="{{ url_for('users.editar', user_id=u.id) }}"
-                class="btn btn-ghost-primary"
-                title="Editar"
-              >
-                <i class="bi bi-pencil"></i>
-              </a>
-              {% if u.id != session['user']['id'] %}
-              <form
-                method="POST"
-                action="{{ url_for('users.toggle', user_id=u.id) }}"
-                class="d-inline"
-                data-confirm="{{ '¿Desactivar al usuario ' ~ u.username ~ '?' if u.activo else '¿Reactivar al usuario ' ~ u.username ~ '?' }}"
-              >
-                <button
-                  type="submit"
-                  class="btn {{ 'btn-ghost-warning' if u.activo else 'btn-ghost-success' }}"
-                  title="{{ 'Desactivar' if u.activo else 'Reactivar' }}"
-                >
-                  <i class="bi bi-{{ 'pause' if u.activo else 'play' }}"></i>
-                </button>
-              </form>
-              {% endif %}
-            </div>
-          </td>
-        </tr>
+          </div>
+        </article>
         {% else %}
-        <tr>
-          <td colspan="5" class="py-5">
-            <div class="empty-state d-none d-md-block">
-              <i class="bi bi-people"></i>
-              <p class="mb-0">No hay usuarios registrados.</p>
-            </div>
-          </td>
-        </tr>
+        <div class="empty-state empty-state-compact">
+          <i class="bi bi-people"></i>
+          <p class="mb-0">No hay usuarios registrados.</p>
+        </div>
         {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
+      </div>
+    </div>
+    <div class="table-responsive ops-table-wrapper">
+      <table
+        class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
+      >
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Nombre</th>
+            <th class="d-none d-md-table-cell">Rol</th>
+            <th class="text-center">Estado</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in usuarios %}
+          <tr>
+            <td>
+              <div class="user-identity-cell">
+                <span class="user-avatar-badge"
+                  >{{ (u.username[:1] or 'U') | upper }}</span
+                >
+                <div>
+                  <div class="fw-semibold">{{ u.username }}</div>
+                  <small class="text-muted">ID {{ u.id }}</small>
+                </div>
+              </div>
+            </td>
+            <td>{{ u.nombre_completo or '-' }}</td>
+            <td class="d-none d-md-table-cell">
+              <span
+                class="status-pill {{ 'danger' if u.rol == 'admin' else 'info' if u.rol == 'operador' else 'muted' }} small-pill"
+              >
+                {{ u.rol | title }}
+              </span>
+            </td>
+            <td class="text-center">
+              {% if u.activo %}
+              <span class="status-pill success small-pill">Activo</span>
+              {% else %}
+              <span class="status-pill muted small-pill">Inactivo</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <div class="btn-group btn-group-sm">
+                <a
+                  href="{{ url_for('users.editar', user_id=u.id) }}"
+                  class="btn btn-ghost-primary"
+                  title="Editar"
+                >
+                  <i class="bi bi-pencil"></i>
+                </a>
+                {% if u.id != session['user']['id'] %}
+                <form
+                  method="POST"
+                  action="{{ url_for('users.toggle', user_id=u.id) }}"
+                  class="d-inline"
+                  data-confirm="{{ '¿Desactivar al usuario ' ~ u.username ~ '?' if u.activo else '¿Reactivar al usuario ' ~ u.username ~ '?' }}"
+                >
+                  <button
+                    type="submit"
+                    class="btn {{ 'btn-ghost-warning' if u.activo else 'btn-ghost-success' }}"
+                    title="{{ 'Desactivar' if u.activo else 'Reactivar' }}"
+                  >
+                    <i class="bi bi-{{ 'pause' if u.activo else 'play' }}"></i>
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="py-5">
+              <div class="empty-state d-none d-md-block">
+                <i class="bi bi-people"></i>
+                <p class="mb-0">No hay usuarios registrados.</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
 {% endblock %}

@@ -1,93 +1,180 @@
 {% extends "base.html" %} {% block title %}Importar Excel - S.C.A.H.{% endblock
-%} {% block content %}
-<section class="module-hero mb-4">
-  <div>
-    <span class="section-kicker">Procesamiento documental</span>
-    <h2 class="module-hero__title">
-      Centro de importaciones y validación de archivos.
-    </h2>
-    <p class="module-hero__subtitle mb-0">
-      Selecciona el flujo de carga según el formato de origen y procesa
-      registros con revisión previa, control de duplicados y trazabilidad de
-      importación.
-    </p>
-  </div>
-  <div class="module-hero__actions">
-    <div class="shell-stat-chip compact-chip">
-      <span>Flujos</span>
-      <strong>2 formatos</strong>
-    </div>
-    <div class="shell-stat-chip compact-chip">
-      <span>Validación</span>
-      <strong>Previa a importación</strong>
-    </div>
-  </div>
-</section>
+%} {% block extra_css %}
+<style>
+  .imports-screen {
+    color: var(--text-primary, #eaf4ff);
+  }
 
-<section class="import-selector-grid">
-  <article class="import-flow-card import-flow-card-v1 panel-card">
-    <div class="import-flow-card__icon">
-      <i class="bi bi-file-earmark-spreadsheet"></i>
-    </div>
-    <div class="import-flow-card__body">
-      <span class="section-kicker">Formato V1</span>
-      <h3>Carga por hoja y hotel auto-detectado</h3>
-      <p>
-        Cada hoja representa un hotel. El sistema interpreta cabecera del
-        establecimiento y lista de huéspedes en columnas fijas.
-      </p>
-      <ul class="ops-feature-list">
-        <li>
-          <i class="bi bi-check2-circle"></i> Hotel detectado automáticamente
-          por hoja
-        </li>
-        <li>
-          <i class="bi bi-check2-circle"></i> Múltiples archivos en una sola
-          operación
-        </li>
-        <li>
-          <i class="bi bi-check2-circle"></i> Revisión previa y control por DNI
-        </li>
-      </ul>
-    </div>
-    <a
-      href="{{ url_for('imports.importar_v1') }}"
-      class="btn btn-primary w-100"
-    >
-      <i class="bi bi-upload"></i> Iniciar flujo V1
-    </a>
-  </article>
+  .imports-screen .module-hero,
+  .imports-screen .import-flow-card {
+    border-radius: 22px;
+    border: 1px solid rgba(103, 183, 255, 0.1);
+    background: linear-gradient(180deg, rgba(20, 36, 58, 0.96), rgba(14, 27, 44, 0.96));
+    box-shadow: 0 18px 45px rgba(2, 10, 22, 0.32);
+  }
 
-  <article class="import-flow-card import-flow-card-v2 panel-card">
-    <div class="import-flow-card__icon alt">
-      <i class="bi bi-table"></i>
-    </div>
-    <div class="import-flow-card__body">
-      <span class="section-kicker">Formato V2</span>
-      <h3>Carga tabular con mapeo flexible</h3>
-      <p>
-        Detecta encabezados automáticamente, permite asignar hotel manualmente y
-        unifica planillas tabulares heterogéneas.
+  .imports-screen .module-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.35rem 1.45rem;
+  }
+
+  .imports-screen .module-hero__title {
+    margin: 0.35rem 0 0.55rem;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: clamp(1.9rem, 3vw, 2.8rem);
+    line-height: 0.94;
+  }
+
+  .imports-screen .module-hero__subtitle,
+  .imports-screen .import-flow-card__body p,
+  .imports-screen .ops-feature-list {
+    color: var(--text-secondary, #a8bed3);
+  }
+
+  .imports-screen .import-selector-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .imports-screen .import-flow-card {
+    padding: 1.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .imports-screen .import-flow-card__icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(43, 214, 123, 0.12);
+    border: 1px solid rgba(43, 214, 123, 0.18);
+    color: var(--success, #2bd67b);
+    font-size: 1.8rem;
+  }
+
+  .imports-screen .import-flow-card__icon.alt {
+    background: rgba(35, 192, 255, 0.12);
+    border-color: rgba(35, 192, 255, 0.18);
+    color: var(--primary, #23c0ff);
+  }
+
+  @media (max-width: 991.98px) {
+    .imports-screen .module-hero {
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .imports-screen .import-selector-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .imports-screen .module-hero {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="imports-screen">
+  <section class="module-hero mb-4">
+    <div>
+      <span class="section-kicker">Procesamiento documental</span>
+      <h2 class="module-hero__title">
+        Centro de importaciones y validación de archivos.
+      </h2>
+      <p class="module-hero__subtitle mb-0">
+        Selecciona el flujo de carga según el formato de origen y procesa
+        registros con revisión previa, control de duplicados y trazabilidad de
+        importación.
       </p>
-      <ul class="ops-feature-list">
-        <li>
-          <i class="bi bi-check2-circle"></i> Detección automática de columnas
-        </li>
-        <li>
-          <i class="bi bi-check2-circle"></i> Selección o creación de hotel
-        </li>
-        <li>
-          <i class="bi bi-check2-circle"></i> Validación previa a la
-          consolidación
-        </li>
-      </ul>
     </div>
-    <a
-      href="{{ url_for('imports.importar_v2') }}"
-      class="btn btn-ghost-primary w-100"
-    >
-      <i class="bi bi-upload"></i> Iniciar flujo V2
-    </a>
-  </article>
-</section>
+    <div class="module-hero__actions">
+      <div class="shell-stat-chip compact-chip">
+        <span>Flujos</span>
+        <strong>2 formatos</strong>
+      </div>
+      <div class="shell-stat-chip compact-chip">
+        <span>Validación</span>
+        <strong>Previa a importación</strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="import-selector-grid">
+    <article class="import-flow-card import-flow-card-v1 panel-card">
+      <div class="import-flow-card__icon">
+        <i class="bi bi-file-earmark-spreadsheet"></i>
+      </div>
+      <div class="import-flow-card__body">
+        <span class="section-kicker">Formato V1</span>
+        <h3>Carga por hoja y hotel auto-detectado</h3>
+        <p>
+          Cada hoja representa un hotel. El sistema interpreta cabecera del
+          establecimiento y lista de huéspedes en columnas fijas.
+        </p>
+        <ul class="ops-feature-list">
+          <li>
+            <i class="bi bi-check2-circle"></i> Hotel detectado automáticamente
+            por hoja
+          </li>
+          <li>
+            <i class="bi bi-check2-circle"></i> Múltiples archivos en una sola
+            operación
+          </li>
+          <li>
+            <i class="bi bi-check2-circle"></i> Revisión previa y control por
+            DNI
+          </li>
+        </ul>
+      </div>
+      <a
+        href="{{ url_for('imports.importar_v1') }}"
+        class="btn btn-primary w-100"
+      >
+        <i class="bi bi-upload"></i> Iniciar flujo V1
+      </a>
+    </article>
+
+    <article class="import-flow-card import-flow-card-v2 panel-card">
+      <div class="import-flow-card__icon alt">
+        <i class="bi bi-table"></i>
+      </div>
+      <div class="import-flow-card__body">
+        <span class="section-kicker">Formato V2</span>
+        <h3>Carga tabular con mapeo flexible</h3>
+        <p>
+          Detecta encabezados automáticamente, permite asignar hotel manualmente
+          y unifica planillas tabulares heterogéneas.
+        </p>
+        <ul class="ops-feature-list">
+          <li>
+            <i class="bi bi-check2-circle"></i> Detección automática de columnas
+          </li>
+          <li>
+            <i class="bi bi-check2-circle"></i> Selección o creación de hotel
+          </li>
+          <li>
+            <i class="bi bi-check2-circle"></i> Validación previa a la
+            consolidación
+          </li>
+        </ul>
+      </div>
+      <a
+        href="{{ url_for('imports.importar_v2') }}"
+        class="btn btn-ghost-primary w-100"
+      >
+        <i class="bi bi-upload"></i> Iniciar flujo V2
+      </a>
+    </article>
+  </section>
+</div>
 {% endblock %}

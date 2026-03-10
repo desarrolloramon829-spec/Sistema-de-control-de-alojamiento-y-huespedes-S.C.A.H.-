@@ -1,125 +1,179 @@
 {% extends "base.html" %} {% block title %}Hoteles - S.C.A.H.{% endblock %} {%
-block content %} {% set ns = namespace(activos=0) %} {% for h in hoteles %}{% if
-h.activo %}{% set ns.activos = ns.activos + 1 %}{% endif %}{% endfor %}
+block extra_css %}
+<style>
+  .hotels-screen {
+    color: var(--text-primary, #eaf4ff);
+  }
 
-<section class="module-hero mb-4">
-  <div>
-    <span class="section-kicker">Infraestructura</span>
-    <h2 class="module-hero__title">
-      Tablero operativo de hoteles y capacidad administrada.
-    </h2>
-    <p class="module-hero__subtitle mb-0">
-      Revisa estado, ciudad, ocupación y operaciones críticas sobre cada
-      establecimiento.
-    </p>
-  </div>
-  <div class="module-hero__actions">
-    <div class="shell-stat-chip compact-chip">
-      <span>Activos</span>
-      <strong>{{ ns.activos }}</strong>
-    </div>
-    <div class="shell-stat-chip compact-chip">
-      <span>Total</span>
-      <strong>{{ hoteles|length }}</strong>
-    </div>
-    {% if current_user and current_user.rol in ('admin', 'operador') %}
-    <a href="{{ url_for('hotels.nuevo') }}" class="btn btn-primary">
-      <i class="bi bi-plus-lg"></i> Nuevo hotel
-    </a>
-    {% endif %}
-  </div>
-</section>
+  .hotels-screen .module-hero,
+  .hotels-screen .panel-card,
+  .hotels-screen .hotel-card {
+    border-radius: 22px;
+    border: 1px solid rgba(103, 183, 255, 0.1);
+    background: linear-gradient(180deg, rgba(20, 36, 58, 0.96), rgba(14, 27, 44, 0.96));
+    box-shadow: 0 18px 45px rgba(2, 10, 22, 0.32);
+  }
 
-<section class="panel-card mb-3">
-  <header class="panel-card__header compact">
+  .hotels-screen .module-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.35rem 1.45rem;
+  }
+
+  .hotels-screen .panel-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.05rem 1.15rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .hotels-screen .hotel-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+
+  .hotels-screen .hotel-card {
+    padding: 1.25rem;
+  }
+
+  @media (max-width: 991.98px) {
+    .hotels-screen .module-hero,
+    .hotels-screen .panel-card__header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+{% endblock %} {% block content %} {% set ns = namespace(activos=0) %} {% for h
+in hoteles %}{% if h.activo %}{% set ns.activos = ns.activos + 1 %}{% endif %}{%
+endfor %}
+<div class="hotels-screen">
+  <section class="module-hero mb-4">
     <div>
-      <span class="section-kicker">Exploración</span>
-      <h3>Búsqueda de establecimientos</h3>
+      <span class="section-kicker">Infraestructura</span>
+      <h2 class="module-hero__title">
+        Tablero operativo de hoteles y capacidad administrada.
+      </h2>
+      <p class="module-hero__subtitle mb-0">
+        Revisa estado, ciudad, ocupación y operaciones críticas sobre cada
+        establecimiento.
+      </p>
     </div>
-  </header>
-  <div class="panel-card__body px-3 pb-3">
-    <form method="GET" class="d-flex gap-2">
-      <input
-        type="text"
-        name="q"
-        value="{{ filtro }}"
-        class="form-control"
-        placeholder="Buscar por nombre, ciudad..."
-      />
-      <button class="btn btn-ghost-primary" type="submit">
-        <i class="bi bi-search"></i>
-      </button>
-      {% if filtro %}
-      <a href="{{ url_for('hotels.index') }}" class="btn btn-ghost-secondary">
-        <i class="bi bi-x-lg"></i>
+    <div class="module-hero__actions">
+      <div class="shell-stat-chip compact-chip">
+        <span>Activos</span>
+        <strong>{{ ns.activos }}</strong>
+      </div>
+      <div class="shell-stat-chip compact-chip">
+        <span>Total</span>
+        <strong>{{ hoteles|length }}</strong>
+      </div>
+      {% if current_user and current_user.rol in ('admin', 'operador') %}
+      <a href="{{ url_for('hotels.nuevo') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> Nuevo hotel
       </a>
       {% endif %}
-    </form>
-  </div>
-</section>
-
-<section class="hotel-card-grid">
-  {% for h in hoteles %}
-  <article class="hotel-card panel-card">
-    <div class="hotel-card__top">
-      <div>
-        <span class="hotel-card__order">Orden {{ h.nro_orden or 'S/N' }}</span>
-        <h3>{{ h.nombre }}</h3>
-      </div>
-      <span class="status-pill {% if not h.activo %}muted{% endif %}">
-        <i
-          class="bi bi-{{ 'broadcast-pin' if h.activo else 'pause-circle' }}"
-        ></i>
-        {{ 'Activo' if h.activo else 'Inactivo' }}
-      </span>
     </div>
+  </section>
 
-    <div class="hotel-card__meta-grid">
+  <section class="panel-card mb-3">
+    <header class="panel-card__header compact">
       <div>
-        <span>Ciudad</span>
-        <strong>{{ h.ciudad_localidad or '-' }}</strong>
+        <span class="section-kicker">Exploración</span>
+        <h3>Búsqueda de establecimientos</h3>
       </div>
-      <div>
-        <span>Huéspedes</span>
-        <strong>{{ h.num_huespedes }}</strong>
-      </div>
-      <div class="hotel-card__address">
-        <span>Dirección</span>
-        <strong>{{ h.direccion or '-' }}</strong>
-      </div>
-    </div>
-
-    {% if current_user and current_user.rol in ('admin', 'operador') %}
-    <div class="hotel-card__actions">
-      <a
-        href="{{ url_for('hotels.editar', hotel_id=h.id) }}"
-        class="btn btn-ghost-primary btn-sm"
-      >
-        <i class="bi bi-pencil"></i> Editar
-      </a>
-      <form
-        method="POST"
-        action="{{ url_for('hotels.toggle', hotel_id=h.id) }}"
-        class="d-inline"
-      >
-        <button
-          type="submit"
-          class="btn btn-sm {{ 'btn-ghost-secondary' if h.activo else 'btn btn-primary' }}"
-        >
-          <i class="bi bi-{{ 'pause' if h.activo else 'play' }}"></i>
-          {{ 'Desactivar' if h.activo else 'Activar' }}
+    </header>
+    <div class="panel-card__body px-3 pb-3">
+      <form method="GET" class="d-flex gap-2">
+        <input
+          type="text"
+          name="q"
+          value="{{ filtro }}"
+          class="form-control"
+          placeholder="Buscar por nombre, ciudad..."
+        />
+        <button class="btn btn-ghost-primary" type="submit">
+          <i class="bi bi-search"></i>
         </button>
+        {% if filtro %}
+        <a href="{{ url_for('hotels.index') }}" class="btn btn-ghost-secondary">
+          <i class="bi bi-x-lg"></i>
+        </a>
+        {% endif %}
       </form>
     </div>
-    {% endif %}
-  </article>
-  {% else %}
-  <div class="panel-card">
-    <div class="empty-state">
-      <i class="bi bi-buildings"></i>
-      <p class="mb-0">No se encontraron hoteles.</p>
+  </section>
+
+  <section class="hotel-card-grid">
+    {% for h in hoteles %}
+    <article class="hotel-card panel-card">
+      <div class="hotel-card__top">
+        <div>
+          <span class="hotel-card__order"
+            >Orden {{ h.nro_orden or 'S/N' }}</span
+          >
+          <h3>{{ h.nombre }}</h3>
+        </div>
+        <span class="status-pill {% if not h.activo %}muted{% endif %}">
+          <i
+            class="bi bi-{{ 'broadcast-pin' if h.activo else 'pause-circle' }}"
+          ></i>
+          {{ 'Activo' if h.activo else 'Inactivo' }}
+        </span>
+      </div>
+
+      <div class="hotel-card__meta-grid">
+        <div>
+          <span>Ciudad</span>
+          <strong>{{ h.ciudad_localidad or '-' }}</strong>
+        </div>
+        <div>
+          <span>Huéspedes</span>
+          <strong>{{ h.num_huespedes }}</strong>
+        </div>
+        <div class="hotel-card__address">
+          <span>Dirección</span>
+          <strong>{{ h.direccion or '-' }}</strong>
+        </div>
+      </div>
+
+      {% if current_user and current_user.rol in ('admin', 'operador') %}
+      <div class="hotel-card__actions">
+        <a
+          href="{{ url_for('hotels.editar', hotel_id=h.id) }}"
+          class="btn btn-ghost-primary btn-sm"
+        >
+          <i class="bi bi-pencil"></i> Editar
+        </a>
+        <form
+          method="POST"
+          action="{{ url_for('hotels.toggle', hotel_id=h.id) }}"
+          class="d-inline"
+        >
+          <button
+            type="submit"
+            class="btn btn-sm {{ 'btn-ghost-secondary' if h.activo else 'btn btn-primary' }}"
+          >
+            <i class="bi bi-{{ 'pause' if h.activo else 'play' }}"></i>
+            {{ 'Desactivar' if h.activo else 'Activar' }}
+          </button>
+        </form>
+      </div>
+      {% endif %}
+    </article>
+    {% else %}
+    <div class="panel-card">
+      <div class="empty-state">
+        <i class="bi bi-buildings"></i>
+        <p class="mb-0">No se encontraron hoteles.</p>
+      </div>
     </div>
-  </div>
-  {% endfor %}
-</section>
+    {% endfor %}
+  </section>
+</div>
 {% endblock %}

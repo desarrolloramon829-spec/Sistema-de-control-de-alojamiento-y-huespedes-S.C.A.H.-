@@ -1,107 +1,161 @@
 {% extends "base.html" %} {% block title %}Vista Previa: {{ titulo }} -
-S.C.A.H.{% endblock %} {% block content %}
-<section class="module-hero mb-4">
-  <div>
-    <a
-      href="{{ url_for('reports.index') }}"
-      class="btn btn-ghost-secondary btn-sm mb-3"
-    >
-      <i class="bi bi-arrow-left"></i> Volver a reportes
-    </a>
-    <span class="section-kicker">Previsualización</span>
-    <h2 class="module-hero__title">{{ titulo }}</h2>
-    <p class="module-hero__subtitle mb-0">
-      Muestra operativa previa a exportación. Mostrando {{ datos | length }} de
-      {{ total }} registros.
-    </p>
-  </div>
-  <div class="module-hero__actions">
-    <div class="shell-stat-chip compact-chip">
-      <span>Registros</span>
-      <strong>{{ datos | length }}</strong>
-    </div>
-  </div>
-</section>
+S.C.A.H.{% endblock %} {% block extra_css %}
+<style>
+  .report-preview-screen {
+    color: var(--text-primary, #eaf4ff);
+  }
 
-{% if datos %}
-<section class="panel-card">
-  <header class="panel-card__header compact">
+  .report-preview-screen .module-hero,
+  .report-preview-screen .panel-card,
+  .report-preview-screen .preview-mobile-card {
+    border-radius: 22px;
+    border: 1px solid rgba(103, 183, 255, 0.1);
+    background: linear-gradient(180deg, rgba(20, 36, 58, 0.96), rgba(14, 27, 44, 0.96));
+    box-shadow: 0 18px 45px rgba(2, 10, 22, 0.32);
+  }
+
+  .report-preview-screen .module-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.35rem 1.45rem;
+  }
+
+  .report-preview-screen .panel-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.05rem 1.15rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .report-preview-screen .preview-mobile-list {
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .report-preview-screen .preview-mobile-card {
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.95rem 1rem;
+  }
+
+  @media (max-width: 991.98px) {
+    .report-preview-screen .module-hero,
+    .report-preview-screen .panel-card__header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="report-preview-screen">
+  <section class="module-hero mb-4">
     <div>
-      <span class="section-kicker">Resultado</span>
-      <h3>Datos del reporte</h3>
+      <a
+        href="{{ url_for('reports.index') }}"
+        class="btn btn-ghost-secondary btn-sm mb-3"
+      >
+        <i class="bi bi-arrow-left"></i> Volver a reportes
+      </a>
+      <span class="section-kicker">Previsualización</span>
+      <h2 class="module-hero__title">{{ titulo }}</h2>
+      <p class="module-hero__subtitle mb-0">
+        Muestra operativa previa a exportación. Mostrando {{ datos | length }}
+        de {{ total }} registros.
+      </p>
     </div>
-  </header>
-  <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
-    <div class="preview-mobile-list">
-      {% for row in datos %}
-      <article class="preview-mobile-card">
-        <div class="preview-mobile-card__header">
-          <strong>Registro {{ loop.index }}</strong>
-          <span class="status-pill muted small-pill">{{ loop.index }}</span>
-        </div>
-        {% if row is mapping %} {% for key, val in row.items() %}
-        <span
-          ><strong>{{ key | replace('_', ' ') | title }}:</strong> {{ val if val
-          is not none else '-' }}</span
-        >
-        {% endfor %} {% else %} {% for val in row %}
-        <span
-          ><strong>Col {{ loop.index }}:</strong> {{ val if val is not none else
-          '-' }}</span
-        >
-        {% endfor %} {% endif %}
-      </article>
-      {% endfor %}
+    <div class="module-hero__actions">
+      <div class="shell-stat-chip compact-chip">
+        <span>Registros</span>
+        <strong>{{ datos | length }}</strong>
+      </div>
     </div>
-  </div>
-  <div class="table-responsive ops-table-wrapper">
-    <table
-      class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
-    >
-      <thead>
-        <tr>
-          {% if datos[0] is mapping %} {% for key in datos[0].keys() %}
-          <th
-            class="{% if loop.index > 4 %}d-none d-lg-table-cell{% elif loop.index > 2 %}d-none d-md-table-cell{% endif %}"
-          >
-            {{ key | replace('_', ' ') | title }}
-          </th>
-          {% endfor %} {% else %} {% for val in datos[0] %}
-          <th
-            class="{% if loop.index > 4 %}d-none d-lg-table-cell{% elif loop.index > 2 %}d-none d-md-table-cell{% endif %}"
-          >
-            Col {{ loop.index }}
-          </th>
-          {% endfor %} {% endif %}
-        </tr>
-      </thead>
-      <tbody>
+  </section>
+
+  {% if datos %}
+  <section class="panel-card">
+    <header class="panel-card__header compact">
+      <div>
+        <span class="section-kicker">Resultado</span>
+        <h3>Datos del reporte</h3>
+      </div>
+    </header>
+    <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
+      <div class="preview-mobile-list">
         {% for row in datos %}
-        <tr>
+        <article class="preview-mobile-card">
+          <div class="preview-mobile-card__header">
+            <strong>Registro {{ loop.index }}</strong>
+            <span class="status-pill muted small-pill">{{ loop.index }}</span>
+          </div>
           {% if row is mapping %} {% for key, val in row.items() %}
-          <td
-            class="{% if loop.index > 4 %}d-none d-lg-table-cell{% elif loop.index > 2 %}d-none d-md-table-cell{% endif %}"
+          <span
+            ><strong>{{ key | replace('_', ' ') | title }}:</strong> {{ val if
+            val is not none else '-' }}</span
           >
-            {{ val if val is not none else '-' }}
-          </td>
           {% endfor %} {% else %} {% for val in row %}
-          <td
-            class="{% if loop.index > 4 %}d-none d-lg-table-cell{% elif loop.index > 2 %}d-none d-md-table-cell{% endif %}"
+          <span
+            ><strong>Col {{ loop.index }}:</strong> {{ val if val is not none
+            else '-' }}</span
           >
-            {{ val if val is not none else '-' }}
-          </td>
           {% endfor %} {% endif %}
-        </tr>
+        </article>
         {% endfor %}
-      </tbody>
-    </table>
+      </div>
+    </div>
+    <div class="table-responsive ops-table-wrapper">
+      <table
+        class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
+      >
+        <thead>
+          <tr>
+            {% if datos[0] is mapping %} {% for key in datos[0].keys() %}
+            <th
+              class="{% if loop.index > 4 %}d-none d-lg-table-cell{% elif loop.index > 2 %}d-none d-md-table-cell{% endif %}"
+            >
+              {{ key | replace('_', ' ') | title }}
+            </th>
+            {% endfor %} {% else %} {% for val in datos[0] %}
+            <th
+              class="{% if loop.index > 4 %}d-none d-lg-table-cell{% elif loop.index > 2 %}d-none d-md-table-cell{% endif %}"
+            >
+              Col {{ loop.index }}
+            </th>
+            {% endfor %} {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in datos %}
+          <tr>
+            {% if row is mapping %} {% for key, val in row.items() %}
+            <td
+              class="{% if loop.index > 4 %}d-none d-lg-table-cell{% elif loop.index > 2 %}d-none d-md-table-cell{% endif %}"
+            >
+              {{ val if val is not none else '-' }}
+            </td>
+            {% endfor %} {% else %} {% for val in row %}
+            <td
+              class="{% if loop.index > 4 %}d-none d-lg-table-cell{% elif loop.index > 2 %}d-none d-md-table-cell{% endif %}"
+            >
+              {{ val if val is not none else '-' }}
+            </td>
+            {% endfor %} {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% else %}
+  <div class="panel-card">
+    <div class="empty-state">
+      <i class="bi bi-inbox"></i>
+      <p class="mb-0">No se encontraron datos para este reporte.</p>
+    </div>
   </div>
-</section>
-{% else %}
-<div class="panel-card">
-  <div class="empty-state">
-    <i class="bi bi-inbox"></i>
-    <p class="mb-0">No se encontraron datos para este reporte.</p>
-  </div>
+  {% endif %}
 </div>
-{% endif %} {% endblock %}
+{% endblock %}
