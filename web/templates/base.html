@@ -3,13 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0a1220" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta
-      name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
-    />
-    <meta name="apple-mobile-web-app-title" content="SCAH" />
+    <meta name="theme-color" content="#1565C0" />
     <meta
       name="description"
       content="Sistema de Control de Alojamiento y Huéspedes"
@@ -39,15 +33,6 @@
       rel="manifest"
       href="{{ url_for('static', filename='manifest.json') }}"
     />
-    <link
-      rel="icon"
-      type="image/svg+xml"
-      href="{{ url_for('static', filename='img/icon-app.svg') }}"
-    />
-    <link
-      rel="apple-touch-icon"
-      href="{{ url_for('static', filename='img/icon-app.svg') }}"
-    />
     <!-- Custom CSS -->
     <link
       rel="stylesheet"
@@ -55,9 +40,7 @@
     />
     {% block extra_css %}{% endblock %}
   </head>
-  <body
-    class="app-body shell-ready endpoint-{{ (request.endpoint or 'unknown').replace('.', '-') }}"
-  >
+  <body class="app-body shell-ready">
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg fixed-top app-topbar">
       <div class="container-fluid">
@@ -99,14 +82,6 @@
 
         <div class="d-none d-lg-flex align-items-center ms-auto">
           {% if current_user %}
-          <button
-            data-install-pwa
-            type="button"
-            class="btn btn-ghost-primary btn-sm me-2"
-            style="display:none"
-          >
-            <i class="bi bi-phone"></i> Instalar
-          </button>
           <div class="topbar-user me-3">
             <div class="topbar-user__icon">
               <i class="bi bi-person-badge"></i>
@@ -246,14 +221,6 @@
         <!-- User info in sidebar (mobile) -->
         <div class="d-lg-none border-top p-3">
           {% if current_user %}
-          <button
-            data-install-pwa
-            type="button"
-            class="btn btn-ghost-primary btn-sm w-100 mb-3"
-            style="display:none"
-          >
-            <i class="bi bi-phone"></i> Instalar app
-          </button>
           <div
             class="d-flex align-items-center justify-content-between mobile-user-bar"
           >
@@ -308,7 +275,7 @@
           <div class="page-shell-side d-none d-xl-flex">
             <div class="shell-stat-chip">
               <span>Estado</span>
-              <strong data-online-status>En línea</strong>
+              <strong>En línea</strong>
             </div>
             <div class="shell-stat-chip">
               <span>Sesión</span>
@@ -319,45 +286,6 @@
             </div>
           </div>
         </section>
-
-        <section
-          class="mobile-shell-banner d-xl-none fade-up"
-          aria-label="Resumen móvil"
-        >
-          <div class="mobile-shell-banner__surface">
-            <div>
-              <span class="section-kicker">Panel móvil</span>
-              <strong>
-                {% if request.endpoint == 'dashboard.index' %}Centro de mando{%
-                elif request.endpoint and request.endpoint.startswith('guests.')
-                %}Huéspedes{% elif request.endpoint and
-                request.endpoint.startswith('hotels.') %}Hoteles{% elif
-                request.endpoint and request.endpoint.startswith('imports.')
-                %}Importaciones{% elif request.endpoint and
-                request.endpoint.startswith('reports.') %}Reportes{% elif
-                request.endpoint and request.endpoint.startswith('stats.')
-                %}Estadísticas{% elif request.endpoint and
-                request.endpoint.startswith('users.') %}Usuarios{% elif
-                request.endpoint and request.endpoint.startswith('backups.')
-                %}Backups{% else %}Panel operativo{% endif %}
-              </strong>
-            </div>
-            <span class="status-pill muted small-pill">
-              <i class="bi bi-phone"></i> Diseño táctil
-            </span>
-          </div>
-        </section>
-
-        <div class="offline-runtime-banner d-none fade-up" data-offline-banner>
-          <i class="bi bi-wifi-off"></i>
-          <div>
-            <strong>Sin conexión.</strong>
-            <span
-              >Se habilita solo lectura en lo visitado y se bloquean acciones
-              que requieren red.</span
-            >
-          </div>
-        </div>
 
         <!-- Flash messages -->
         {% with messages = get_flashed_messages(with_categories=true) %} {% if

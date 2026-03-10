@@ -1,292 +1,180 @@
 {% extends "base.html" %} {% block title %}{{ huesped.apellido_nombre }} -
-S.C.A.H.{% endblock %} {% block extra_css %}
-<style>
-  .guest-detail-screen {
-    color: var(--text-primary, #eaf4ff);
-  }
+S.C.A.H.{% endblock %} {% block content %}
+<section class="module-hero mb-4">
+  <div>
+    <a
+      href="{{ url_for('guests.index') }}"
+      class="btn btn-ghost-secondary btn-sm mb-3"
+    >
+      <i class="bi bi-arrow-left"></i> Volver al listado
+    </a>
+    <span class="section-kicker">Expediente operativo</span>
+    <h2 class="module-hero__title">{{ huesped.apellido_nombre }}</h2>
+    <p class="module-hero__subtitle mb-0">
+      Documento {{ huesped.dni_pasaporte or 'sin registrar' }}. Seguimiento de
+      identidad, estadía y origen de carga.
+    </p>
+  </div>
+  <div class="module-hero__actions align-items-start">
+    <span
+      class="status-pill {% if huesped.origen_carga == 'manual' %}muted{% endif %}"
+    >
+      <i class="bi bi-journal-check"></i> {{ huesped.origen_carga or 'N/A' }}
+    </span>
+    {% if current_user and current_user.rol in ('admin', 'operador') %}
+    <a
+      href="{{ url_for('guests.editar', huesped_id=huesped.id) }}"
+      class="btn btn-ghost-secondary btn-sm"
+    >
+      <i class="bi bi-pencil"></i> Editar
+    </a>
+    {% endif %} {% if current_user and current_user.rol == 'admin' %}
+    <form
+      method="POST"
+      action="{{ url_for('guests.eliminar', huesped_id=huesped.id) }}"
+      class="d-inline"
+      onsubmit="return confirm('¿Eliminar este huésped?')"
+    >
+      <button type="submit" class="btn btn-ghost-danger btn-sm">
+        <i class="bi bi-trash"></i> Eliminar
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</section>
 
-  .guest-detail-screen .module-hero,
-  .guest-detail-screen .panel-card {
-    border-radius: 22px;
-    border: 1px solid rgba(103, 183, 255, 0.1);
-    background: linear-gradient(180deg, rgba(20, 36, 58, 0.96), rgba(14, 27, 44, 0.96));
-    box-shadow: 0 18px 45px rgba(2, 10, 22, 0.32);
-  }
-
-  .guest-detail-screen .module-hero {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 1.35rem 1.45rem;
-  }
-
-  .guest-detail-screen .module-hero__title {
-    margin: 0.35rem 0 0.55rem;
-    font-family: 'Rajdhani', sans-serif;
-    font-size: clamp(1.9rem, 3vw, 2.8rem);
-    line-height: 0.94;
-  }
-
-  .guest-detail-screen .module-hero__subtitle,
-  .guest-detail-screen .duplicate-alert-item span,
-  .guest-detail-screen small.text-muted {
-    color: var(--text-secondary, #a8bed3) !important;
-  }
-
-  .guest-detail-screen .panel-card__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 1.05rem 1.15rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  }
-
-  .guest-detail-screen .panel-card__body {
-    padding: 0 1rem 1rem;
-  }
-
-  .guest-detail-screen .duplicate-alert-list {
-    display: grid;
-    gap: 0.85rem;
-  }
-
-  .guest-detail-screen .duplicate-alert-item {
-    display: grid;
-    gap: 0.3rem;
-    padding: 0.95rem 1rem;
-    border-radius: 14px;
-    background: rgba(243, 182, 63, 0.08);
-    border: 1px solid rgba(243, 182, 63, 0.18);
-  }
-
-  .guest-detail-screen .ops-mono,
-  .guest-detail-screen .ops-link {
-    color: var(--text-primary, #eaf4ff);
-  }
-
-  .guest-detail-screen .ops-link {
-    text-decoration: none;
-  }
-
-  .guest-detail-screen .ops-link:hover {
-    color: var(--primary, #23c0ff);
-  }
-
-  @media (max-width: 991.98px) {
-    .guest-detail-screen .module-hero {
-      flex-direction: column;
-    }
-
-    .guest-detail-screen .module-hero__actions,
-    .guest-detail-screen .panel-card__header {
-      width: 100%;
-    }
-
-    .guest-detail-screen .panel-card__header {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-  }
-
-  @media (max-width: 767.98px) {
-    .guest-detail-screen .module-hero,
-    .guest-detail-screen .panel-card__header,
-    .guest-detail-screen .panel-card__body {
-      padding-left: 1rem;
-      padding-right: 1rem;
-    }
-
-    .guest-detail-screen .module-hero__actions {
-      width: 100%;
-    }
-
-    .guest-detail-screen .module-hero__actions > * {
-      width: 100%;
-    }
-  }
-</style>
-{% endblock %} {% block content %}
-<div class="guest-detail-screen">
-  <section class="module-hero mb-4">
+{% if duplicados %}
+<section class="panel-card mb-3">
+  <header class="panel-card__header compact">
     <div>
-      <a
-        href="{{ url_for('guests.index') }}"
-        class="btn btn-ghost-secondary btn-sm mb-3"
-      >
-        <i class="bi bi-arrow-left"></i> Volver al listado
-      </a>
-      <span class="section-kicker">Expediente operativo</span>
-      <h2 class="module-hero__title">{{ huesped.apellido_nombre }}</h2>
-      <p class="module-hero__subtitle mb-0">
-        Documento {{ huesped.dni_pasaporte or 'sin registrar' }}. Seguimiento de
-        identidad, estadía y origen de carga.
-      </p>
+      <span class="section-kicker">Alerta de duplicidad</span>
+      <h3>Se detectaron expedientes similares</h3>
     </div>
-    <div class="module-hero__actions align-items-start">
-      <span
-        class="status-pill {% if huesped.origen_carga == 'manual' %}muted{% endif %}"
-      >
-        <i class="bi bi-journal-check"></i> {{ huesped.origen_carga or 'N/A' }}
-      </span>
-      {% if current_user and current_user.rol in ('admin', 'operador') %}
-      <a
-        href="{{ url_for('guests.editar', huesped_id=huesped.id) }}"
-        class="btn btn-ghost-secondary btn-sm"
-      >
-        <i class="bi bi-pencil"></i> Editar
-      </a>
-      {% endif %} {% if current_user and current_user.rol == 'admin' %}
-      <form
-        method="POST"
-        action="{{ url_for('guests.eliminar', huesped_id=huesped.id) }}"
-        class="d-inline"
-        onsubmit="return confirm('¿Eliminar este huésped?')"
-      >
-        <button type="submit" class="btn btn-ghost-danger btn-sm">
-          <i class="bi bi-trash"></i> Eliminar
-        </button>
-      </form>
-      {% endif %}
-    </div>
-  </section>
-
-  {% if duplicados %}
-  <section class="panel-card mb-3">
-    <header class="panel-card__header compact">
-      <div>
-        <span class="section-kicker">Alerta de duplicidad</span>
-        <h3>Se detectaron expedientes similares</h3>
+  </header>
+  <div class="panel-card__body px-3 pb-3">
+    <div class="duplicate-alert-list">
+      {% for duplicado in duplicados %}
+      <div class="duplicate-alert-item">
+        <div>
+          <strong>{{ duplicado.apellido_nombre }}</strong>
+          <span>{{ duplicado.hotel or 'Sin hotel' }}</span>
+        </div>
+        <span>DNI: {{ duplicado.dni_pasaporte or 'S/D' }}</span>
+        <span>Coincide por: {{ duplicado.coincidencias | join(', ') }}</span>
+        <a
+          href="{{ url_for('guests.detalle', huesped_id=duplicado.id) }}"
+          class="ops-link"
+          >Abrir expediente</a
+        >
       </div>
-    </header>
-    <div class="panel-card__body px-3 pb-3">
-      <div class="duplicate-alert-list">
-        {% for duplicado in duplicados %}
-        <div class="duplicate-alert-item">
-          <div>
-            <strong>{{ duplicado.apellido_nombre }}</strong>
-            <span>{{ duplicado.hotel or 'Sin hotel' }}</span>
-          </div>
-          <span>DNI: {{ duplicado.dni_pasaporte or 'S/D' }}</span>
-          <span>Coincide por: {{ duplicado.coincidencias | join(', ') }}</span>
-          <a
-            href="{{ url_for('guests.detalle', huesped_id=duplicado.id) }}"
-            class="ops-link"
-            >Abrir expediente</a
-          >
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<div class="row g-3 justify-content-center">
+  <div class="col-12 col-xl-5">
+    <section class="panel-card h-100">
+      <header class="panel-card__header compact">
+        <div>
+          <span class="section-kicker">Identidad</span>
+          <h3>Datos personales</h3>
         </div>
-        {% endfor %}
+      </header>
+      <div class="panel-card__body px-3 pb-3">
+        <div class="row g-3">
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">DNI / Pasaporte</small>
+            <strong class="ops-mono">{{ huesped.dni_pasaporte or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Nacionalidad</small>
+            <strong>{{ huesped.nacionalidad or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Procedencia</small>
+            <strong>{{ huesped.procedencia or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Profesión</small>
+            <strong>{{ huesped.profesion or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Edad</small>
+            <strong>{{ huesped.edad if huesped.edad else '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Fecha de Nacimiento</small>
+            <strong
+              >{{ huesped.fecha_nacimiento | fecha if huesped.fecha_nacimiento
+              else '-' }}</strong
+            >
+          </div>
+          <div class="col-12 col-md-6">
+            <small class="text-muted d-block">Domicilio</small>
+            <strong>{{ huesped.domicilio or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-3">
+            <small class="text-muted d-block">Teléfono</small>
+            <strong>{{ huesped.telefono or '-' }}</strong>
+          </div>
+        </div>
       </div>
-    </div>
-  </section>
-  {% endif %}
+    </section>
+  </div>
 
-  <div class="row g-3 justify-content-center">
-    <div class="col-12 col-xl-5">
-      <section class="panel-card h-100">
-        <header class="panel-card__header compact">
-          <div>
-            <span class="section-kicker">Identidad</span>
-            <h3>Datos personales</h3>
+  <div class="col-12 col-xl-7">
+    <section class="panel-card h-100">
+      <header class="panel-card__header compact">
+        <div>
+          <span class="section-kicker">Estadía</span>
+          <h3>Contexto hotelero y movimiento</h3>
+        </div>
+      </header>
+      <div class="panel-card__body px-3 pb-3">
+        <div class="row g-3">
+          <div class="col-12 col-md-4">
+            <small class="text-muted d-block">Hotel</small>
+            <strong>{{ huesped.hotel_nombre or '-' }}</strong>
           </div>
-        </header>
-        <div class="panel-card__body px-3 pb-3">
-          <div class="row g-3">
-            <div class="col-6 col-md-4">
-              <small class="text-muted d-block">DNI / Pasaporte</small>
-              <strong class="ops-mono"
-                >{{ huesped.dni_pasaporte or '-' }}</strong
-              >
-            </div>
-            <div class="col-6 col-md-4">
-              <small class="text-muted d-block">Nacionalidad</small>
-              <strong>{{ huesped.nacionalidad or '-' }}</strong>
-            </div>
-            <div class="col-6 col-md-4">
-              <small class="text-muted d-block">Procedencia</small>
-              <strong>{{ huesped.procedencia or '-' }}</strong>
-            </div>
-            <div class="col-6 col-md-4">
-              <small class="text-muted d-block">Profesión</small>
-              <strong>{{ huesped.profesion or '-' }}</strong>
-            </div>
-            <div class="col-6 col-md-4">
-              <small class="text-muted d-block">Edad</small>
-              <strong>{{ huesped.edad if huesped.edad else '-' }}</strong>
-            </div>
-            <div class="col-6 col-md-4">
-              <small class="text-muted d-block">Fecha de Nacimiento</small>
-              <strong
-                >{{ huesped.fecha_nacimiento | fecha if huesped.fecha_nacimiento
-                else '-' }}</strong
-              >
-            </div>
-            <div class="col-12 col-md-6">
-              <small class="text-muted d-block">Domicilio</small>
-              <strong>{{ huesped.domicilio or '-' }}</strong>
-            </div>
-            <div class="col-6 col-md-3">
-              <small class="text-muted d-block">Teléfono</small>
-              <strong>{{ huesped.telefono or '-' }}</strong>
-            </div>
+          <div class="col-6 col-md-2">
+            <small class="text-muted d-block">Habitación</small>
+            <strong>{{ huesped.habitacion or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-3">
+            <small class="text-muted d-block">Fecha Entrada</small>
+            <strong
+              >{{ huesped.fecha_entrada | fecha if huesped.fecha_entrada else
+              '-' }}</strong
+            >
+          </div>
+          <div class="col-6 col-md-3">
+            <small class="text-muted d-block">Fecha Salida</small>
+            <strong
+              >{{ huesped.fecha_salida | fecha if huesped.fecha_salida else '-'
+              }}</strong
+            >
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Destino</small>
+            <strong>{{ huesped.destino or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Movilidad</small>
+            <strong>{{ huesped.movilidad or '-' }}</strong>
+          </div>
+          <div class="col-6 col-md-4">
+            <small class="text-muted d-block">Origen Carga</small>
+            <span
+              class="status-pill {% if huesped.origen_carga != 'manual' %}muted{% endif %}"
+            >
+              {{ huesped.origen_carga or 'N/A' }}
+            </span>
           </div>
         </div>
-      </section>
-    </div>
-
-    <div class="col-12 col-xl-7">
-      <section class="panel-card h-100">
-        <header class="panel-card__header compact">
-          <div>
-            <span class="section-kicker">Estadía</span>
-            <h3>Contexto hotelero y movimiento</h3>
-          </div>
-        </header>
-        <div class="panel-card__body px-3 pb-3">
-          <div class="row g-3">
-            <div class="col-12 col-md-4">
-              <small class="text-muted d-block">Hotel</small>
-              <strong>{{ huesped.hotel_nombre or '-' }}</strong>
-            </div>
-            <div class="col-6 col-md-2">
-              <small class="text-muted d-block">Habitación</small>
-              <strong>{{ huesped.habitacion or '-' }}</strong>
-            </div>
-            <div class="col-6 col-md-3">
-              <small class="text-muted d-block">Fecha Entrada</small>
-              <strong
-                >{{ huesped.fecha_entrada | fecha if huesped.fecha_entrada else
-                '-' }}</strong
-              >
-            </div>
-            <div class="col-6 col-md-3">
-              <small class="text-muted d-block">Fecha Salida</small>
-              <strong
-                >{{ huesped.fecha_salida | fecha if huesped.fecha_salida else
-                '-' }}</strong
-              >
-            </div>
-            <div class="col-6 col-md-4">
-              <small class="text-muted d-block">Destino</small>
-              <strong>{{ huesped.destino or '-' }}</strong>
-            </div>
-            <div class="col-6 col-md-4">
-              <small class="text-muted d-block">Movilidad</small>
-              <strong>{{ huesped.movilidad or '-' }}</strong>
-            </div>
-            <div class="col-6 col-md-4">
-              <small class="text-muted d-block">Origen Carga</small>
-              <span
-                class="status-pill {% if huesped.origen_carga != 'manual' %}muted{% endif %}"
-              >
-                {{ huesped.origen_carga or 'N/A' }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
+      </div>
+    </section>
   </div>
 </div>
 {% endblock %}

@@ -8,7 +8,7 @@ import os
 # Agregar raíz del proyecto al path para acceder a database/, config, etc.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from flask import Flask, send_from_directory
+from flask import Flask
 from web.config import config as app_config
 
 
@@ -32,9 +32,6 @@ def create_app(config_name: str = None) -> Flask:
 
     # Registrar blueprints
     _register_blueprints(app)
-
-    # Registrar assets PWA con scope raíz
-    _register_pwa_routes(app)
 
     # Registrar filtros Jinja2
     _register_filters(app)
@@ -91,17 +88,6 @@ def _register_blueprints(app: Flask):
     app.register_blueprint(users_bp)
     app.register_blueprint(stats_bp)
     app.register_blueprint(backups_bp)
-
-
-def _register_pwa_routes(app: Flask):
-    """Expone el service worker desde la raíz para permitir instalación."""
-
-    @app.route('/sw.js')
-    def service_worker():
-        response = send_from_directory(app.static_folder, 'sw.js', mimetype='application/javascript')
-        response.headers['Cache-Control'] = 'no-cache'
-        response.headers['Service-Worker-Allowed'] = '/'
-        return response
 
 
 def _register_filters(app: Flask):

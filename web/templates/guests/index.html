@@ -1,146 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Huéspedes - S.C.A.H.{% endblock %}
 
-{% block extra_css %}
-<style>
-    .guest-index-screen {
-        color: var(--text-primary, #eaf4ff);
-    }
-
-    .guest-index-screen .module-hero,
-    .guest-index-screen .panel-card {
-        border-radius: 22px;
-        border: 1px solid rgba(103, 183, 255, 0.1);
-        background: linear-gradient(180deg, rgba(20, 36, 58, 0.96), rgba(14, 27, 44, 0.96));
-        box-shadow: 0 18px 45px rgba(2, 10, 22, 0.32);
-    }
-
-    .guest-index-screen .module-hero {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 1.35rem 1.45rem;
-    }
-
-    .guest-index-screen .module-hero__title {
-        margin: 0.35rem 0 0.55rem;
-        font-family: 'Rajdhani', sans-serif;
-        font-size: clamp(1.9rem, 3vw, 2.8rem);
-        line-height: 0.94;
-    }
-
-    .guest-index-screen .module-hero__subtitle,
-    .guest-index-screen .guest-mobile-card__meta,
-    .guest-index-screen .guest-mobile-card__header small {
-        color: var(--text-secondary, #a8bed3);
-    }
-
-    .guest-index-screen .panel-card__header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 1.05rem 1.15rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
-    .guest-index-screen .panel-card__body {
-        padding: 0 1rem 1rem;
-    }
-
-    .guest-index-screen .guest-mobile-list {
-        display: grid;
-        gap: 0.9rem;
-    }
-
-    .guest-index-screen .guest-mobile-card {
-        display: grid;
-        gap: 0.9rem;
-        padding: 1rem;
-        border-radius: 18px;
-        background: rgba(255, 255, 255, 0.035);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .guest-index-screen .guest-mobile-card__header {
-        display: flex;
-        justify-content: space-between;
-        gap: 0.8rem;
-    }
-
-    .guest-index-screen .guest-mobile-card__actions {
-        display: flex;
-        gap: 0.65rem;
-    }
-
-    .guest-index-screen .ops-table-wrapper {
-        padding: 0 0.35rem 0.35rem;
-    }
-
-    .guest-index-screen .ops-table {
-        --bs-table-bg: transparent;
-        --bs-table-hover-bg: rgba(255, 255, 255, 0.04);
-        --bs-table-border-color: rgba(255, 255, 255, 0.06);
-        color: var(--text-primary, #eaf4ff);
-    }
-
-    .guest-index-screen .ops-link {
-        text-decoration: none;
-        color: var(--text-primary, #eaf4ff);
-    }
-
-    .guest-index-screen .ops-link:hover {
-        color: var(--primary, #23c0ff);
-    }
-
-    @media (max-width: 991.98px) {
-        .guest-index-screen .module-hero {
-            flex-direction: column;
-        }
-
-        .guest-index-screen .module-hero__actions,
-        .guest-index-screen .panel-card__header,
-        .guest-index-screen .table-toolbar {
-            width: 100%;
-        }
-
-        .guest-index-screen .panel-card__header {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-    }
-
-    @media (max-width: 767.98px) {
-        .guest-index-screen .module-hero,
-        .guest-index-screen .panel-card__header,
-        .guest-index-screen .panel-card__body {
-            padding-left: 1rem;
-            padding-right: 1rem;
-        }
-
-        .guest-index-screen .search-toolbar > .col,
-        .guest-index-screen .search-toolbar > .col-auto,
-        .guest-index-screen .advanced-filters-grid > [class*='col-'],
-        .guest-index-screen .table-toolbar > * {
-            width: 100%;
-            flex: 0 0 100%;
-        }
-
-        .guest-index-screen .search-toolbar .btn,
-        .guest-index-screen .form-action-row .btn {
-            width: 100%;
-        }
-
-        .guest-index-screen .guest-mobile-card__actions {
-            flex-direction: column;
-        }
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="guest-index-screen">
 <section class="module-hero mb-4">
     <div>
         <span class="section-kicker">Trazabilidad</span>
@@ -268,50 +129,8 @@
             </select>
         </div>
     </header>
-
-    <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
-        <div class="guest-mobile-list">
-            {% for h in datos %}
-            <article class="guest-mobile-card">
-                <div class="guest-mobile-card__header">
-                    <div>
-                        <a href="{{ url_for('guests.detalle', huesped_id=h.id) }}" class="ops-link fw-semibold">
-                            {{ h.apellido_nombre }}
-                        </a>
-                        <small>{{ h.hotel or 'Sin hotel asignado' }}</small>
-                    </div>
-                    <span class="status-pill muted small-pill">#{{ h.id }}</span>
-                </div>
-                <div class="guest-mobile-card__meta">
-                    <span><strong>DNI:</strong> {{ h.dni_pasaporte or 'S/D' }}</span>
-                    <span><strong>Ingreso:</strong> {{ h.fecha_entrada or 'S/F' }}</span>
-                    <span><strong>Salida:</strong> {{ h.fecha_salida or 'Abierta' }}</span>
-                    <span><strong>Procedencia:</strong> {{ h.procedencia or 'Sin procedencia' }}</span>
-                </div>
-                <div class="guest-mobile-card__actions">
-                    <a href="{{ url_for('guests.detalle', huesped_id=h.id) }}"
-                       class="btn btn-ghost-primary btn-sm flex-fill">
-                        <i class="bi bi-eye"></i> Ver detalle
-                    </a>
-                    {% if current_user and current_user.rol in ('admin', 'operador') %}
-                    <a href="{{ url_for('guests.editar', huesped_id=h.id) }}"
-                       class="btn btn-ghost-secondary btn-sm flex-fill">
-                        <i class="bi bi-pencil"></i> Editar
-                    </a>
-                    {% endif %}
-                </div>
-            </article>
-            {% else %}
-            <div class="empty-state empty-state-compact">
-                <i class="bi bi-inbox"></i>
-                <p class="mb-0 mt-2">No se encontraron huéspedes con los filtros aplicados.</p>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-
     <div class="table-responsive ops-table-wrapper">
-        <table class="table table-hover align-middle mb-0 ops-table d-none d-md-table">
+        <table class="table table-hover align-middle mb-0 ops-table">
             <thead>
                 <tr>
                     <th>Expediente</th>
@@ -364,7 +183,7 @@
                 {% else %}
                 <tr>
                     <td colspan="7">
-                        <div class="empty-state empty-state-compact d-none d-md-block">
+                        <div class="empty-state empty-state-compact">
                             <i class="bi bi-inbox"></i>
                             <p class="mb-0 mt-2">No se encontraron huéspedes con los filtros aplicados.</p>
                         </div>
@@ -414,5 +233,4 @@ function changePerPage(val) {
     window.location = url;
 }
 </script>
-</div>
 {% endblock %}
