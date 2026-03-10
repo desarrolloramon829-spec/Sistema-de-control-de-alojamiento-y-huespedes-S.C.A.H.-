@@ -34,8 +34,11 @@
     </div>
   </header>
   <div class="panel-card__body px-3 pb-3">
-    <form method="POST" enctype="multipart/form-data">
+    <form method="POST" enctype="multipart/form-data" data-requires-online="true">
       <input type="hidden" name="action" value="preview" />
+      <div class="offline-module-note d-none mb-3" data-offline-note>
+        La carga tabular necesita conexión para procesar y validar los archivos.
+      </div>
       <div class="upload-dropzone mb-3">
         <div class="upload-dropzone__icon alt"><i class="bi bi-table"></i></div>
         <div class="upload-dropzone__copy">
@@ -166,8 +169,11 @@
     </div>
   </header>
   <div class="panel-card__body px-3 pb-3">
-    <form method="POST" id="importForm">
+    <form method="POST" id="importForm" data-requires-online="true">
       <input type="hidden" name="action" value="import" />
+      <div class="offline-module-note d-none mb-3" data-offline-note>
+        Sin conexión solo queda disponible la lectura de la vista previa ya cargada.
+      </div>
 
       <div class="form-section-block mb-4">
         <div class="form-section-block__title">Hotel existente</div>
@@ -245,8 +251,23 @@
           </div>
           <span class="status-pill muted small-pill">Primeros 50</span>
         </header>
+        <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
+          <div class="preview-mobile-list">
+            {% for h in preview.huespedes[:50] %}
+            <article class="preview-mobile-card">
+              <div class="preview-mobile-card__header">
+                <strong>{{ h.get('apellido_nombre', '-') }}</strong>
+                <span class="status-pill muted small-pill">{{ loop.index }}</span>
+              </div>
+              <span><strong>DNI:</strong> {{ h.get('dni_pasaporte', '-') }}</span>
+              <span><strong>Nacionalidad:</strong> {{ h.get('nacionalidad', '-') }}</span>
+              <span><strong>Procedencia:</strong> {{ h.get('procedencia', '-') }}</span>
+            </article>
+            {% endfor %}
+          </div>
+        </div>
         <div class="table-responsive ops-table-wrapper mb-0">
-          <table class="table table-hover align-middle mb-0 ops-table">
+          <table class="table table-hover align-middle mb-0 ops-table d-none d-md-table">
             <thead>
               <tr>
                 <th>#</th>

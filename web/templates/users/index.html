@@ -67,8 +67,63 @@ block content %}
       <h3>Usuarios registrados</h3>
     </div>
   </header>
+  <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
+    <div class="entity-mobile-list">
+      {% for u in usuarios %}
+      <article class="entity-mobile-card">
+        <div class="entity-mobile-card__header">
+          <div class="user-identity-cell">
+            <span class="user-avatar-badge"
+              >{{ (u.username[:1] or 'U') | upper }}</span
+            >
+            <div>
+              <div class="fw-semibold">{{ u.username }}</div>
+              <small class="text-muted">ID {{ u.id }}</small>
+            </div>
+          </div>
+          <span class="status-pill {{ 'danger' if u.rol == 'admin' else 'info' if u.rol == 'operador' else 'muted' }} small-pill">
+            {{ u.rol | title }}
+          </span>
+        </div>
+        <div class="entity-mobile-card__meta">
+          <span><strong>Nombre:</strong> {{ u.nombre_completo or '-' }}</span>
+          <span><strong>Estado:</strong> {{ 'Activo' if u.activo else 'Inactivo' }}</span>
+        </div>
+        <div class="entity-mobile-card__actions">
+          <a
+            href="{{ url_for('users.editar', user_id=u.id) }}"
+            class="btn btn-ghost-primary btn-sm flex-fill"
+          >
+            <i class="bi bi-pencil"></i> Editar
+          </a>
+          {% if u.id != session['user']['id'] %}
+          <form
+            method="POST"
+            action="{{ url_for('users.toggle', user_id=u.id) }}"
+            class="flex-fill"
+            data-confirm="{{ '¿Desactivar al usuario ' ~ u.username ~ '?' if u.activo else '¿Reactivar al usuario ' ~ u.username ~ '?' }}"
+          >
+            <button
+              type="submit"
+              class="btn btn-sm {{ 'btn-ghost-warning' if u.activo else 'btn-ghost-success' }} w-100"
+            >
+              <i class="bi bi-{{ 'pause' if u.activo else 'play' }}"></i>
+              {{ 'Desactivar' if u.activo else 'Reactivar' }}
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </article>
+      {% else %}
+      <div class="empty-state empty-state-compact">
+        <i class="bi bi-people"></i>
+        <p class="mb-0">No hay usuarios registrados.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
   <div class="table-responsive ops-table-wrapper">
-    <table class="table table-hover align-middle mb-0 ops-table">
+    <table class="table table-hover align-middle mb-0 ops-table d-none d-md-table">
       <thead>
         <tr>
           <th>Usuario</th>
@@ -138,7 +193,7 @@ block content %}
         {% else %}
         <tr>
           <td colspan="5" class="py-5">
-            <div class="empty-state">
+            <div class="empty-state d-none d-md-block">
               <i class="bi bi-people"></i>
               <p class="mb-0">No hay usuarios registrados.</p>
             </div>

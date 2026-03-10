@@ -129,8 +129,48 @@
             </select>
         </div>
     </header>
+    <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
+        <div class="guest-mobile-list">
+            {% for h in datos %}
+            <article class="guest-mobile-card">
+                <div class="guest-mobile-card__header">
+                    <div>
+                        <a href="{{ url_for('guests.detalle', huesped_id=h.id) }}" class="ops-link fw-semibold">
+                            {{ h.apellido_nombre }}
+                        </a>
+                        <small>{{ h.hotel or 'Sin hotel asignado' }}</small>
+                    </div>
+                    <span class="status-pill muted small-pill">#{{ h.id }}</span>
+                </div>
+                <div class="guest-mobile-card__meta">
+                    <span><strong>DNI:</strong> {{ h.dni_pasaporte or 'S/D' }}</span>
+                    <span><strong>Ingreso:</strong> {{ h.fecha_entrada or 'S/F' }}</span>
+                    <span><strong>Salida:</strong> {{ h.fecha_salida or 'Abierta' }}</span>
+                    <span><strong>Procedencia:</strong> {{ h.procedencia or 'Sin procedencia' }}</span>
+                </div>
+                <div class="guest-mobile-card__actions">
+                    <a href="{{ url_for('guests.detalle', huesped_id=h.id) }}"
+                       class="btn btn-ghost-primary btn-sm flex-fill">
+                        <i class="bi bi-eye"></i> Ver detalle
+                    </a>
+                    {% if current_user and current_user.rol in ('admin', 'operador') %}
+                    <a href="{{ url_for('guests.editar', huesped_id=h.id) }}"
+                       class="btn btn-ghost-secondary btn-sm flex-fill">
+                        <i class="bi bi-pencil"></i> Editar
+                    </a>
+                    {% endif %}
+                </div>
+            </article>
+            {% else %}
+            <div class="empty-state empty-state-compact">
+                <i class="bi bi-inbox"></i>
+                <p class="mb-0 mt-2">No se encontraron huéspedes con los filtros aplicados.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
     <div class="table-responsive ops-table-wrapper">
-        <table class="table table-hover align-middle mb-0 ops-table">
+        <table class="table table-hover align-middle mb-0 ops-table d-none d-md-table">
             <thead>
                 <tr>
                     <th>Expediente</th>
@@ -139,7 +179,7 @@
                     <th class="d-none d-xl-table-cell">Hotel</th>
                     <th>Ingreso</th>
                     <th class="d-none d-md-table-cell">Salida</th>
-                    <th class="text-center">Acción</th>
+                    <th class="text-center">Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -164,17 +204,26 @@
                     <td><span class="status-pill muted small-pill">{{ h.fecha_entrada or 'S/F' }}</span></td>
                     <td class="d-none d-md-table-cell"><span class="status-pill muted small-pill">{{ h.fecha_salida or 'Abierta' }}</span></td>
                     <td class="text-center">
-                        <a href="{{ url_for('guests.detalle', huesped_id=h.id) }}"
-                           class="btn btn-ghost-primary btn-sm"
-                           title="Ver detalle">
-                            <i class="bi bi-eye"></i>
-                        </a>
+                        <div class="d-inline-flex gap-1 flex-wrap justify-content-center">
+                            <a href="{{ url_for('guests.detalle', huesped_id=h.id) }}"
+                               class="btn btn-ghost-primary btn-sm"
+                               title="Ver detalle">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% if current_user and current_user.rol in ('admin', 'operador') %}
+                            <a href="{{ url_for('guests.editar', huesped_id=h.id) }}"
+                               class="btn btn-ghost-secondary btn-sm"
+                               title="Editar huésped">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
                     <td colspan="7">
-                        <div class="empty-state empty-state-compact">
+                        <div class="empty-state empty-state-compact d-none d-md-block">
                             <i class="bi bi-inbox"></i>
                             <p class="mb-0 mt-2">No se encontraron huéspedes con los filtros aplicados.</p>
                         </div>

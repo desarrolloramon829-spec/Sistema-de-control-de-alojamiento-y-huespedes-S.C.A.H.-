@@ -21,7 +21,14 @@ S.C.A.H.{% endblock %} {% block content %}
     >
       <i class="bi bi-journal-check"></i> {{ huesped.origen_carga or 'N/A' }}
     </span>
-    {% if current_user and current_user.rol == 'admin' %}
+    {% if current_user and current_user.rol in ('admin', 'operador') %}
+    <a
+      href="{{ url_for('guests.editar', huesped_id=huesped.id) }}"
+      class="btn btn-ghost-secondary btn-sm"
+    >
+      <i class="bi bi-pencil"></i> Editar
+    </a>
+    {% endif %} {% if current_user and current_user.rol == 'admin' %}
     <form
       method="POST"
       action="{{ url_for('guests.eliminar', huesped_id=huesped.id) }}"
@@ -35,6 +42,32 @@ S.C.A.H.{% endblock %} {% block content %}
     {% endif %}
   </div>
 </section>
+
+{% if duplicados %}
+<section class="panel-card mb-3">
+  <header class="panel-card__header compact">
+    <div>
+      <span class="section-kicker">Alerta de duplicidad</span>
+      <h3>Se detectaron expedientes similares</h3>
+    </div>
+  </header>
+  <div class="panel-card__body px-3 pb-3">
+    <div class="duplicate-alert-list">
+      {% for duplicado in duplicados %}
+      <div class="duplicate-alert-item">
+        <div>
+          <strong>{{ duplicado.apellido_nombre }}</strong>
+          <span>{{ duplicado.hotel or 'Sin hotel' }}</span>
+        </div>
+        <span>DNI: {{ duplicado.dni_pasaporte or 'S/D' }}</span>
+        <span>Coincide por: {{ duplicado.coincidencias | join(', ') }}</span>
+        <a href="{{ url_for('guests.detalle', huesped_id=duplicado.id) }}" class="ops-link">Abrir expediente</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
 
 <div class="row g-3 justify-content-center">
   <div class="col-12 col-xl-5">

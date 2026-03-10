@@ -3,22 +3,52 @@
   "short_name": "SCAH",
   "description": "Sistema de Control de Alojamiento y Huéspedes",
   "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f1f5f9",
-  "theme_color": "#1e293b",
+  "background_color": "#0f1b2d",
+  "theme_color": "#0a1220",
   "orientation": "any",
+  "categories": ["productivity", "business"],
   "icons": [
     {
-      "src": "/static/img/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "/static/img/icon-app.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "/static/img/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "/static/img/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Huéspedes",
+      "short_name": "Huéspedes",
+      "description": "Abrir el listado de huéspedes",
+      "url": "/huespedes/",
+      "icons": [
+        {
+          "src": "/static/img/icon-app.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Importaciones",
+      "short_name": "Importar",
+      "description": "Abrir el centro de importaciones",
+      "url": "/importar/",
+      "icons": [
+        {
+          "src": "/static/img/icon-app.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
     }
   ]
 }

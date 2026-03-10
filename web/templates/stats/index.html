@@ -31,7 +31,7 @@
     </div>
   </header>
   <div class="panel-card__body px-3 pb-3">
-    <div class="stats-selector-grid">
+    <div class="stats-selector-grid stats-selector-grid-mobile-scroll">
       <button
         class="btn btn-sm btn-primary stat-btn active"
         data-tipo="nacionalidades"
@@ -144,6 +144,8 @@
         class="btn btn-ghost-secondary chart-type-btn active"
         data-chart="bar"
         title="Barras"
+        aria-label="Mostrar gráfico de barras"
+        aria-pressed="true"
       >
         <i class="bi bi-bar-chart"></i>
       </button>
@@ -151,6 +153,8 @@
         class="btn btn-ghost-secondary chart-type-btn"
         data-chart="pie"
         title="Circular"
+        aria-label="Mostrar gráfico circular"
+        aria-pressed="false"
       >
         <i class="bi bi-pie-chart"></i>
       </button>
@@ -158,6 +162,8 @@
         class="btn btn-ghost-secondary chart-type-btn"
         data-chart="line"
         title="Línea"
+        aria-label="Mostrar gráfico de línea"
+        aria-pressed="false"
       >
         <i class="bi bi-graph-up"></i>
       </button>
@@ -168,7 +174,7 @@
       <div class="spinner-border text-primary" role="status"></div>
       <p class="text-muted mt-2">Cargando datos...</p>
     </div>
-    <div style="position:relative; height:400px; max-height:50vh">
+    <div class="stats-chart-shell" style="position:relative; height:400px; max-height:50vh">
       <canvas id="mainChart"></canvas>
     </div>
   </div>
@@ -181,8 +187,11 @@
       <h3>Datos de la serie</h3>
     </div>
   </header>
+  <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
+    <div class="preview-mobile-list" id="statsMobileBody"></div>
+  </div>
   <div class="table-responsive ops-table-wrapper">
-    <table class="table table-hover align-middle mb-0 ops-table" id="dataTable">
+    <table class="table table-hover align-middle mb-0 ops-table d-none d-md-table" id="dataTable">
       <thead>
         <tr>
           <th>Categoría</th>
@@ -210,6 +219,7 @@
       const statsTotalCount = document.getElementById('statsTotalCount');
       const statsTopLabel = document.getElementById('statsTopLabel');
       const statsTopMeta = document.getElementById('statsTopMeta');
+        const statsMobileBody = document.getElementById('statsMobileBody');
       const colors = [
           '#0d6efd', '#198754', '#dc3545', '#ffc107', '#0dcaf0',
           '#6f42c1', '#fd7e14', '#20c997', '#d63384', '#6610f2',
@@ -312,6 +322,20 @@
                   <td class="text-end d-none d-md-table-cell">${pct}%</td>
               </tr>`;
           }).join('');
+
+          if (statsMobileBody) {
+              statsMobileBody.innerHTML = labels.map((label, i) => {
+                  const pct = total > 0 ? ((values[i] / total) * 100).toFixed(1) : '0.0';
+                  return `<article class="preview-mobile-card">
+                    <div class="preview-mobile-card__header">
+                      <strong>${label}</strong>
+                      <span class="status-pill muted small-pill">${pct}%</span>
+                    </div>
+                    <span><strong>Cantidad:</strong> ${values[i]}</span>
+                    <span><strong>Participación:</strong> ${pct}% del total</span>
+                  </article>`;
+              }).join('');
+          }
       }
 
       // Stat type buttons
@@ -330,8 +354,12 @@
       // Chart type buttons
       document.querySelectorAll('.chart-type-btn').forEach(btn => {
           btn.addEventListener('click', function() {
-              document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.chart-type-btn').forEach(b => {
+              b.classList.remove('active');
+              b.setAttribute('aria-pressed', 'false');
+            });
               this.classList.add('active');
+            this.setAttribute('aria-pressed', 'true');
               currentType = this.dataset.chart;
               if (currentData) renderChart(currentData, currentType);
           });

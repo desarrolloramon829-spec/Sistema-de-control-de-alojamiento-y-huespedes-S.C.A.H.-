@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a1220" />
+    <title>S.C.A.H. - Sin conexión</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: radial-gradient(circle at top, rgba(35, 192, 255, 0.18), transparent 24%), #0f1b2d;
+        color: #eaf4ff;
+      }
+
+      .offline-card {
+        max-width: 420px;
+        padding: 28px;
+        border-radius: 20px;
+        background: rgba(20, 36, 58, 0.92);
+        border: 1px solid rgba(103, 183, 255, 0.18);
+        box-shadow: 0 24px 60px rgba(1, 7, 18, 0.42);
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: 1.8rem;
+      }
+
+      p {
+        margin: 0 0 10px;
+        color: #a8bed3;
+        line-height: 1.5;
+      }
+
+      a {
+        display: inline-block;
+        margin-top: 14px;
+        color: #23c0ff;
+        text-decoration: none;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="offline-card">
+      <h1>Sin conexión</h1>
+      <p>La aplicación está instalada, pero este módulo necesita acceso a la red para recuperar datos actualizados.</p>
+      <p>Cuando vuelva la conexión, recargá la vista para continuar.</p>
+      <a href="/dashboard">Intentar nuevamente</a>
+    </section>
+  </body>
+</html>

@@ -8,7 +8,7 @@ import os
 # Agregar raíz del proyecto al path para acceder a database/, config, etc.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from flask import Flask
+from flask import Flask, send_from_directory
 from web.config import config as app_config
 
 
@@ -32,6 +32,9 @@ def create_app(config_name: str = None) -> Flask:
 
     # Registrar blueprints
     _register_blueprints(app)
+
+    # Registrar rutas PWA
+    _register_pwa_routes(app)
 
     # Registrar filtros Jinja2
     _register_filters(app)
@@ -77,6 +80,7 @@ def _register_blueprints(app: Flask):
     from web.routes.reports import reports_bp
     from web.routes.users import users_bp
     from web.routes.stats import stats_bp
+    from web.routes.backups import backups_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -86,6 +90,18 @@ def _register_blueprints(app: Flask):
     app.register_blueprint(reports_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(stats_bp)
+    app.register_blueprint(backups_bp)
+
+
+def _register_pwa_routes(app: Flask):
+    """Expone assets PWA con el scope correcto para instalación."""
+
+    @app.route('/sw.js')
+    def service_worker():
+        response = send_from_directory(app.static_folder, 'sw.js', mimetype='application/javascript')
+        response.headers['Cache-Control'] = 'no-cache'
+        response.headers['Service-Worker-Allowed'] = '/'
+        return response
 
 
 def _register_filters(app: Flask):

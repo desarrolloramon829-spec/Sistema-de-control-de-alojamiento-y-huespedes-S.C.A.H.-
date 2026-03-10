@@ -104,8 +104,35 @@ block content %}
         </a>
       </header>
 
+      <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
+        <div class="preview-mobile-list">
+          {% for h in ultimos %}
+          <article class="preview-mobile-card">
+            <div class="preview-mobile-card__header">
+              <strong>{{ h.apellido_nombre | truncar(32) }}</strong>
+              <span class="status-pill muted small-pill">{{ h.fecha_entrada or 'Sin fecha' }}</span>
+            </div>
+            <span><strong>Documento:</strong> {{ h.dni_pasaporte or 'S/D' }}</span>
+            <span><strong>Hotel:</strong> {{ h.hotel | truncar(22) or 'Sin hotel' }}</span>
+            <span><strong>Nacionalidad:</strong> {{ h.nacionalidad or 'Sin nacionalidad' }}</span>
+            <a
+              href="{{ url_for('guests.detalle', huesped_id=h.id) }}"
+              class="btn btn-ghost-primary btn-sm mt-2"
+            >
+              <i class="bi bi-eye"></i> Ver expediente
+            </a>
+          </article>
+          {% else %}
+          <div class="empty-state empty-state-compact">
+            <i class="bi bi-database-exclamation"></i>
+            <p class="mb-0">No hay huéspedes registrados todavía.</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
       <div class="table-responsive ops-table-wrapper">
-        <table class="table table-hover align-middle mb-0 ops-table">
+        <table class="table table-hover align-middle mb-0 ops-table d-none d-md-table">
           <thead>
             <tr>
               <th>Huésped</th>
@@ -146,7 +173,7 @@ block content %}
             {% else %}
             <tr>
               <td colspan="4">
-                <div class="empty-state empty-state-compact">
+                <div class="empty-state empty-state-compact d-none d-md-block">
                   <i class="bi bi-database-exclamation"></i>
                   <p class="mb-0">No hay huéspedes registrados todavía.</p>
                 </div>
@@ -210,6 +237,12 @@ block content %}
             <i class="bi bi-file-bar-graph"></i>
             <span>Generar reporte</span>
           </a>
+          {% if current_user and current_user.rol == 'admin' %}
+          <a href="{{ url_for('backups.index') }}" class="quick-action-tile">
+            <i class="bi bi-shield-lock"></i>
+            <span>Generar backup</span>
+          </a>
+          {% endif %}
         </div>
       </article>
     </div>

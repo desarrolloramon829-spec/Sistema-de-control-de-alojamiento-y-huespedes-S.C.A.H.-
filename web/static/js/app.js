@@ -90,22 +90,36 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ===== PWA install prompt =====
   let deferredPrompt;
+  const installButtons = document.querySelectorAll('[data-install-pwa]');
+
+  installButtons.forEach(function (button) {
+    button.style.display = 'none';
+  });
+
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
     deferredPrompt = e;
 
     // Show install button if exists
-    const installBtn = document.getElementById('installPwa');
-    if (installBtn) {
-      installBtn.style.display = 'inline-block';
-      installBtn.addEventListener('click', function () {
+    installButtons.forEach(function (button) {
+      button.style.display = 'inline-block';
+      button.onclick = function () {
+        if (!deferredPrompt) return;
         deferredPrompt.prompt();
         deferredPrompt.userChoice.then(function () {
           deferredPrompt = null;
-          installBtn.style.display = 'none';
+          installButtons.forEach(function (item) {
+            item.style.display = 'none';
+          });
         });
-      });
-    }
+      };
+    });
+  });
+
+  window.addEventListener('appinstalled', function () {
+    installButtons.forEach(function (button) {
+      button.style.display = 'none';
+    });
   });
 
   // ===== Register service worker =====
@@ -114,4 +128,36 @@ document.addEventListener('DOMContentLoaded', function () {
       // SW registration failed, ignore
     });
   }
+
+  const connectivityTargets = document.querySelectorAll('[data-online-status]');
+  const offlineBanner = document.querySelector('[data-offline-banner]');
+  const onlineRequiredForms = document.querySelectorAll('form[data-requires-online]');
+
+  function updateConnectivityState() {
+    const online = navigator.onLine;
+
+    connectivityTargets.forEach(function (target) {
+      target.textContent = online ? 'En línea' : 'Sin conexión';
+    });
+
+    if (offlineBanner) {
+      offlineBanner.classList.toggle('d-none', online);
+    }
+
+    document.body.classList.toggle('is-offline', !online);
+
+    onlineRequiredForms.forEach(function (form) {
+      form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (button) {
+        button.disabled = !online;
+      });
+
+      form.querySelectorAll('[data-offline-note]').forEach(function (note) {
+        note.classList.toggle('d-none', online);
+      });
+    });
+  }
+
+  window.addEventListener('online', updateConnectivityState);
+  window.addEventListener('offline', updateConnectivityState);
+  updateConnectivityState();
 });

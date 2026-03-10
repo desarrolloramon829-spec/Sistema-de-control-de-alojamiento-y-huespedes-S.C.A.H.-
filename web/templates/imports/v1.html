@@ -34,8 +34,11 @@
     </div>
   </header>
   <div class="panel-card__body px-3 pb-3">
-    <form method="POST" enctype="multipart/form-data">
+    <form method="POST" enctype="multipart/form-data" data-requires-online="true">
       <input type="hidden" name="action" value="preview" />
+      <div class="offline-module-note d-none mb-3" data-offline-note>
+        La importación requiere conexión activa. Cuando vuelva la red vas a poder generar la vista previa.
+      </div>
       <div class="upload-dropzone mb-3">
         <div class="upload-dropzone__icon">
           <i class="bi bi-file-earmark-arrow-up"></i>
@@ -147,8 +150,24 @@
     </div>
     <span class="status-pill muted small-pill">Primeros 50 registros</span>
   </header>
+  <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
+    <div class="preview-mobile-list">
+      {% for h in preview.huespedes[:50] %}
+      <article class="preview-mobile-card">
+        <div class="preview-mobile-card__header">
+          <strong>{{ h.get('apellido_nombre', '-') }}</strong>
+          <span class="status-pill muted small-pill">{{ loop.index }}</span>
+        </div>
+        <span><strong>Hotel:</strong> {{ h.get('hotel_nombre', '-') }}</span>
+        <span><strong>DNI:</strong> {{ h.get('dni_pasaporte', '-') }}</span>
+        <span><strong>Nacionalidad:</strong> {{ h.get('nacionalidad', '-') }}</span>
+        <span><strong>Habitación:</strong> {{ h.get('habitacion', '-') }}</span>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
   <div class="table-responsive ops-table-wrapper">
-    <table class="table table-hover align-middle mb-0 ops-table">
+    <table class="table table-hover align-middle mb-0 ops-table d-none d-md-table">
       <thead>
         <tr>
           <th>#</th>
@@ -180,8 +199,11 @@
 </section>
 
 <div class="d-flex gap-2 flex-wrap form-action-row">
-  <form method="POST">
+  <form method="POST" data-requires-online="true">
     <input type="hidden" name="action" value="import" />
+    <div class="offline-module-note d-none mb-2" data-offline-note>
+      La importación no puede ejecutarse sin conexión.
+    </div>
     <button
       type="submit"
       class="btn btn-primary"

@@ -3,7 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1565C0" />
+    <meta name="theme-color" content="#0a1220" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="SCAH" />
     <meta
       name="description"
       content="Sistema de Control de Alojamiento y Huéspedes"
@@ -32,6 +38,15 @@
     <link
       rel="manifest"
       href="{{ url_for('static', filename='manifest.json') }}"
+    />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="{{ url_for('static', filename='img/icon-app.svg') }}"
+    />
+    <link
+      rel="apple-touch-icon"
+      href="{{ url_for('static', filename='img/icon-app.svg') }}"
     />
     <!-- Custom CSS -->
     <link
@@ -82,6 +97,14 @@
 
         <div class="d-none d-lg-flex align-items-center ms-auto">
           {% if current_user %}
+          <button
+            data-install-pwa
+            type="button"
+            class="btn btn-ghost-primary btn-sm me-2"
+            style="display:none"
+          >
+            <i class="bi bi-phone"></i> Instalar
+          </button>
           <div class="topbar-user me-3">
             <div class="topbar-user__icon">
               <i class="bi bi-person-badge"></i>
@@ -204,6 +227,16 @@
                 <small>Accesos y permisos</small>
               </a>
             </li>
+            <li class="nav-item">
+              <a
+                class="nav-link {% if request.endpoint and request.endpoint.startswith('backups.') %}active{% endif %}"
+                href="{{ url_for('backups.index') }}"
+              >
+                <i class="bi bi-shield-lock"></i>
+                <span>Backups</span>
+                <small>Respaldo y resguardo</small>
+              </a>
+            </li>
             {% endif %}
           </ul>
         </nav>
@@ -211,6 +244,14 @@
         <!-- User info in sidebar (mobile) -->
         <div class="d-lg-none border-top p-3">
           {% if current_user %}
+          <button
+            data-install-pwa
+            type="button"
+            class="btn btn-ghost-primary btn-sm w-100 mb-3"
+            style="display:none"
+          >
+            <i class="bi bi-phone"></i> Instalar app
+          </button>
           <div
             class="d-flex align-items-center justify-content-between mobile-user-bar"
           >
@@ -254,7 +295,8 @@
               elif request.endpoint and request.endpoint.startswith('stats.') %}
               Inteligencia visual {% elif request.endpoint and
               request.endpoint.startswith('users.') %} Administración de
-              usuarios {% else %} Panel operativo {% endif %}
+              usuarios {% elif request.endpoint and
+              request.endpoint.startswith('backups.') %} Respaldo del sistema {% else %} Panel operativo {% endif %}
             </h1>
             <p class="page-shell-subtitle mb-0">
               Monitoreo, trazabilidad y control administrativo de alojamientos.
@@ -263,7 +305,7 @@
           <div class="page-shell-side d-none d-xl-flex">
             <div class="shell-stat-chip">
               <span>Estado</span>
-              <strong>En línea</strong>
+              <strong data-online-status>En línea</strong>
             </div>
             <div class="shell-stat-chip">
               <span>Sesión</span>
@@ -274,6 +316,14 @@
             </div>
           </div>
         </section>
+
+        <div class="offline-runtime-banner d-none fade-up" data-offline-banner>
+          <i class="bi bi-wifi-off"></i>
+          <div>
+            <strong>Sin conexión.</strong>
+            <span>Se habilita solo lectura en lo visitado y se bloquean acciones que requieren red.</span>
+          </div>
+        </div>
 
         <!-- Flash messages -->
         {% with messages = get_flashed_messages(with_categories=true) %} {% if

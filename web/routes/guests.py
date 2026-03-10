@@ -6,12 +6,45 @@ from flask import (Blueprint, render_template, request, redirect,
                    url_for, flash, session, jsonify)
 from web.routes.decorators import login_required, permission_required
 from web.services.guest_service import (
-    busqueda_rapida, busqueda_avanzada, crear_huesped,
+    busqueda_rapida, busqueda_avanzada, crear_huesped, actualizar_huesped,
+    buscar_posibles_duplicados,
     obtener_huesped, eliminar_huesped, obtener_hoteles_lista,
     obtener_ciudades_lista
 )
+from utils.validators import validar_fecha
 
 guests_bp = Blueprint('guests', __name__, url_prefix='/huespedes')
+
+
+def _preparar_datos_formulario(huesped: dict) -> dict:
+    """Adapta los datos del huésped al formato esperado por el formulario HTML."""
+    datos = dict(huesped)
+
+    if datos.get('dni_raw'):
+        datos['dni_pasaporte'] = datos['dni_raw']
+
+    for campo in ('fecha_nacimiento', 'fecha_entrada', 'fecha_salida'):
+        valor = datos.get(campo)
+        if not valor:
+            datos[campo] = ''
+            continue
+
+        ok, _, fecha = validar_fecha(valor, permite_vacio=True)
+        datos[campo] = fecha.isoformat() if ok and fecha else ''
+
+    return datos
+
+
+def _obtener_alertas_duplicados(datos: dict, exclude_id: int | None = None) -> list:
+    """Obtiene alertas de duplicidad para mostrar en formulario o detalle."""
+    return buscar_posibles_duplicados(
+        dni_pasaporte=datos.get('dni_pasaporte', ''),
+        apellido_nombre=datos.get('apellido_nombre', ''),
+        telefono=datos.get('telefono', ''),
+        hotel_id=datos.get('hotel_id'),
+        fecha_entrada=datos.get('fecha_entrada', ''),
+        exclude_id=exclude_id,
+    )
 
 
 @guests_bp.route('/')
@@ -82,10 +115,59 @@ def nuevo():
         else:
             flash(msg, 'danger')
             return render_template('guests/form.html', datos=datos, hoteles=hoteles,
-                                   es_edicion=False)
+                                   es_edicion=False,
+                                   duplicados=_obtener_alertas_duplicados(datos))
 
     return render_template('guests/form.html', datos={}, hoteles=hoteles,
-                           es_edicion=False)
+                           es_edicion=False, duplicados=[])
+
+
+@guests_bp.route('/<int:huesped_id>/editar', methods=['GET', 'POST'])
+@login_required
+@permission_required('editar_registros')
+def editar(huesped_id):
+    """Formulario de edición de huésped."""
+    huesped = obtener_huesped(huesped_id)
+    if not huesped:
+        flash('Huésped no encontrado.', 'warning')
+        return redirect(url_for('guests.index'))
+
+    hoteles = obtener_hoteles_lista()
+
+    if request.method == 'POST':
+        datos = {
+            'hotel_id': request.form.get('hotel_id', type=int),
+            'apellido_nombre': request.form.get('apellido_nombre', ''),
+            'dni_pasaporte': request.form.get('dni_pasaporte', ''),
+            'nacionalidad': request.form.get('nacionalidad', ''),
+            'procedencia': request.form.get('procedencia', ''),
+            'profesion': request.form.get('profesion', ''),
+            'edad': request.form.get('edad', ''),
+            'fecha_nacimiento': request.form.get('fecha_nacimiento', ''),
+            'fecha_entrada': request.form.get('fecha_entrada', ''),
+            'fecha_salida': request.form.get('fecha_salida', ''),
+            'habitacion': request.form.get('habitacion', ''),
+            'domicilio': request.form.get('domicilio', ''),
+            'destino': request.form.get('destino', ''),
+            'movilidad': request.form.get('movilidad', ''),
+            'telefono': request.form.get('telefono', ''),
+        }
+
+        usuario_id = session['user']['id']
+        ok, msg = actualizar_huesped(huesped_id, datos, usuario_id)
+
+        if ok:
+            flash(msg, 'success')
+            return redirect(url_for('guests.detalle', huesped_id=huesped_id))
+
+        flash(msg, 'danger')
+        return render_template('guests/form.html', datos=datos, hoteles=hoteles,
+                               es_edicion=True, huesped_id=huesped_id,
+                               duplicados=_obtener_alertas_duplicados(datos, huesped_id))
+
+    return render_template('guests/form.html', datos=_preparar_datos_formulario(huesped),
+                           hoteles=hoteles, es_edicion=True, huesped_id=huesped_id,
+                           duplicados=_obtener_alertas_duplicados(huesped, huesped_id))
 
 
 @guests_bp.route('/<int:huesped_id>')
@@ -96,7 +178,8 @@ def detalle(huesped_id):
     if not huesped:
         flash('Huésped no encontrado.', 'warning')
         return redirect(url_for('guests.index'))
-    return render_template('guests/detail.html', huesped=huesped)
+    duplicados = _obtener_alertas_duplicados(huesped, huesped_id)
+    return render_template('guests/detail.html', huesped=huesped, duplicados=duplicados)
 
 
 @guests_bp.route('/<int:huesped_id>/eliminar', methods=['POST'])
@@ -119,3 +202,21 @@ def api_ciudades():
     """API para autocompletar ciudades."""
     ciudades = obtener_ciudades_lista()
     return jsonify(ciudades)
+
+
+@guests_bp.route('/api/duplicados')
+@login_required
+def api_duplicados():
+    """API para verificar posibles duplicados de huéspedes."""
+    duplicados = buscar_posibles_duplicados(
+        dni_pasaporte=request.args.get('dni_pasaporte', ''),
+        apellido_nombre=request.args.get('apellido_nombre', ''),
+        telefono=request.args.get('telefono', ''),
+        hotel_id=request.args.get('hotel_id', type=int),
+        fecha_entrada=request.args.get('fecha_entrada', ''),
+        exclude_id=request.args.get('exclude_id', type=int),
+    )
+    return jsonify({
+        'total': len(duplicados),
+        'duplicados': duplicados,
+    })
