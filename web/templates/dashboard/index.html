@@ -5,98 +5,11 @@ block extra_css %}
     color: var(--text-primary, #eaf4ff);
   }
 
-  .dashboard-screen .ops-hero-panel,
-  .dashboard-screen .metric-card,
-  .dashboard-screen .panel-card,
-  .dashboard-screen .hero-rail-card,
-  .dashboard-screen .city-list__item,
-  .dashboard-screen .quick-action-tile,
-  .dashboard-screen .preview-mobile-card {
-    border-radius: 22px;
-    border: 1px solid rgba(103, 183, 255, 0.1);
-    background: linear-gradient(180deg, rgba(20, 36, 58, 0.96), rgba(14, 27, 44, 0.96));
-    box-shadow: 0 18px 45px rgba(2, 10, 22, 0.32);
-  }
-
-  .dashboard-screen .ops-hero-panel {
-    display: grid;
-    grid-template-columns: minmax(0, 1.6fr) minmax(220px, 0.7fr);
-    gap: 1rem;
-    padding: 1.55rem;
-  }
-
-  .dashboard-screen .ops-hero-copy h2 {
-    margin: 0.4rem 0 0.75rem;
-    font-family: 'Rajdhani', sans-serif;
-    font-size: clamp(2rem, 3vw, 3rem);
-    line-height: 0.95;
-  }
-
   .dashboard-screen .ops-hero-copy p,
   .dashboard-screen .metric-card__meta,
   .dashboard-screen .preview-mobile-card,
   .dashboard-screen .city-list__item small {
     color: var(--text-secondary, #a8bed3);
-  }
-
-  .dashboard-screen .ops-hero-rail,
-  .dashboard-screen .preview-mobile-list,
-  .dashboard-screen .city-list {
-    display: grid;
-    gap: 0.9rem;
-  }
-
-  .dashboard-screen .hero-rail-card {
-    padding: 1rem;
-  }
-
-  .dashboard-screen .metric-card {
-    position: relative;
-    overflow: hidden;
-    padding: 1.18rem;
-  }
-
-  .dashboard-screen .metric-card__top {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    align-items: flex-start;
-  }
-
-  .dashboard-screen .metric-card__label {
-    color: var(--text-secondary, #a8bed3);
-    font-size: 0.82rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-weight: 700;
-  }
-
-  .dashboard-screen .metric-card__icon {
-    width: 44px;
-    height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.06);
-    font-size: 1.1rem;
-  }
-
-  .dashboard-screen .metric-card__value {
-    display: block;
-    margin-top: 0.9rem;
-    font-family: 'Rajdhani', sans-serif;
-    font-size: clamp(2rem, 4vw, 2.7rem);
-    line-height: 0.9;
-  }
-
-  .dashboard-screen .panel-card__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 1.05rem 1.15rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   .dashboard-screen .city-list,
@@ -167,47 +80,25 @@ block extra_css %}
     color: var(--primary, #23c0ff);
   }
 
-  @media (max-width: 1399.98px) {
-    .dashboard-screen .ops-hero-panel {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  @media (max-width: 991.98px) {
-    .dashboard-screen .panel-card__header {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-  }
-
-  @media (max-width: 767.98px) {
-    .dashboard-screen .ops-hero-panel,
-    .dashboard-screen .panel-card__header,
-    .dashboard-screen .d-md-none.panel-card__body {
-      padding-left: 1rem;
-      padding-right: 1rem;
-    }
-
+  @media (max-width: 1199.98px) {
     .dashboard-screen .quick-actions-grid {
       grid-template-columns: 1fr;
     }
   }
 
+  @media (max-width: 767.98px) {
+    .dashboard-screen .city-list,
+    .dashboard-screen .quick-actions-grid {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  }
+
   @media (max-width: 575.98px) {
-    .dashboard-screen .ops-hero-copy h2 {
-      font-size: 2.25rem;
-    }
-
-    .dashboard-screen .metric-card__value {
-      font-size: 1.9rem;
-    }
-
-    .dashboard-screen .ops-hero-panel,
-    .dashboard-screen .metric-card,
-    .dashboard-screen .panel-card,
-    .dashboard-screen .quick-action-tile,
-    .dashboard-screen .preview-mobile-card {
-      border-radius: 18px;
+    .dashboard-screen .city-list,
+    .dashboard-screen .quick-actions-grid {
+      padding-left: 0.85rem;
+      padding-right: 0.85rem;
     }
   }
 </style>

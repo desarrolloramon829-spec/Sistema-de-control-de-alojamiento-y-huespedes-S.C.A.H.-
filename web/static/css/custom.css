@@ -3,6 +3,8 @@
 :root {
   --sidebar-width: 290px;
   --topbar-height: 76px;
+  --mobile-topbar-height: 82px;
+  --mobile-page-gutter: 0.95rem;
   --bg-absolute: #0a1220;
   --bg-main: #0f1b2d;
   --surface-1: #14243a;
@@ -106,6 +108,11 @@ textarea {
 
 .app-body {
   overflow-x: hidden;
+}
+
+.app-shell-grid {
+  display: grid;
+  gap: 1rem;
 }
 
 .fade-up {
@@ -532,6 +539,36 @@ textarea {
   box-shadow: var(--shadow-soft);
 }
 
+.mobile-shell-banner {
+  display: none;
+}
+
+.mobile-shell-banner__surface {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.95rem 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(103, 183, 255, 0.1);
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(35, 192, 255, 0.1),
+      transparent 28%
+    ),
+    linear-gradient(160deg, rgba(20, 36, 58, 0.94), rgba(14, 27, 44, 0.94));
+  box-shadow: var(--shadow-soft);
+}
+
+.mobile-shell-banner strong {
+  display: block;
+  margin-top: 0.25rem;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.38rem;
+  line-height: 0.95;
+}
+
 .page-shell-title {
   margin: 0.25rem 0 0.4rem;
   font-family: 'Rajdhani', sans-serif;
@@ -744,6 +781,12 @@ textarea {
   display: block;
   margin-top: 0.4rem;
   font-size: 1.15rem;
+}
+
+.hero-rail-card strong,
+.city-list__item strong,
+.quick-action-tile span {
+  overflow-wrap: anywhere;
 }
 
 .metric-card {
@@ -1895,12 +1938,12 @@ textarea {
 }
 
 @media (max-width: 991.98px) {
-  .app-topbar {
-    min-height: 82px;
+  :root {
+    --topbar-height: var(--mobile-topbar-height);
   }
 
   .app-topbar .container-fluid {
-    min-height: 82px;
+    min-height: var(--mobile-topbar-height);
     padding-left: 0.85rem;
     padding-right: 0.85rem;
     flex-wrap: nowrap;
@@ -1920,8 +1963,9 @@ textarea {
 
   .main-content {
     margin-left: 0;
-    margin-top: 88px;
+    margin-top: calc(var(--topbar-height) + 0.4rem);
     padding: 0.8rem;
+    min-height: calc(100vh - var(--topbar-height));
   }
 
   .page-shell-header {
@@ -1971,6 +2015,28 @@ textarea {
     padding: 1.15rem;
   }
 
+  .mobile-shell-banner {
+    display: block;
+  }
+
+  .endpoint-dashboard-index .page-shell-header,
+  .app-body[class*='endpoint-guests-'] .page-shell-header,
+  .app-body[class*='endpoint-hotels-'] .page-shell-header,
+  .app-body[class*='endpoint-imports-'] .page-shell-header,
+  .app-body[class*='endpoint-reports-'] .page-shell-header,
+  .app-body[class*='endpoint-stats-'] .page-shell-header,
+  .app-body[class*='endpoint-users-'] .page-shell-header {
+    display: none;
+  }
+
+  .page-shell-header {
+    gap: 0.8rem;
+  }
+
+  .page-shell-subtitle {
+    max-width: 42ch;
+  }
+
   .login-shell {
     grid-template-columns: 1fr;
   }
@@ -1988,14 +2054,15 @@ textarea {
 }
 
 @media (max-width: 767.98px) {
-  .app-topbar {
-    min-height: 74px;
+  :root {
+    --mobile-topbar-height: 74px;
+    --mobile-page-gutter: 0.85rem;
   }
 
   .app-topbar .container-fluid {
-    min-height: 74px;
-    padding-left: 0.65rem;
-    padding-right: 0.65rem;
+    min-height: var(--mobile-topbar-height);
+    padding-left: var(--mobile-page-gutter);
+    padding-right: var(--mobile-page-gutter);
     gap: 0.5rem;
   }
 
@@ -2035,7 +2102,13 @@ textarea {
   }
 
   .main-content {
-    margin-top: 84px;
+    margin-top: calc(var(--topbar-height) + 0.55rem);
+    padding-left: var(--mobile-page-gutter);
+    padding-right: var(--mobile-page-gutter);
+  }
+
+  .app-shell-grid {
+    gap: 0.85rem;
   }
 
   .module-hero {
@@ -2092,8 +2165,23 @@ textarea {
   .module-hero,
   .panel-card__header,
   .panel-card__body {
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-left: var(--mobile-page-gutter);
+    padding-right: var(--mobile-page-gutter);
+  }
+
+  .page-shell-header {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  .mobile-shell-banner__surface {
+    padding-left: var(--mobile-page-gutter);
+    padding-right: var(--mobile-page-gutter);
+    align-items: flex-start;
+  }
+
+  .mobile-shell-banner strong {
+    font-size: 1.2rem;
   }
 
   .module-hero__actions,
@@ -2221,8 +2309,13 @@ textarea {
 }
 
 @media (max-width: 575.98px) {
+  :root {
+    --mobile-topbar-height: 70px;
+    --mobile-page-gutter: 0.78rem;
+  }
+
   .main-content {
-    margin-top: 80px;
+    margin-top: calc(var(--topbar-height) + 0.45rem);
     padding: 0.55rem;
   }
 
@@ -2239,8 +2332,8 @@ textarea {
   .module-hero,
   .panel-card__header,
   .panel-card__body {
-    padding-left: 0.85rem;
-    padding-right: 0.85rem;
+    padding-left: var(--mobile-page-gutter);
+    padding-right: var(--mobile-page-gutter);
   }
 
   .panel-card,
@@ -2295,7 +2388,19 @@ textarea {
   .preview-mobile-card,
   .offline-runtime-banner,
   .offline-module-note {
-    padding: 0.8rem 0.85rem;
+    padding: 0.8rem var(--mobile-page-gutter);
+  }
+
+  .mobile-shell-banner__surface {
+    flex-direction: column;
+    align-items: stretch;
+    padding-left: var(--mobile-page-gutter);
+    padding-right: var(--mobile-page-gutter);
+  }
+
+  .mobile-shell-banner .status-pill {
+    width: 100%;
+    justify-content: center;
   }
 
   .page-shell-header,
