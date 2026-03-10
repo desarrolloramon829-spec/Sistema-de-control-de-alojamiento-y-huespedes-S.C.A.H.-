@@ -1,12 +1,10 @@
 /* S.C.A.H. Web - Command Center Theme */
 
 :root {
-  --text-secondary: #bdd1e4;
-  --text-muted: #8fa7bc;
   --bg-absolute: #0a1220;
   --bg-main: #0f1b2d;
   --surface-1: #14243a;
-  line-height: 1.5;
+  --surface-2: #18304a;
   --surface-3: #203956;
   --border-subtle: #294766;
   --text-primary: #eaf4ff;
@@ -19,8 +17,6 @@
   --danger: #e25555;
   --info: #67b7ff;
   --overlay: rgba(6, 14, 24, 0.72);
-  outline-offset: 3px;
-  box-shadow: 0 0 0 4px rgba(35, 192, 255, 0.18);
   --shadow-soft: 0 18px 45px rgba(2, 10, 22, 0.32);
   --shadow-panel: 0 24px 60px rgba(1, 7, 18, 0.42);
   --transition-fast: 0.18s ease;
@@ -28,8 +24,9 @@
   --radius-xl: 24px;
   --radius-lg: 18px;
   --radius-md: 14px;
-  font-size: 0.82rem;
-  font-weight: 650;
+  --topbar-height: 78px;
+  --sidebar-width: 292px;
+}
 
 html,
 body {
@@ -37,7 +34,7 @@ body {
 }
 
 body {
-  min-height: 42px;
+  margin: 0;
   font-family:
     'Inter Tight',
     'Segoe UI',
@@ -47,57 +44,54 @@ body {
   background:
     radial-gradient(
       circle at top right,
-  color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
+      rgba(35, 192, 255, 0.12),
+      transparent 24%
+    ),
     radial-gradient(
       circle at bottom left,
       rgba(103, 183, 255, 0.08),
       transparent 22%
-  background: rgba(255, 255, 255, 0.12);
+    ),
     linear-gradient(180deg, #0a1220 0%, #0d1727 48%, #0f1b2d 100%);
   color: var(--text-primary);
   line-height: 1.45;
 }
-  min-width: 44px;
-  min-height: 44px;
 
 a {
   color: inherit;
-  min-width: 44px;
-  min-height: 44px;
+  text-decoration: none;
   transition:
     color var(--transition-fast),
     opacity var(--transition-fast);
-  color: var(--text-secondary);
+}
+
+a:hover {
+  color: #6fd7ff;
+}
 
 button,
 input,
-  color: #6fd7ff;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.18em;
+select,
 textarea {
   transition:
     transform var(--transition-fast),
-  color: #eaf9ff;
     background-color var(--transition-fast),
     box-shadow var(--transition-fast),
+    border-color var(--transition-fast),
     color var(--transition-fast);
 }
 
 :where(
   a,
   button,
-  min-height: 64px;
   input,
   select,
   textarea,
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
   .nav-link,
-  .quick-action-tile
+  .quick-action-tile,
+  .btn,
+  .form-control,
+  .form-select
 ):focus-visible {
   outline: 2px solid rgba(35, 192, 255, 0.9);
   outline-offset: 2px;
@@ -106,38 +100,37 @@ textarea {
 .app-body {
   overflow-x: hidden;
 }
-  color: var(--text-primary);
 
 .fade-up {
   opacity: 0;
   transform: translateY(14px);
   transition:
-  min-height: 44px;
-  padding-top: 0.55rem;
-  padding-bottom: 0.55rem;
     opacity 0.32s ease,
     transform 0.32s ease;
 }
 
 .is-loaded .fade-up,
 .login-body .fade-up {
-  .form-control,
-  .form-select,
-  .status-pill,
-  .btn-close,
-  .app-nav-toggle,
-  .chart-type-btn,
-  .stats-selector-grid .stat-btn,
-  .form-mobile-nav a,
-  .report-format-check {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.form-control,
+.form-select,
+.status-pill,
+.btn-close,
+.app-nav-toggle,
+.chart-type-btn,
+.stats-selector-grid .stat-btn,
+.form-mobile-nav a,
+.report-format-check,
+.ops-link,
+.sidebar-nav .nav-link,
+.quick-action-tile {
+  min-height: 44px;
 }
 
 .section-kicker {
-  .ops-link,
-  .sidebar-nav .nav-link,
-  .quick-action-tile {
-    min-height: 44px;
-  }
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -1415,9 +1408,9 @@ textarea {
 .login-visual-panel {
   position: relative;
   overflow: hidden;
-  padding: 3rem clamp(2rem, 5vw, 5rem);
+  padding: clamp(2.5rem, 5vh, 4.5rem) clamp(2rem, 5vw, 5rem);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
 }
 
 .login-visual-grid {
@@ -1433,7 +1426,8 @@ textarea {
 .login-visual-copy {
   position: relative;
   z-index: 1;
-  max-width: 680px;
+  width: min(100%, 700px);
+  margin-right: auto;
 }
 
 .login-visual-copy h1 {
