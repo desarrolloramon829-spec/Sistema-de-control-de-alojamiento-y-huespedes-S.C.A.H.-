@@ -10,6 +10,13 @@
     />
     <title>{% block title %}S.C.A.H.{% endblock %}</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Rajdhani:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+
     <!-- Bootstrap 5 CSS -->
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
@@ -33,18 +40,38 @@
     />
     {% block extra_css %}{% endblock %}
   </head>
-  <body>
+  <body class="app-body shell-ready">
     <!-- Navbar -->
-    <nav
-      class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top shadow-sm"
-    >
+    <nav class="navbar navbar-expand-lg fixed-top app-topbar">
       <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="{{ url_for('dashboard.index') }}">
-          <i class="bi bi-building"></i> S.C.A.H.
-        </a>
+        <div class="d-flex align-items-center gap-3">
+          <a
+            class="navbar-brand app-brand"
+            href="{{ url_for('dashboard.index') }}"
+          >
+            <span class="brand-mark">
+              <i class="bi bi-buildings"></i>
+            </span>
+            <span>
+              <strong>S.C.A.H.</strong>
+              <small>Sistema de control operativo hotelero</small>
+            </span>
+          </a>
+
+          <div
+            class="d-none d-xl-flex align-items-center gap-2 topbar-statuses"
+          >
+            <span class="status-pill">
+              <i class="bi bi-shield-check"></i> Sistema estable
+            </span>
+            <span class="status-pill muted">
+              <i class="bi bi-broadcast-pin"></i> Monitoreo activo
+            </span>
+          </div>
+        </div>
 
         <button
-          class="navbar-toggler border-0"
+          class="navbar-toggler border-0 app-nav-toggle"
           type="button"
           data-bs-toggle="offcanvas"
           data-bs-target="#sidebarMenu"
@@ -55,16 +82,21 @@
 
         <div class="d-none d-lg-flex align-items-center ms-auto">
           {% if current_user %}
-          <span class="text-white-50 me-3 small">
-            <i class="bi bi-person-circle"></i>
-            {{ current_user.nombre_completo or current_user.username }}
-            <span class="badge bg-light text-primary ms-1"
-              >{{ current_user.rol }}</span
-            >
-          </span>
+          <div class="topbar-user me-3">
+            <div class="topbar-user__icon">
+              <i class="bi bi-person-badge"></i>
+            </div>
+            <div class="topbar-user__meta">
+              <strong
+                >{{ current_user.nombre_completo or current_user.username
+                }}</strong
+              >
+              <span>{{ current_user.rol | upper }}</span>
+            </div>
+          </div>
           <a
             href="{{ url_for('auth.logout') }}"
-            class="btn btn-outline-light btn-sm"
+            class="btn btn-ghost-danger btn-sm"
           >
             <i class="bi bi-box-arrow-right"></i> Salir
           </a>
@@ -80,9 +112,9 @@
       id="sidebarMenu"
       aria-labelledby="sidebarMenuLabel"
     >
-      <div class="offcanvas-header bg-primary text-white">
+      <div class="offcanvas-header sidebar-header">
         <h5 class="offcanvas-title" id="sidebarMenuLabel">
-          <i class="bi bi-building"></i> S.C.A.H.
+          <i class="bi bi-buildings"></i> S.C.A.H.
         </h5>
         <button
           type="button"
@@ -93,13 +125,16 @@
       </div>
       <div class="offcanvas-body d-flex flex-column p-0">
         <nav class="sidebar-nav flex-grow-1">
+          <div class="sidebar-group-label">Operación</div>
           <ul class="nav flex-column">
             <li class="nav-item">
               <a
                 class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}"
                 href="{{ url_for('dashboard.index') }}"
               >
-                <i class="bi bi-speedometer2"></i> Dashboard
+                <i class="bi bi-speedometer2"></i>
+                <span>Dashboard</span>
+                <small>Centro de mando</small>
               </a>
             </li>
             <li class="nav-item">
@@ -107,7 +142,9 @@
                 class="nav-link {% if request.endpoint and request.endpoint.startswith('guests.') %}active{% endif %}"
                 href="{{ url_for('guests.index') }}"
               >
-                <i class="bi bi-search"></i> Huéspedes
+                <i class="bi bi-person-lines-fill"></i>
+                <span>Huéspedes</span>
+                <small>Registro y trazabilidad</small>
               </a>
             </li>
             <li class="nav-item">
@@ -115,7 +152,9 @@
                 class="nav-link {% if request.endpoint and request.endpoint.startswith('hotels.') %}active{% endif %}"
                 href="{{ url_for('hotels.index') }}"
               >
-                <i class="bi bi-building"></i> Hoteles
+                <i class="bi bi-buildings"></i>
+                <span>Hoteles</span>
+                <small>Infraestructura operativa</small>
               </a>
             </li>
             {% if current_user and current_user.rol in ('admin', 'operador') %}
@@ -124,16 +163,24 @@
                 class="nav-link {% if request.endpoint and request.endpoint.startswith('imports.') %}active{% endif %}"
                 href="{{ url_for('imports.index') }}"
               >
-                <i class="bi bi-file-earmark-excel"></i> Importar Excel
+                <i class="bi bi-file-earmark-excel"></i>
+                <span>Importaciones</span>
+                <small>Procesamiento documental</small>
               </a>
             </li>
             {% endif %}
+          </ul>
+
+          <div class="sidebar-group-label">Análisis</div>
+          <ul class="nav flex-column">
             <li class="nav-item">
               <a
                 class="nav-link {% if request.endpoint and request.endpoint.startswith('reports.') %}active{% endif %}"
                 href="{{ url_for('reports.index') }}"
               >
-                <i class="bi bi-file-earmark-bar-graph"></i> Reportes
+                <i class="bi bi-file-earmark-bar-graph"></i>
+                <span>Reportes</span>
+                <small>Salida documental</small>
               </a>
             </li>
             <li class="nav-item">
@@ -141,7 +188,9 @@
                 class="nav-link {% if request.endpoint and request.endpoint.startswith('stats.') %}active{% endif %}"
                 href="{{ url_for('stats.index') }}"
               >
-                <i class="bi bi-bar-chart-line"></i> Estadísticas
+                <i class="bi bi-bar-chart-line"></i>
+                <span>Estadísticas</span>
+                <small>Inteligencia visual</small>
               </a>
             </li>
             {% if current_user and current_user.rol == 'admin' %}
@@ -150,7 +199,9 @@
                 class="nav-link {% if request.endpoint and request.endpoint.startswith('users.') %}active{% endif %}"
                 href="{{ url_for('users.index') }}"
               >
-                <i class="bi bi-people"></i> Usuarios
+                <i class="bi bi-people"></i>
+                <span>Usuarios</span>
+                <small>Accesos y permisos</small>
               </a>
             </li>
             {% endif %}
@@ -160,18 +211,23 @@
         <!-- User info in sidebar (mobile) -->
         <div class="d-lg-none border-top p-3">
           {% if current_user %}
-          <div class="d-flex align-items-center justify-content-between">
+          <div
+            class="d-flex align-items-center justify-content-between mobile-user-bar"
+          >
             <div>
-              <i class="bi bi-person-circle"></i>
-              <small
+              <strong
                 >{{ current_user.nombre_completo or current_user.username
-                }}</small
+                }}</strong
               >
-              <span class="badge bg-primary ms-1">{{ current_user.rol }}</span>
+              <div>
+                <span class="status-pill muted small-pill"
+                  >{{ current_user.rol }}</span
+                >
+              </div>
             </div>
             <a
               href="{{ url_for('auth.logout') }}"
-              class="btn btn-outline-danger btn-sm"
+              class="btn btn-ghost-danger btn-sm"
             >
               <i class="bi bi-box-arrow-right"></i>
             </a>
@@ -183,27 +239,68 @@
 
     <!-- Main content -->
     <main class="main-content">
-      <div class="container-fluid py-3">
+      <div class="container-fluid py-3 app-shell-grid">
+        <section class="page-shell-header mb-3 fade-up">
+          <div>
+            <span class="section-kicker">Control operativo</span>
+            <h1 class="page-shell-title">
+              {% if request.endpoint == 'dashboard.index' %} Centro de mando {%
+              elif request.endpoint and request.endpoint.startswith('guests.')
+              %} Gestión de huéspedes {% elif request.endpoint and
+              request.endpoint.startswith('hotels.') %} Gestión de hoteles {%
+              elif request.endpoint and request.endpoint.startswith('imports.')
+              %} Centro de importaciones {% elif request.endpoint and
+              request.endpoint.startswith('reports.') %} Sala de reportes {%
+              elif request.endpoint and request.endpoint.startswith('stats.') %}
+              Inteligencia visual {% elif request.endpoint and
+              request.endpoint.startswith('users.') %} Administración de
+              usuarios {% else %} Panel operativo {% endif %}
+            </h1>
+            <p class="page-shell-subtitle mb-0">
+              Monitoreo, trazabilidad y control administrativo de alojamientos.
+            </p>
+          </div>
+          <div class="page-shell-side d-none d-xl-flex">
+            <div class="shell-stat-chip">
+              <span>Estado</span>
+              <strong>En línea</strong>
+            </div>
+            <div class="shell-stat-chip">
+              <span>Sesión</span>
+              <strong
+                >{{ current_user.rol | upper if current_user else 'INVITADO'
+                }}</strong
+              >
+            </div>
+          </div>
+        </section>
+
         <!-- Flash messages -->
         {% with messages = get_flashed_messages(with_categories=true) %} {% if
         messages %} {% for category, message in messages %}
         <div
-          class="alert alert-{{ category }} alert-dismissible fade show"
+          class="alert alert-{{ category }} alert-dismissible fade show app-alert fade-up"
           role="alert"
         >
+          <span class="alert-accent"></span>
           {% if category == 'success' %}<i class="bi bi-check-circle"></i> {%
           elif category == 'danger' %}<i class="bi bi-exclamation-triangle"></i>
           {% elif category == 'warning' %}<i
             class="bi bi-exclamation-circle"
           ></i>
-          {% else %}<i class="bi bi-info-circle"></i>{% endif %} {{ message }}
+          {% else %}<i class="bi bi-info-circle"></i>{% endif %}
+          <div class="alert-copy">{{ message }}</div>
           <button
             type="button"
             class="btn-close"
             data-bs-dismiss="alert"
           ></button>
         </div>
-        {% endfor %} {% endif %} {% endwith %} {% block content %}{% endblock %}
+        {% endfor %} {% endif %} {% endwith %}
+
+        <section class="page-stage fade-up">
+          {% block content %}{% endblock %}
+        </section>
       </div>
     </main>
 

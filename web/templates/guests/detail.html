@@ -1,50 +1,55 @@
 {% extends "base.html" %} {% block title %}{{ huesped.apellido_nombre }} -
 S.C.A.H.{% endblock %} {% block content %}
-<div class="row justify-content-center">
-  <div class="col-12 col-lg-10 col-xl-8">
-    <!-- Header -->
-    <div
-      class="d-flex flex-wrap align-items-center justify-content-between mb-3"
+<section class="module-hero mb-4">
+  <div>
+    <a
+      href="{{ url_for('guests.index') }}"
+      class="btn btn-ghost-secondary btn-sm mb-3"
     >
-      <div>
-        <a
-          href="{{ url_for('guests.index') }}"
-          class="btn btn-sm btn-outline-secondary me-2"
-        >
-          <i class="bi bi-arrow-left"></i>
-        </a>
-        <span class="fw-bold fs-5">{{ huesped.apellido_nombre }}</span>
-      </div>
-      {% if current_user and current_user.rol in ('admin', 'operador') %}
-      <div class="mt-2 mt-md-0">
-        {% if current_user.rol == 'admin' %}
-        <form
-          method="POST"
-          action="{{ url_for('guests.eliminar', huesped_id=huesped.id) }}"
-          class="d-inline"
-          onsubmit="return confirm('¿Eliminar este huésped?')"
-        >
-          <button type="submit" class="btn btn-sm btn-outline-danger">
-            <i class="bi bi-trash"></i> Eliminar
-          </button>
-        </form>
-        {% endif %}
-      </div>
-      {% endif %}
-    </div>
+      <i class="bi bi-arrow-left"></i> Volver al listado
+    </a>
+    <span class="section-kicker">Expediente operativo</span>
+    <h2 class="module-hero__title">{{ huesped.apellido_nombre }}</h2>
+    <p class="module-hero__subtitle mb-0">
+      Documento {{ huesped.dni_pasaporte or 'sin registrar' }}. Seguimiento de
+      identidad, estadía y origen de carga.
+    </p>
+  </div>
+  <div class="module-hero__actions align-items-start">
+    <span
+      class="status-pill {% if huesped.origen_carga == 'manual' %}muted{% endif %}"
+    >
+      <i class="bi bi-journal-check"></i> {{ huesped.origen_carga or 'N/A' }}
+    </span>
+    {% if current_user and current_user.rol == 'admin' %}
+    <form
+      method="POST"
+      action="{{ url_for('guests.eliminar', huesped_id=huesped.id) }}"
+      class="d-inline"
+      onsubmit="return confirm('¿Eliminar este huésped?')"
+    >
+      <button type="submit" class="btn btn-ghost-danger btn-sm">
+        <i class="bi bi-trash"></i> Eliminar
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</section>
 
-    <!-- Datos personales -->
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="card-header bg-white border-0">
-        <h6 class="mb-0 fw-semibold">
-          <i class="bi bi-person text-primary"></i> Datos Personales
-        </h6>
-      </div>
-      <div class="card-body">
+<div class="row g-3 justify-content-center">
+  <div class="col-12 col-xl-5">
+    <section class="panel-card h-100">
+      <header class="panel-card__header compact">
+        <div>
+          <span class="section-kicker">Identidad</span>
+          <h3>Datos personales</h3>
+        </div>
+      </header>
+      <div class="panel-card__body px-3 pb-3">
         <div class="row g-3">
           <div class="col-6 col-md-4">
             <small class="text-muted d-block">DNI / Pasaporte</small>
-            <strong>{{ huesped.dni_pasaporte or '-' }}</strong>
+            <strong class="ops-mono">{{ huesped.dni_pasaporte or '-' }}</strong>
           </div>
           <div class="col-6 col-md-4">
             <small class="text-muted d-block">Nacionalidad</small>
@@ -79,16 +84,18 @@ S.C.A.H.{% endblock %} {% block content %}
           </div>
         </div>
       </div>
-    </div>
+    </section>
+  </div>
 
-    <!-- Datos de estadía -->
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="card-header bg-white border-0">
-        <h6 class="mb-0 fw-semibold">
-          <i class="bi bi-building text-success"></i> Estadía
-        </h6>
-      </div>
-      <div class="card-body">
+  <div class="col-12 col-xl-7">
+    <section class="panel-card h-100">
+      <header class="panel-card__header compact">
+        <div>
+          <span class="section-kicker">Estadía</span>
+          <h3>Contexto hotelero y movimiento</h3>
+        </div>
+      </header>
+      <div class="panel-card__body px-3 pb-3">
         <div class="row g-3">
           <div class="col-12 col-md-4">
             <small class="text-muted d-block">Hotel</small>
@@ -123,14 +130,14 @@ S.C.A.H.{% endblock %} {% block content %}
           <div class="col-6 col-md-4">
             <small class="text-muted d-block">Origen Carga</small>
             <span
-              class="badge bg-{{ 'info' if huesped.origen_carga == 'manual' else 'success' }}"
+              class="status-pill {% if huesped.origen_carga != 'manual' %}muted{% endif %}"
             >
               {{ huesped.origen_carga or 'N/A' }}
             </span>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   </div>
 </div>
 {% endblock %}

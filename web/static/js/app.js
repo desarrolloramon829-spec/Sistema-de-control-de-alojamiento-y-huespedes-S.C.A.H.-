@@ -3,6 +3,13 @@
  */
 
 document.addEventListener('DOMContentLoaded', function () {
+  document.body.classList.add('is-loaded');
+
+  document.querySelectorAll('.fade-up').forEach(function (element, index) {
+    const delay = Math.min(index * 45, 320);
+    element.style.transitionDelay = `${delay}ms`;
+  });
+
   // ===== Auto-dismiss flash alerts =====
   document.querySelectorAll('.alert-dismissible').forEach(function (alert) {
     setTimeout(function () {
@@ -14,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // ===== Active sidebar link =====
   const currentPath = window.location.pathname;
   document
-    .querySelectorAll('.sidebar .nav-link, .offcanvas .nav-link')
+    .querySelectorAll('.sidebar-nav .nav-link, .offcanvas .nav-link')
     .forEach(function (link) {
       const href = link.getAttribute('href');
       if (href && currentPath.startsWith(href) && href !== '/') {
@@ -23,6 +30,21 @@ document.addEventListener('DOMContentLoaded', function () {
         link.classList.add('active');
       }
     });
+
+  document.querySelectorAll('[data-countup]').forEach(function (el) {
+    const target = Number(el.dataset.countup || '0');
+    const duration = 700;
+    const start = performance.now();
+
+    function tick(now) {
+      const progress = Math.min((now - start) / duration, 1);
+      const current = Math.round(target * progress);
+      el.textContent = current.toLocaleString('es-AR');
+      if (progress < 1) requestAnimationFrame(tick);
+    }
+
+    requestAnimationFrame(tick);
+  });
 
   // ===== Close offcanvas on link click (mobile) =====
   const offcanvasEl = document.getElementById('sidebarMenu');
@@ -51,6 +73,20 @@ document.addEventListener('DOMContentLoaded', function () {
   tooltipTriggerList.forEach(function (el) {
     new bootstrap.Tooltip(el);
   });
+
+  document
+    .querySelectorAll('.btn, .quick-action-tile, .sidebar-nav .nav-link')
+    .forEach(function (element) {
+      element.addEventListener('pointerdown', function () {
+        element.classList.add('is-pressed');
+      });
+
+      ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (event) {
+        element.addEventListener(event, function () {
+          element.classList.remove('is-pressed');
+        });
+      });
+    });
 
   // ===== PWA install prompt =====
   let deferredPrompt;

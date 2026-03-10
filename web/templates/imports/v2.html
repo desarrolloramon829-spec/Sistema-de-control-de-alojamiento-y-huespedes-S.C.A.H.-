@@ -1,27 +1,50 @@
 {% extends "base.html" %} {% block title %}Importar V2 - S.C.A.H.{% endblock %}
 {% block content %}
-<div class="d-flex align-items-center mb-3">
-  <a
-    href="{{ url_for('imports.index') }}"
-    class="btn btn-sm btn-outline-secondary me-2"
-  >
-    <i class="bi bi-arrow-left"></i>
-  </a>
-  <h5 class="fw-bold mb-0">
-    <i class="bi bi-table text-primary"></i> Importar Formato V2
-  </h5>
-</div>
+<section class="module-hero mb-4">
+  <div>
+    <a
+      href="{{ url_for('imports.index') }}"
+      class="btn btn-ghost-secondary btn-sm mb-3"
+    >
+      <i class="bi bi-arrow-left"></i> Volver al centro de importaciones
+    </a>
+    <span class="section-kicker">Formato V2</span>
+    <h2 class="module-hero__title">
+      Carga tabular con mapeo y asignación hotelera.
+    </h2>
+    <p class="module-hero__subtitle mb-0">
+      Detecta columnas, valida registros y asigna o crea el hotel antes de
+      consolidar huéspedes.
+    </p>
+  </div>
+  <div class="module-hero__actions">
+    <div class="shell-stat-chip compact-chip">
+      <span>Modo</span>
+      <strong>Asignación guiada</strong>
+    </div>
+  </div>
+</section>
 
 {% if not preview %}
-<!-- Upload -->
-<div class="card border-0 shadow-sm">
-  <div class="card-body">
+<section class="panel-card upload-station-panel">
+  <header class="panel-card__header">
+    <div>
+      <span class="section-kicker">Carga documental</span>
+      <h3>Subir archivos tabulares</h3>
+    </div>
+  </header>
+  <div class="panel-card__body px-3 pb-3">
     <form method="POST" enctype="multipart/form-data">
       <input type="hidden" name="action" value="preview" />
-      <div class="mb-3">
-        <label class="form-label fw-semibold"
-          >Archivos Excel (.xlsx, .xls)</label
-        >
+      <div class="upload-dropzone mb-3">
+        <div class="upload-dropzone__icon alt"><i class="bi bi-table"></i></div>
+        <div class="upload-dropzone__copy">
+          <strong>Selecciona archivos tabulares</strong>
+          <p class="mb-0">
+            El sistema detectará encabezados y preparará el mapeo
+            automáticamente.
+          </p>
+        </div>
         <input
           type="file"
           name="archivos"
@@ -30,66 +53,102 @@
           multiple
           required
         />
-        <div class="form-text">
-          Formato tabular con encabezados auto-detectados.
-        </div>
       </div>
-      <button type="submit" class="btn btn-primary">
+      <div class="upload-station-panel__meta">
+        <span class="status-pill muted"
+          ><i class="bi bi-columns-gap"></i> Detección de columnas</span
+        >
+        <span class="status-pill muted"
+          ><i class="bi bi-building-add"></i> Hotel asignable o nuevo</span
+        >
+      </div>
+      <button type="submit" class="btn btn-primary mt-3">
         <i class="bi bi-eye"></i> Vista Previa
       </button>
     </form>
   </div>
-</div>
+</section>
 {% else %}
-<!-- Preview -->
-<div class="row g-3 mb-3">
+<section class="row g-3 mb-3">
   <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm text-center p-3">
-      <div class="fs-3 fw-bold text-success">
-        {{ preview.huespedes | length }}
+    <article class="metric-card metric-card-success h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Huéspedes</span
+        ><span class="metric-card__icon"><i class="bi bi-people"></i></span>
       </div>
-      <small class="text-muted">Huéspedes detectados</small>
-    </div>
+      <strong class="metric-card__value"
+        >{{ preview.huespedes | length }}</strong
+      >
+      <small class="metric-card__meta"
+        >Registros detectados en planillas.</small
+      >
+    </article>
   </div>
   <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm text-center p-3">
-      <div class="fs-3 fw-bold text-info">
-        {{ preview.columnas_detectadas | length }}
+    <article class="metric-card metric-card-info h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Columnas</span
+        ><span class="metric-card__icon"
+          ><i class="bi bi-columns-gap"></i
+        ></span>
       </div>
-      <small class="text-muted">Columnas mapeadas</small>
-    </div>
+      <strong class="metric-card__value"
+        >{{ preview.columnas_detectadas | length }}</strong
+      >
+      <small class="metric-card__meta">Campos reconocidos en el origen.</small>
+    </article>
   </div>
   <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm text-center p-3">
-      <div class="fs-3 fw-bold text-danger">{{ preview.errores | length }}</div>
-      <small class="text-muted">Errores</small>
-    </div>
+    <article class="metric-card metric-card-warning h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Incidencias</span
+        ><span class="metric-card__icon"
+          ><i class="bi bi-exclamation-triangle"></i
+        ></span>
+      </div>
+      <strong class="metric-card__value">{{ preview.errores | length }}</strong>
+      <small class="metric-card__meta">Observaciones antes de importar.</small>
+    </article>
   </div>
-</div>
+  <div class="col-6 col-md-3">
+    <article class="metric-card metric-card-primary h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Estado</span
+        ><span class="metric-card__icon"><i class="bi bi-radar"></i></span>
+      </div>
+      <strong class="metric-card__value">Preview</strong>
+      <small class="metric-card__meta">Asignación hotelera pendiente.</small>
+    </article>
+  </div>
+</section>
 
 {% if preview.columnas_detectadas %}
-<div class="card border-0 shadow-sm mb-3">
-  <div class="card-header bg-white">
-    <h6 class="mb-0"><i class="bi bi-columns-gap"></i> Columnas detectadas</h6>
-  </div>
-  <div class="card-body">
-    <div class="d-flex flex-wrap gap-1">
+<section class="panel-card mb-3">
+  <header class="panel-card__header compact">
+    <div>
+      <span class="section-kicker">Mapeo</span>
+      <h3>Columnas detectadas</h3>
+    </div>
+  </header>
+  <div class="panel-card__body px-3 pb-3">
+    <div class="d-flex flex-wrap gap-2">
       {% for col in preview.columnas_detectadas %}
-      <span class="badge bg-light text-dark border">{{ col }}</span>
+      <span class="status-pill muted small-pill">{{ col }}</span>
       {% endfor %}
     </div>
   </div>
-</div>
+</section>
 {% endif %} {% if preview.errores %}
-<div class="card border-0 shadow-sm mb-3 border-start border-danger border-3">
-  <div class="card-header bg-white">
-    <h6 class="mb-0 text-danger">
-      <i class="bi bi-exclamation-triangle"></i> Errores
-    </h6>
-  </div>
-  <div class="card-body p-0">
+<section class="panel-card mb-3 import-errors-panel">
+  <header class="panel-card__header compact">
+    <div>
+      <span class="section-kicker">Incidencias detectadas</span>
+      <h3>Errores</h3>
+    </div>
+  </header>
+  <div class="panel-card__body p-0">
     <ul
-      class="list-group list-group-flush"
+      class="list-group list-group-flush import-error-list"
       style="max-height:200px;overflow-y:auto"
     >
       {% for err in preview.errores %}
@@ -97,19 +156,21 @@
       {% endfor %}
     </ul>
   </div>
-</div>
+</section>
 {% endif %} {% if preview.huespedes %}
-<!-- Selección de hotel -->
-<div class="card border-0 shadow-sm mb-3">
-  <div class="card-header bg-white">
-    <h6 class="mb-0"><i class="bi bi-building"></i> Asignar Hotel</h6>
-  </div>
-  <div class="card-body">
+<section class="panel-card mb-3">
+  <header class="panel-card__header">
+    <div>
+      <span class="section-kicker">Asignación hotelera</span>
+      <h3>Seleccionar o crear hotel</h3>
+    </div>
+  </header>
+  <div class="panel-card__body px-3 pb-3">
     <form method="POST" id="importForm">
       <input type="hidden" name="action" value="import" />
 
-      <div class="mb-3">
-        <label class="form-label fw-semibold">Hotel existente</label>
+      <div class="form-section-block mb-4">
+        <div class="form-section-block__title">Hotel existente</div>
         <select name="hotel_nombre" class="form-select" id="hotelSelect">
           <option value="">— Seleccione o cree uno nuevo —</option>
           {% for h in hoteles %}
@@ -120,7 +181,7 @@
         </select>
       </div>
 
-      <div class="form-check mb-3">
+      <div class="form-check mb-3 ms-1">
         <input
           type="checkbox"
           class="form-check-input"
@@ -134,7 +195,12 @@
         >
       </div>
 
-      <div id="nuevoHotelFields" style="display:none" class="mb-3">
+      <div
+        id="nuevoHotelFields"
+        style="display:none"
+        class="form-section-block mb-4"
+      >
+        <div class="form-section-block__title">Alta rápida de hotel</div>
         <div class="row g-2">
           <div class="col-12">
             <input
@@ -171,39 +237,47 @@
         </div>
       </div>
 
-      <!-- Preview table -->
-      <div class="table-responsive mb-3">
-        <table class="table table-sm table-hover mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>#</th>
-              <th>Nombre</th>
-              <th class="d-none d-md-table-cell">DNI</th>
-              <th class="d-none d-lg-table-cell">Nacionalidad</th>
-              <th class="d-none d-lg-table-cell">Procedencia</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for h in preview.huespedes[:50] %}
-            <tr>
-              <td>{{ loop.index }}</td>
-              <td>{{ h.get('apellido_nombre', '-') }}</td>
-              <td class="d-none d-md-table-cell">
-                {{ h.get('dni_pasaporte', '-') }}
-              </td>
-              <td class="d-none d-lg-table-cell">
-                {{ h.get('nacionalidad', '-') }}
-              </td>
-              <td class="d-none d-lg-table-cell">
-                {{ h.get('procedencia', '-') }}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div class="panel-card inner-panel mb-3">
+        <header class="panel-card__header compact">
+          <div>
+            <span class="section-kicker">Muestra operativa</span>
+            <h3>Vista previa de registros</h3>
+          </div>
+          <span class="status-pill muted small-pill">Primeros 50</span>
+        </header>
+        <div class="table-responsive ops-table-wrapper mb-0">
+          <table class="table table-hover align-middle mb-0 ops-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Nombre</th>
+                <th class="d-none d-md-table-cell">DNI</th>
+                <th class="d-none d-lg-table-cell">Nacionalidad</th>
+                <th class="d-none d-lg-table-cell">Procedencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for h in preview.huespedes[:50] %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ h.get('apellido_nombre', '-') }}</td>
+                <td class="d-none d-md-table-cell">
+                  {{ h.get('dni_pasaporte', '-') }}
+                </td>
+                <td class="d-none d-lg-table-cell">
+                  {{ h.get('nacionalidad', '-') }}
+                </td>
+                <td class="d-none d-lg-table-cell">
+                  {{ h.get('procedencia', '-') }}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div class="d-flex gap-2">
+      <div class="d-flex gap-2 flex-wrap form-action-row">
         <button
           type="submit"
           class="btn btn-primary"
@@ -214,13 +288,13 @@
         </button>
         <a
           href="{{ url_for('imports.importar_v2') }}"
-          class="btn btn-outline-secondary"
+          class="btn btn-ghost-secondary"
           >Cancelar</a
         >
       </div>
     </form>
   </div>
-</div>
+</section>
 {% endif %} {% endif %} {% block extra_js %}
 <script>
   document.addEventListener('DOMContentLoaded', function() {

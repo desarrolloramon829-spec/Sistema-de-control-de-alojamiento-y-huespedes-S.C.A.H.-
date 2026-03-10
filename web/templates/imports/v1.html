@@ -1,28 +1,51 @@
 {% extends "base.html" %} {% block title %}Importar V1 - S.C.A.H.{% endblock %}
 {% block content %}
-<div class="d-flex align-items-center mb-3">
-  <a
-    href="{{ url_for('imports.index') }}"
-    class="btn btn-sm btn-outline-secondary me-2"
-  >
-    <i class="bi bi-arrow-left"></i>
-  </a>
-  <h5 class="fw-bold mb-0">
-    <i class="bi bi-file-earmark-spreadsheet text-success"></i> Importar Formato
-    V1
-  </h5>
-</div>
+<section class="module-hero mb-4">
+  <div>
+    <a
+      href="{{ url_for('imports.index') }}"
+      class="btn btn-ghost-secondary btn-sm mb-3"
+    >
+      <i class="bi bi-arrow-left"></i> Volver al centro de importaciones
+    </a>
+    <span class="section-kicker">Formato V1</span>
+    <h2 class="module-hero__title">
+      Carga por hojas con lectura estructurada.
+    </h2>
+    <p class="module-hero__subtitle mb-0">
+      Procesa archivos donde cada hoja corresponde a un hotel y valida huéspedes
+      antes de consolidar.
+    </p>
+  </div>
+  <div class="module-hero__actions">
+    <div class="shell-stat-chip compact-chip">
+      <span>Modo</span>
+      <strong>Vista previa obligatoria</strong>
+    </div>
+  </div>
+</section>
 
 {% if not preview %}
-<!-- Upload -->
-<div class="card border-0 shadow-sm">
-  <div class="card-body">
+<section class="panel-card upload-station-panel">
+  <header class="panel-card__header">
+    <div>
+      <span class="section-kicker">Carga documental</span>
+      <h3>Subir archivos Excel</h3>
+    </div>
+  </header>
+  <div class="panel-card__body px-3 pb-3">
     <form method="POST" enctype="multipart/form-data">
       <input type="hidden" name="action" value="preview" />
-      <div class="mb-3">
-        <label class="form-label fw-semibold"
-          >Archivos Excel (.xlsx, .xls)</label
-        >
+      <div class="upload-dropzone mb-3">
+        <div class="upload-dropzone__icon">
+          <i class="bi bi-file-earmark-arrow-up"></i>
+        </div>
+        <div class="upload-dropzone__copy">
+          <strong>Selecciona uno o varios archivos Excel</strong>
+          <p class="mb-0">
+            Cada hoja será analizada como un hotel independiente.
+          </p>
+        </div>
         <input
           type="file"
           name="archivos"
@@ -31,53 +54,82 @@
           multiple
           required
         />
-        <div class="form-text">
-          Puede seleccionar múltiples archivos. Cada hoja = un hotel.
-        </div>
       </div>
-      <button type="submit" class="btn btn-success">
+      <div class="upload-station-panel__meta">
+        <span class="status-pill muted"
+          ><i class="bi bi-layers"></i> Múltiples archivos permitidos</span
+        >
+        <span class="status-pill muted"
+          ><i class="bi bi-search-heart"></i> Revisión previa obligatoria</span
+        >
+      </div>
+      <button type="submit" class="btn btn-primary mt-3">
         <i class="bi bi-eye"></i> Vista Previa
       </button>
     </form>
   </div>
-</div>
+</section>
 {% else %}
-<!-- Preview -->
-<div class="row g-3 mb-3">
+<section class="row g-3 mb-3">
   <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm text-center p-3">
-      <div class="fs-3 fw-bold text-primary">
-        {{ preview.hoteles | length }}
+    <article class="metric-card metric-card-primary h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Hoteles</span
+        ><span class="metric-card__icon"><i class="bi bi-buildings"></i></span>
       </div>
-      <small class="text-muted">Hoteles</small>
-    </div>
+      <strong class="metric-card__value">{{ preview.hoteles | length }}</strong>
+      <small class="metric-card__meta">Estructuras detectadas por hoja.</small>
+    </article>
   </div>
   <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm text-center p-3">
-      <div class="fs-3 fw-bold text-success">
-        {{ preview.huespedes | length }}
+    <article class="metric-card metric-card-success h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Huéspedes</span
+        ><span class="metric-card__icon"><i class="bi bi-people"></i></span>
       </div>
-      <small class="text-muted">Huéspedes</small>
-    </div>
+      <strong class="metric-card__value"
+        >{{ preview.huespedes | length }}</strong
+      >
+      <small class="metric-card__meta"
+        >Registros listos para consolidación.</small
+      >
+    </article>
   </div>
   <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm text-center p-3">
-      <div class="fs-3 fw-bold text-danger">{{ preview.errores | length }}</div>
-      <small class="text-muted">Errores</small>
-    </div>
+    <article class="metric-card metric-card-warning h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Incidencias</span
+        ><span class="metric-card__icon"
+          ><i class="bi bi-exclamation-triangle"></i
+        ></span>
+      </div>
+      <strong class="metric-card__value">{{ preview.errores | length }}</strong>
+      <small class="metric-card__meta">Observaciones antes de importar.</small>
+    </article>
   </div>
-</div>
+  <div class="col-6 col-md-3">
+    <article class="metric-card metric-card-info h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Estado</span
+        ><span class="metric-card__icon"><i class="bi bi-binoculars"></i></span>
+      </div>
+      <strong class="metric-card__value">Preview</strong>
+      <small class="metric-card__meta">Control previo a ejecución.</small>
+    </article>
+  </div>
+</section>
 
 {% if preview.errores %}
-<div class="card border-0 shadow-sm mb-3 border-start border-danger border-3">
-  <div class="card-header bg-white">
-    <h6 class="mb-0 text-danger">
-      <i class="bi bi-exclamation-triangle"></i> Errores encontrados
-    </h6>
-  </div>
-  <div class="card-body p-0">
+<section class="panel-card mb-3 import-errors-panel">
+  <header class="panel-card__header compact">
+    <div>
+      <span class="section-kicker">Incidencias detectadas</span>
+      <h3>Errores encontrados</h3>
+    </div>
+  </header>
+  <div class="panel-card__body p-0">
     <ul
-      class="list-group list-group-flush"
+      class="list-group list-group-flush import-error-list"
       style="max-height:200px;overflow-y:auto"
     >
       {% for err in preview.errores %}
@@ -85,17 +137,19 @@
       {% endfor %}
     </ul>
   </div>
-</div>
+</section>
 {% endif %} {% if preview.huespedes %}
-<div class="card border-0 shadow-sm mb-3">
-  <div
-    class="card-header bg-white d-flex justify-content-between align-items-center"
-  >
-    <h6 class="mb-0">Vista previa (primeros 50)</h6>
-  </div>
-  <div class="table-responsive">
-    <table class="table table-sm table-hover mb-0">
-      <thead class="table-light">
+<section class="panel-card mb-3">
+  <header class="panel-card__header compact">
+    <div>
+      <span class="section-kicker">Inspección de registros</span>
+      <h3>Vista previa de huéspedes</h3>
+    </div>
+    <span class="status-pill muted small-pill">Primeros 50 registros</span>
+  </header>
+  <div class="table-responsive ops-table-wrapper">
+    <table class="table table-hover align-middle mb-0 ops-table">
+      <thead>
         <tr>
           <th>#</th>
           <th>Hotel</th>
@@ -123,9 +177,9 @@
       </tbody>
     </table>
   </div>
-</div>
+</section>
 
-<div class="d-flex gap-2">
+<div class="d-flex gap-2 flex-wrap form-action-row">
   <form method="POST">
     <input type="hidden" name="action" value="import" />
     <button
@@ -137,9 +191,7 @@
       huéspedes
     </button>
   </form>
-  <a
-    href="{{ url_for('imports.importar_v1') }}"
-    class="btn btn-outline-secondary"
+  <a href="{{ url_for('imports.importar_v1') }}" class="btn btn-ghost-secondary"
     >Cancelar</a
   >
 </div>
