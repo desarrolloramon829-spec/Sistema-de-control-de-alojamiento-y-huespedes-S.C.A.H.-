@@ -28,13 +28,15 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(key => ![STATIC_CACHE, RUNTIME_CACHE].includes(key))
-          .map(key => caches.delete(key))
+    caches
+      .keys()
+      .then(keys =>
+        Promise.all(
+          keys
+            .filter(key => ![STATIC_CACHE, RUNTIME_CACHE].includes(key))
+            .map(key => caches.delete(key))
+        )
       )
-    )
   );
   self.clients.claim();
 });
@@ -52,7 +54,8 @@ self.addEventListener('fetch', event => {
   }
 
   const url = new URL(request.url);
-  const isStaticAsset = url.origin === self.location.origin && url.pathname.startsWith('/static/');
+  const isStaticAsset =
+    url.origin === self.location.origin && url.pathname.startsWith('/static/');
   const isCdnAsset = url.origin !== self.location.origin;
 
   if (isStaticAsset || isCdnAsset) {

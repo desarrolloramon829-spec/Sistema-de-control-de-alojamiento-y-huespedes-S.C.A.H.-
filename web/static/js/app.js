@@ -130,7 +130,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const connectivityTargets = document.querySelectorAll('[data-online-status]');
   const offlineBanner = document.querySelector('[data-offline-banner]');
-  const onlineRequiredForms = document.querySelectorAll('form[data-requires-online]');
+  const onlineRequiredForms = document.querySelectorAll(
+    'form[data-requires-online]'
+  );
 
   function updateConnectivityState() {
     const online = navigator.onLine;
