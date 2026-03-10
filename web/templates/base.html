@@ -320,12 +320,26 @@
           </div>
         </section>
 
-        <section class="mobile-shell-banner d-xl-none fade-up" aria-label="Resumen móvil">
+        <section
+          class="mobile-shell-banner d-xl-none fade-up"
+          aria-label="Resumen móvil"
+        >
           <div class="mobile-shell-banner__surface">
             <div>
               <span class="section-kicker">Panel móvil</span>
               <strong>
-                {% if request.endpoint == 'dashboard.index' %}Centro de mando{% elif request.endpoint and request.endpoint.startswith('guests.') %}Huéspedes{% elif request.endpoint and request.endpoint.startswith('hotels.') %}Hoteles{% elif request.endpoint and request.endpoint.startswith('imports.') %}Importaciones{% elif request.endpoint and request.endpoint.startswith('reports.') %}Reportes{% elif request.endpoint and request.endpoint.startswith('stats.') %}Estadísticas{% elif request.endpoint and request.endpoint.startswith('users.') %}Usuarios{% elif request.endpoint and request.endpoint.startswith('backups.') %}Backups{% else %}Panel operativo{% endif %}
+                {% if request.endpoint == 'dashboard.index' %}Centro de mando{%
+                elif request.endpoint and request.endpoint.startswith('guests.')
+                %}Huéspedes{% elif request.endpoint and
+                request.endpoint.startswith('hotels.') %}Hoteles{% elif
+                request.endpoint and request.endpoint.startswith('imports.')
+                %}Importaciones{% elif request.endpoint and
+                request.endpoint.startswith('reports.') %}Reportes{% elif
+                request.endpoint and request.endpoint.startswith('stats.')
+                %}Estadísticas{% elif request.endpoint and
+                request.endpoint.startswith('users.') %}Usuarios{% elif
+                request.endpoint and request.endpoint.startswith('backups.')
+                %}Backups{% else %}Panel operativo{% endif %}
               </strong>
             </div>
             <span class="status-pill muted small-pill">
