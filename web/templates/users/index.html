@@ -1,21 +1,75 @@
 {% extends "base.html" %} {% block title %}Usuarios - S.C.A.H.{% endblock %} {%
 block content %}
-<div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
-  <h5 class="fw-bold mb-0">
-    <i class="bi bi-people text-primary"></i> Usuarios
-  </h5>
-  <a
-    href="{{ url_for('users.nuevo') }}"
-    class="btn btn-primary btn-sm mt-2 mt-md-0"
-  >
-    <i class="bi bi-person-plus"></i> Nuevo Usuario
-  </a>
-</div>
+<section class="module-hero mb-4">
+  <div>
+    <span class="section-kicker">Control de accesos</span>
+    <h2 class="module-hero__title">Administración de usuarios y permisos.</h2>
+    <p class="module-hero__subtitle mb-0">
+      Supervisa identidades internas, roles operativos y estado de acceso al
+      sistema central.
+    </p>
+  </div>
+  <div class="module-hero__actions">
+    <a href="{{ url_for('users.nuevo') }}" class="btn btn-primary">
+      <i class="bi bi-person-plus"></i> Nuevo Usuario
+    </a>
+  </div>
+</section>
 
-<div class="card border-0 shadow-sm">
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-light">
+<section class="row g-3 mb-3">
+  <div class="col-12 col-md-4">
+    <article class="metric-card metric-card-primary h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Usuarios</span
+        ><span class="metric-card__icon"><i class="bi bi-people"></i></span>
+      </div>
+      <strong class="metric-card__value">{{ usuarios | length }}</strong>
+      <small class="metric-card__meta"
+        >Identidades registradas en el sistema.</small
+      >
+    </article>
+  </div>
+  <div class="col-12 col-md-4">
+    <article class="metric-card metric-card-success h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Activos</span
+        ><span class="metric-card__icon"
+          ><i class="bi bi-shield-check"></i
+        ></span>
+      </div>
+      <strong class="metric-card__value"
+        >{{ usuarios | selectattr('activo') | list | length }}</strong
+      >
+      <small class="metric-card__meta">Accesos actualmente habilitados.</small>
+    </article>
+  </div>
+  <div class="col-12 col-md-4">
+    <article class="metric-card metric-card-warning h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Administradores</span
+        ><span class="metric-card__icon"
+          ><i class="bi bi-person-badge"></i
+        ></span>
+      </div>
+      <strong class="metric-card__value"
+        >{{ usuarios | selectattr('rol', 'equalto', 'admin') | list | length
+        }}</strong
+      >
+      <small class="metric-card__meta">Perfiles con control total.</small>
+    </article>
+  </div>
+</section>
+
+<section class="panel-card">
+  <header class="panel-card__header compact">
+    <div>
+      <span class="section-kicker">Directorio interno</span>
+      <h3>Usuarios registrados</h3>
+    </div>
+  </header>
+  <div class="table-responsive ops-table-wrapper">
+    <table class="table table-hover align-middle mb-0 ops-table">
+      <thead>
         <tr>
           <th>Usuario</th>
           <th>Nombre</th>
@@ -27,27 +81,37 @@ block content %}
       <tbody>
         {% for u in usuarios %}
         <tr>
-          <td class="fw-semibold">{{ u.username }}</td>
+          <td>
+            <div class="user-identity-cell">
+              <span class="user-avatar-badge"
+                >{{ (u.username[:1] or 'U') | upper }}</span
+              >
+              <div>
+                <div class="fw-semibold">{{ u.username }}</div>
+                <small class="text-muted">ID {{ u.id }}</small>
+              </div>
+            </div>
+          </td>
           <td>{{ u.nombre_completo or '-' }}</td>
           <td class="d-none d-md-table-cell">
             <span
-              class="badge bg-{{ 'danger' if u.rol == 'admin' else 'primary' if u.rol == 'operador' else 'secondary' }}"
+              class="status-pill {{ 'danger' if u.rol == 'admin' else 'info' if u.rol == 'operador' else 'muted' }} small-pill"
             >
               {{ u.rol | title }}
             </span>
           </td>
           <td class="text-center">
             {% if u.activo %}
-            <span class="badge bg-success">Activo</span>
+            <span class="status-pill success small-pill">Activo</span>
             {% else %}
-            <span class="badge bg-secondary">Inactivo</span>
+            <span class="status-pill muted small-pill">Inactivo</span>
             {% endif %}
           </td>
           <td class="text-end">
             <div class="btn-group btn-group-sm">
               <a
                 href="{{ url_for('users.editar', user_id=u.id) }}"
-                class="btn btn-outline-primary"
+                class="btn btn-ghost-primary"
                 title="Editar"
               >
                 <i class="bi bi-pencil"></i>
@@ -61,7 +125,7 @@ block content %}
               >
                 <button
                   type="submit"
-                  class="btn btn-outline-{{ 'warning' if u.activo else 'success' }}"
+                  class="btn {{ 'btn-ghost-warning' if u.activo else 'btn-ghost-success' }}"
                   title="{{ 'Desactivar' if u.activo else 'Reactivar' }}"
                 >
                   <i class="bi bi-{{ 'pause' if u.activo else 'play' }}"></i>
@@ -73,13 +137,16 @@ block content %}
         </tr>
         {% else %}
         <tr>
-          <td colspan="5" class="text-center text-muted py-4">
-            No hay usuarios registrados.
+          <td colspan="5" class="py-5">
+            <div class="empty-state">
+              <i class="bi bi-people"></i>
+              <p class="mb-0">No hay usuarios registrados.</p>
+            </div>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-</div>
+</section>
 {% endblock %}

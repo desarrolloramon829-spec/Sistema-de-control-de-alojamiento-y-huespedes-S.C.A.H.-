@@ -1,179 +1,218 @@
 {% extends "base.html" %} {% block title %}Dashboard - S.C.A.H.{% endblock %} {%
 block content %}
-<!-- KPIs -->
-<div class="row g-3 mb-4">
-  <div class="col-6 col-lg-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center">
-        <div
-          class="kpi-icon bg-primary bg-opacity-10 text-primary mx-auto mb-2"
-        >
-          <i class="bi bi-people-fill"></i>
-        </div>
-        <h3 class="fw-bold mb-0">{{ kpis.total_huespedes | default(0) }}</h3>
-        <small class="text-muted">Huéspedes Total</small>
-      </div>
+<section class="ops-hero-panel mb-4">
+  <div class="ops-hero-copy">
+    <span class="section-kicker">Centro de mando</span>
+    <h2>
+      Visibilidad inmediata sobre huéspedes, hoteles y movimiento operativo.
+    </h2>
+    <p>
+      Supervisa actividad reciente, ocupación activa e importaciones desde un
+      tablero diseñado para lectura rápida y toma de decisión.
+    </p>
+  </div>
+  <div class="ops-hero-rail">
+    <div class="hero-rail-card">
+      <span>Monitoreo</span>
+      <strong>Activo</strong>
+    </div>
+    <div class="hero-rail-card">
+      <span>Modo</span>
+      <strong>Operación premium</strong>
     </div>
   </div>
-  <div class="col-6 col-lg-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center">
-        <div
-          class="kpi-icon bg-success bg-opacity-10 text-success mx-auto mb-2"
-        >
-          <i class="bi bi-building-fill"></i>
-        </div>
-        <h3 class="fw-bold mb-0">{{ kpis.hoteles_activos | default(0) }}</h3>
-        <small class="text-muted">Hoteles Activos</small>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-lg-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center">
-        <div class="kpi-icon bg-info bg-opacity-10 text-info mx-auto mb-2">
-          <i class="bi bi-calendar-check"></i>
-        </div>
-        <h3 class="fw-bold mb-0">{{ kpis.alojados_hoy | default(0) }}</h3>
-        <small class="text-muted">Alojados Hoy</small>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-lg-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center">
-        <div
-          class="kpi-icon bg-warning bg-opacity-10 text-warning mx-auto mb-2"
-        >
-          <i class="bi bi-file-earmark-arrow-up"></i>
-        </div>
-        <h3 class="fw-bold mb-0">{{ kpis.importaciones | default(0) }}</h3>
-        <small class="text-muted">Importaciones</small>
-      </div>
-    </div>
-  </div>
-</div>
+</section>
 
-<div class="row g-3">
-  <!-- Últimos huéspedes -->
-  <div class="col-12 col-lg-8">
-    <div class="card border-0 shadow-sm">
-      <div
-        class="card-header bg-white border-0 d-flex align-items-center justify-content-between"
+<section class="row g-3 mb-4 kpi-grid">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <article class="metric-card metric-card-primary h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Huéspedes total</span>
+        <span class="metric-card__icon"><i class="bi bi-people-fill"></i></span>
+      </div>
+      <strong class="metric-card__value"
+        >{{ kpis.total_huespedes | default(0) }}</strong
       >
-        <h6 class="mb-0 fw-semibold">
-          <i class="bi bi-clock-history text-primary"></i> Últimos Huéspedes
-          Registrados
-        </h6>
+      <small class="metric-card__meta"
+        >Base consolidada de huéspedes registrados.</small
+      >
+    </article>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <article class="metric-card metric-card-success h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Hoteles activos</span>
+        <span class="metric-card__icon"
+          ><i class="bi bi-buildings-fill"></i
+        ></span>
+      </div>
+      <strong class="metric-card__value"
+        >{{ kpis.hoteles_activos | default(0) }}</strong
+      >
+      <small class="metric-card__meta"
+        >Infraestructura operativa disponible.</small
+      >
+    </article>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <article class="metric-card metric-card-info h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Alojados hoy</span>
+        <span class="metric-card__icon"
+          ><i class="bi bi-calendar-check"></i
+        ></span>
+      </div>
+      <strong class="metric-card__value"
+        >{{ kpis.alojados_hoy | default(0) }}</strong
+      >
+      <small class="metric-card__meta"
+        >Movimientos con presencia vigente.</small
+      >
+    </article>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <article class="metric-card metric-card-warning h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Importaciones</span>
+        <span class="metric-card__icon"
+          ><i class="bi bi-file-earmark-arrow-up"></i
+        ></span>
+      </div>
+      <strong class="metric-card__value"
+        >{{ kpis.importaciones | default(0) }}</strong
+      >
+      <small class="metric-card__meta"
+        >Procesos documentales registrados.</small
+      >
+    </article>
+  </div>
+</section>
+
+<section class="row g-3">
+  <div class="col-12 col-xxl-8">
+    <article class="panel-card h-100">
+      <header class="panel-card__header">
+        <div>
+          <span class="section-kicker">Actividad reciente</span>
+          <h3>Últimos huéspedes registrados</h3>
+        </div>
         <a
           href="{{ url_for('guests.index') }}"
-          class="btn btn-sm btn-outline-primary"
+          class="btn btn-ghost-primary btn-sm"
         >
           Ver todos
         </a>
+      </header>
+
+      <div class="table-responsive ops-table-wrapper">
+        <table class="table table-hover align-middle mb-0 ops-table">
+          <thead>
+            <tr>
+              <th>Huésped</th>
+              <th class="d-none d-md-table-cell">Documento</th>
+              <th class="d-none d-xl-table-cell">Hotel</th>
+              <th>Ingreso</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in ultimos %}
+            <tr>
+              <td>
+                <div class="ops-person-cell">
+                  <span class="ops-person-cell__dot"></span>
+                  <div>
+                    <a
+                      href="{{ url_for('guests.detalle', huesped_id=h.id) }}"
+                      class="ops-link"
+                    >
+                      {{ h.apellido_nombre | truncar(28) }}
+                    </a>
+                    <small>{{ h.nacionalidad or 'Sin nacionalidad' }}</small>
+                  </div>
+                </div>
+              </td>
+              <td class="d-none d-md-table-cell ops-mono">
+                {{ h.dni_pasaporte or 'S/D' }}
+              </td>
+              <td class="d-none d-xl-table-cell text-secondary">
+                {{ h.hotel | truncar(22) or 'Sin hotel' }}
+              </td>
+              <td>
+                <span class="status-pill muted small-pill"
+                  >{{ h.fecha_entrada or 'Sin fecha' }}</span
+                >
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4">
+                <div class="empty-state empty-state-compact">
+                  <i class="bi bi-database-exclamation"></i>
+                  <p class="mb-0">No hay huéspedes registrados todavía.</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover table-sm mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>Nombre</th>
-                <th class="d-none d-md-table-cell">DNI</th>
-                <th class="d-none d-md-table-cell">Hotel</th>
-                <th>Entrada</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for h in ultimos %}
-              <tr>
-                <td>
-                  <a
-                    href="{{ url_for('guests.detalle', huesped_id=h.id) }}"
-                    class="text-decoration-none"
-                  >
-                    {{ h.apellido_nombre | truncar(25) }}
-                  </a>
-                </td>
-                <td class="d-none d-md-table-cell text-muted">
-                  {{ h.dni_pasaporte }}
-                </td>
-                <td class="d-none d-md-table-cell text-muted">
-                  {{ h.hotel | truncar(20) }}
-                </td>
-                <td><small>{{ h.fecha_entrada }}</small></td>
-              </tr>
-              {% else %}
-              <tr>
-                <td colspan="4" class="text-center text-muted py-4">
-                  No hay huéspedes registrados
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+    </article>
   </div>
 
-  <!-- Top ciudades -->
-  <div class="col-12 col-lg-4">
-    <div class="card border-0 shadow-sm">
-      <div class="card-header bg-white border-0">
-        <h6 class="mb-0 fw-semibold">
-          <i class="bi bi-geo-alt text-success"></i> Top Ciudades
-        </h6>
-      </div>
-      <div class="card-body">
-        {% for c in ciudades %}
-        <div class="d-flex align-items-center justify-content-between mb-3">
+  <div class="col-12 col-xxl-4">
+    <div class="d-grid gap-3">
+      <article class="panel-card">
+        <header class="panel-card__header compact">
           <div>
-            <span class="fw-semibold">{{ c.ciudad }}</span>
+            <span class="section-kicker">Cobertura</span>
+            <h3>Top ciudades</h3>
           </div>
-          <span class="badge bg-primary rounded-pill">{{ c.total }}</span>
+        </header>
+        <div class="city-list">
+          {% for c in ciudades %}
+          <div class="city-list__item">
+            <div>
+              <strong>{{ c.ciudad }}</strong>
+              <small>Actividad consolidada</small>
+            </div>
+            <span class="city-list__value">{{ c.total }}</span>
+          </div>
+          {% else %}
+          <div class="empty-state empty-state-compact">
+            <i class="bi bi-geo-alt"></i>
+            <p class="mb-0">Sin datos geográficos disponibles.</p>
+          </div>
+          {% endfor %}
         </div>
-        {% if not loop.last %}
-        <hr class="my-0" />
-        {% endif %} {% else %}
-        <p class="text-muted text-center mb-0">Sin datos</p>
-        {% endfor %}
-      </div>
-    </div>
+      </article>
 
-    <!-- Accesos rápidos -->
-    <div class="card border-0 shadow-sm mt-3">
-      <div class="card-header bg-white border-0">
-        <h6 class="mb-0 fw-semibold">
-          <i class="bi bi-lightning text-warning"></i> Acceso Rápido
-        </h6>
-      </div>
-      <div class="card-body d-grid gap-2">
-        <a
-          href="{{ url_for('guests.nuevo') }}"
-          class="btn btn-outline-primary btn-sm text-start"
-        >
-          <i class="bi bi-plus-circle"></i> Cargar Huésped
-        </a>
-        <a
-          href="{{ url_for('guests.index') }}"
-          class="btn btn-outline-primary btn-sm text-start"
-        >
-          <i class="bi bi-search"></i> Buscar Huésped
-        </a>
-        <a
-          href="{{ url_for('imports.index') }}"
-          class="btn btn-outline-primary btn-sm text-start"
-        >
-          <i class="bi bi-file-earmark-excel"></i> Importar Excel
-        </a>
-        <a
-          href="{{ url_for('reports.index') }}"
-          class="btn btn-outline-primary btn-sm text-start"
-        >
-          <i class="bi bi-file-bar-graph"></i> Generar Reporte
-        </a>
-      </div>
+      <article class="panel-card quick-actions-panel">
+        <header class="panel-card__header compact">
+          <div>
+            <span class="section-kicker">Acción inmediata</span>
+            <h3>Operaciones rápidas</h3>
+          </div>
+        </header>
+        <div class="quick-actions-grid">
+          <a href="{{ url_for('guests.nuevo') }}" class="quick-action-tile">
+            <i class="bi bi-plus-circle"></i>
+            <span>Cargar huésped</span>
+          </a>
+          <a href="{{ url_for('guests.index') }}" class="quick-action-tile">
+            <i class="bi bi-search"></i>
+            <span>Buscar huésped</span>
+          </a>
+          <a href="{{ url_for('imports.index') }}" class="quick-action-tile">
+            <i class="bi bi-file-earmark-excel"></i>
+            <span>Importar Excel</span>
+          </a>
+          <a href="{{ url_for('reports.index') }}" class="quick-action-tile">
+            <i class="bi bi-file-bar-graph"></i>
+            <span>Generar reporte</span>
+          </a>
+        </div>
+      </article>
     </div>
   </div>
-</div>
+</section>
 {% endblock %}

@@ -1,25 +1,39 @@
 {% extends "base.html" %} {% block title %}Vista Previa: {{ titulo }} -
 S.C.A.H.{% endblock %} {% block content %}
-<div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
-  <div class="d-flex align-items-center">
+<section class="module-hero mb-4">
+  <div>
     <a
       href="{{ url_for('reports.index') }}"
-      class="btn btn-sm btn-outline-secondary me-2"
+      class="btn btn-ghost-secondary btn-sm mb-3"
     >
-      <i class="bi bi-arrow-left"></i>
+      <i class="bi bi-arrow-left"></i> Volver a reportes
     </a>
-    <h5 class="fw-bold mb-0">{{ titulo }}</h5>
+    <span class="section-kicker">Previsualización</span>
+    <h2 class="module-hero__title">{{ titulo }}</h2>
+    <p class="module-hero__subtitle mb-0">
+      Muestra operativa previa a exportación. Mostrando {{ datos | length }} de
+      {{ total }} registros.
+    </p>
   </div>
-  <small class="text-muted mt-2 mt-md-0">
-    Mostrando {{ datos | length }} de {{ total }} registros
-  </small>
-</div>
+  <div class="module-hero__actions">
+    <div class="shell-stat-chip compact-chip">
+      <span>Registros</span>
+      <strong>{{ datos | length }}</strong>
+    </div>
+  </div>
+</section>
 
 {% if datos %}
-<div class="card border-0 shadow-sm">
-  <div class="table-responsive">
-    <table class="table table-sm table-hover mb-0">
-      <thead class="table-light">
+<section class="panel-card">
+  <header class="panel-card__header compact">
+    <div>
+      <span class="section-kicker">Resultado</span>
+      <h3>Datos del reporte</h3>
+    </div>
+  </header>
+  <div class="table-responsive ops-table-wrapper">
+    <table class="table table-hover align-middle mb-0 ops-table">
+      <thead>
         <tr>
           {% if datos[0] is mapping %} {% for key in datos[0].keys() %}
           <th
@@ -57,10 +71,12 @@ S.C.A.H.{% endblock %} {% block content %}
       </tbody>
     </table>
   </div>
-</div>
+</section>
 {% else %}
-<div class="text-center text-muted py-5">
-  <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-  No se encontraron datos para este reporte.
+<div class="panel-card">
+  <div class="empty-state">
+    <i class="bi bi-inbox"></i>
+    <p class="mb-0">No se encontraron datos para este reporte.</p>
+  </div>
 </div>
 {% endif %} {% endblock %}

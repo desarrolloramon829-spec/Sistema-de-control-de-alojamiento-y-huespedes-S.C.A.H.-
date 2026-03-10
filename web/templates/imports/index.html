@@ -1,84 +1,93 @@
 {% extends "base.html" %} {% block title %}Importar Excel - S.C.A.H.{% endblock
 %} {% block content %}
-<h5 class="fw-bold mb-3">
-  <i class="bi bi-file-earmark-excel text-success"></i> Importar desde Excel
-</h5>
-
-<div class="row g-3">
-  <!-- V1 -->
-  <div class="col-12 col-md-6">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center">
-        <div class="mb-3">
-          <i
-            class="bi bi-file-earmark-spreadsheet text-success"
-            style="font-size:3rem"
-          ></i>
-        </div>
-        <h6 class="fw-bold">Formato V1</h6>
-        <p class="text-muted small">
-          Cada hoja del Excel corresponde a un hotel. Los datos del hotel están
-          en las primeras filas y los huéspedes se listan debajo con columnas
-          fijas.
-        </p>
-        <ul class="list-unstyled text-start small text-muted">
-          <li>
-            <i class="bi bi-check-circle text-success"></i> Hotel auto-detectado
-            por hoja
-          </li>
-          <li>
-            <i class="bi bi-check-circle text-success"></i> Múltiples archivos
-            simultáneos
-          </li>
-          <li>
-            <i class="bi bi-check-circle text-success"></i> Validación de
-            duplicados por DNI
-          </li>
-        </ul>
-        <a
-          href="{{ url_for('imports.importar_v1') }}"
-          class="btn btn-success w-100"
-        >
-          <i class="bi bi-upload"></i> Importar V1
-        </a>
-      </div>
+<section class="module-hero mb-4">
+  <div>
+    <span class="section-kicker">Procesamiento documental</span>
+    <h2 class="module-hero__title">
+      Centro de importaciones y validación de archivos.
+    </h2>
+    <p class="module-hero__subtitle mb-0">
+      Selecciona el flujo de carga según el formato de origen y procesa
+      registros con revisión previa, control de duplicados y trazabilidad de
+      importación.
+    </p>
+  </div>
+  <div class="module-hero__actions">
+    <div class="shell-stat-chip compact-chip">
+      <span>Flujos</span>
+      <strong>2 formatos</strong>
+    </div>
+    <div class="shell-stat-chip compact-chip">
+      <span>Validación</span>
+      <strong>Previa a importación</strong>
     </div>
   </div>
+</section>
 
-  <!-- V2 -->
-  <div class="col-12 col-md-6">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center">
-        <div class="mb-3">
-          <i class="bi bi-table text-primary" style="font-size:3rem"></i>
-        </div>
-        <h6 class="fw-bold">Formato V2</h6>
-        <p class="text-muted small">
-          Formato tabular donde los encabezados de columna se detectan
-          automáticamente. Se selecciona el hotel manualmente.
-        </p>
-        <ul class="list-unstyled text-start small text-muted">
-          <li>
-            <i class="bi bi-check-circle text-primary"></i> Detección automática
-            de columnas
-          </li>
-          <li>
-            <i class="bi bi-check-circle text-primary"></i> Selección manual de
-            hotel
-          </li>
-          <li>
-            <i class="bi bi-check-circle text-primary"></i> Validación de
-            duplicados por DNI
-          </li>
-        </ul>
-        <a
-          href="{{ url_for('imports.importar_v2') }}"
-          class="btn btn-primary w-100"
-        >
-          <i class="bi bi-upload"></i> Importar V2
-        </a>
-      </div>
+<section class="import-selector-grid">
+  <article class="import-flow-card import-flow-card-v1 panel-card">
+    <div class="import-flow-card__icon">
+      <i class="bi bi-file-earmark-spreadsheet"></i>
     </div>
-  </div>
-</div>
+    <div class="import-flow-card__body">
+      <span class="section-kicker">Formato V1</span>
+      <h3>Carga por hoja y hotel auto-detectado</h3>
+      <p>
+        Cada hoja representa un hotel. El sistema interpreta cabecera del
+        establecimiento y lista de huéspedes en columnas fijas.
+      </p>
+      <ul class="ops-feature-list">
+        <li>
+          <i class="bi bi-check2-circle"></i> Hotel detectado automáticamente
+          por hoja
+        </li>
+        <li>
+          <i class="bi bi-check2-circle"></i> Múltiples archivos en una sola
+          operación
+        </li>
+        <li>
+          <i class="bi bi-check2-circle"></i> Revisión previa y control por DNI
+        </li>
+      </ul>
+    </div>
+    <a
+      href="{{ url_for('imports.importar_v1') }}"
+      class="btn btn-primary w-100"
+    >
+      <i class="bi bi-upload"></i> Iniciar flujo V1
+    </a>
+  </article>
+
+  <article class="import-flow-card import-flow-card-v2 panel-card">
+    <div class="import-flow-card__icon alt">
+      <i class="bi bi-table"></i>
+    </div>
+    <div class="import-flow-card__body">
+      <span class="section-kicker">Formato V2</span>
+      <h3>Carga tabular con mapeo flexible</h3>
+      <p>
+        Detecta encabezados automáticamente, permite asignar hotel manualmente y
+        unifica planillas tabulares heterogéneas.
+      </p>
+      <ul class="ops-feature-list">
+        <li>
+          <i class="bi bi-check2-circle"></i> Detección automática de columnas
+        </li>
+        <li>
+          <i class="bi bi-check2-circle"></i> Selección o creación de hotel
+        </li>
+        <li>
+          <i class="bi bi-check2-circle"></i> Validación previa a la
+          consolidación
+        </li>
+      </ul>
+    </div>
+    <a
+      href="{{ url_for('imports.importar_v2') }}"
+      class="btn btn-ghost-primary w-100"
+    >
+      <i class="bi bi-upload"></i> Iniciar flujo V2
+    </a>
+  </article>
+</section>
 {% endblock %}

@@ -1,16 +1,37 @@
 {% extends "base.html" %} {% block title %}Reportes - S.C.A.H.{% endblock %} {%
 block content %}
-<h5 class="fw-bold mb-3">
-  <i class="bi bi-file-earmark-bar-graph text-primary"></i> Reportes
-</h5>
+<section class="module-hero mb-4">
+  <div>
+    <span class="section-kicker">Sala de análisis</span>
+    <h2 class="module-hero__title">
+      Generación y previsualización de reportes.
+    </h2>
+    <p class="module-hero__subtitle mb-0">
+      Configura salidas documentales, acota por fechas y exporta información
+      operacional en Excel o PDF.
+    </p>
+  </div>
+  <div class="module-hero__actions">
+    <div class="shell-stat-chip compact-chip">
+      <span>Formatos</span>
+      <strong>Excel / PDF</strong>
+    </div>
+  </div>
+</section>
 
-<div class="row justify-content-center">
-  <div class="col-12 col-md-8 col-lg-6">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
+<div class="row g-3 justify-content-center">
+  <div class="col-12 col-xl-8">
+    <section class="panel-card">
+      <header class="panel-card__header">
+        <div>
+          <span class="section-kicker">Configuración documental</span>
+          <h3>Parámetros del reporte</h3>
+        </div>
+      </header>
+      <div class="panel-card__body px-3 pb-3">
         <form method="POST" action="{{ url_for('reports.generar') }}">
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Tipo de Reporte</label>
+          <div class="form-section-block mb-4">
+            <div class="form-section-block__title">Tipo de reporte</div>
             <select name="tipo" class="form-select" id="tipoReporte">
               <option value="general">General - Todos los huéspedes</option>
               <option value="por_hotel">Por Hotel</option>
@@ -21,23 +42,28 @@ block content %}
             </select>
           </div>
 
-          <div id="fechasContainer" class="mb-3" style="display:none">
+          <div
+            id="fechasContainer"
+            class="form-section-block mb-4"
+            style="display:none"
+          >
+            <div class="form-section-block__title">Ventana temporal</div>
             <div class="row g-2">
               <div class="col-6">
-                <label class="form-label fw-semibold">Desde</label>
+                <label class="form-label form-label-ops">Desde</label>
                 <input type="date" name="desde" class="form-control" />
               </div>
               <div class="col-6">
-                <label class="form-label fw-semibold">Hasta</label>
+                <label class="form-label form-label-ops">Hasta</label>
                 <input type="date" name="hasta" class="form-control" />
               </div>
             </div>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Formato</label>
+          <div class="form-section-block mb-4">
+            <div class="form-section-block__title">Formato de salida</div>
             <div class="d-flex gap-3">
-              <div class="form-check">
+              <div class="form-check report-format-check">
                 <input
                   type="radio"
                   name="formato"
@@ -50,7 +76,7 @@ block content %}
                   <i class="bi bi-file-earmark-excel text-success"></i> Excel
                 </label>
               </div>
-              <div class="form-check">
+              <div class="form-check report-format-check">
                 <input
                   type="radio"
                   name="formato"
@@ -65,17 +91,17 @@ block content %}
             </div>
           </div>
 
-          <div class="d-flex gap-2">
+          <div class="d-flex gap-2 flex-wrap form-action-row">
             <button type="submit" class="btn btn-primary">
               <i class="bi bi-download"></i> Generar y Descargar
             </button>
-            <a href="#" class="btn btn-outline-secondary" id="btnPreview">
+            <a href="#" class="btn btn-ghost-secondary" id="btnPreview">
               <i class="bi bi-eye"></i> Vista Previa
             </a>
           </div>
         </form>
       </div>
-    </div>
+    </section>
   </div>
 </div>
 
