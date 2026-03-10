@@ -29,12 +29,28 @@ block content %}
         </div>
       </header>
       <div class="panel-card__body px-3 pb-3">
-        <nav class="form-mobile-nav d-md-none mb-4" aria-label="Secciones del reporte">
-          <a href="#seccion-tipo-reporte" class="status-pill muted small-pill">Tipo</a>
-          <a href="#seccion-fechas-reporte" class="status-pill muted small-pill">Fechas</a>
-          <a href="#seccion-formato-reporte" class="status-pill muted small-pill">Formato</a>
+        <nav
+          class="form-mobile-nav d-md-none mb-4"
+          aria-label="Secciones del reporte"
+        >
+          <a href="#seccion-tipo-reporte" class="status-pill muted small-pill"
+            >Tipo</a
+          >
+          <a href="#seccion-fechas-reporte" class="status-pill muted small-pill"
+            >Fechas</a
+          >
+          <a
+            href="#seccion-formato-reporte"
+            class="status-pill muted small-pill"
+            >Formato</a
+          >
         </nav>
-        <form method="POST" action="{{ url_for('reports.generar') }}" id="reportForm" data-requires-online="true">
+        <form
+          method="POST"
+          action="{{ url_for('reports.generar') }}"
+          id="reportForm"
+          data-requires-online="true"
+        >
           <div class="offline-module-note d-none mb-4" data-offline-note>
             La generación y exportación de reportes requiere conexión activa.
           </div>
@@ -101,7 +117,9 @@ block content %}
             </div>
           </div>
 
-          <div class="d-flex gap-2 flex-wrap form-action-row mobile-hide-duplicate-action-row">
+          <div
+            class="d-flex gap-2 flex-wrap form-action-row mobile-hide-duplicate-action-row"
+          >
             <button type="submit" class="btn btn-primary">
               <i class="bi bi-download"></i> Generar y Descargar
             </button>

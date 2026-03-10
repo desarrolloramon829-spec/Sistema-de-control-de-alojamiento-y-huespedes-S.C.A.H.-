@@ -34,10 +34,15 @@
     </div>
   </header>
   <div class="panel-card__body px-3 pb-3">
-    <form method="POST" enctype="multipart/form-data" data-requires-online="true">
+    <form
+      method="POST"
+      enctype="multipart/form-data"
+      data-requires-online="true"
+    >
       <input type="hidden" name="action" value="preview" />
       <div class="offline-module-note d-none mb-3" data-offline-note>
-        La importación requiere conexión activa. Cuando vuelva la red vas a poder generar la vista previa.
+        La importación requiere conexión activa. Cuando vuelva la red vas a
+        poder generar la vista previa.
       </div>
       <div class="upload-dropzone mb-3">
         <div class="upload-dropzone__icon">
@@ -160,14 +165,18 @@
         </div>
         <span><strong>Hotel:</strong> {{ h.get('hotel_nombre', '-') }}</span>
         <span><strong>DNI:</strong> {{ h.get('dni_pasaporte', '-') }}</span>
-        <span><strong>Nacionalidad:</strong> {{ h.get('nacionalidad', '-') }}</span>
+        <span
+          ><strong>Nacionalidad:</strong> {{ h.get('nacionalidad', '-') }}</span
+        >
         <span><strong>Habitación:</strong> {{ h.get('habitacion', '-') }}</span>
       </article>
       {% endfor %}
     </div>
   </div>
   <div class="table-responsive ops-table-wrapper">
-    <table class="table table-hover align-middle mb-0 ops-table d-none d-md-table">
+    <table
+      class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
+    >
       <thead>
         <tr>
           <th>#</th>

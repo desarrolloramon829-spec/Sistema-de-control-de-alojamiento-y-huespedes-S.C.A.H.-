@@ -34,7 +34,11 @@
     </div>
   </header>
   <div class="panel-card__body px-3 pb-3">
-    <form method="POST" enctype="multipart/form-data" data-requires-online="true">
+    <form
+      method="POST"
+      enctype="multipart/form-data"
+      data-requires-online="true"
+    >
       <input type="hidden" name="action" value="preview" />
       <div class="offline-module-note d-none mb-3" data-offline-note>
         La carga tabular necesita conexión para procesar y validar los archivos.
@@ -172,7 +176,8 @@
     <form method="POST" id="importForm" data-requires-online="true">
       <input type="hidden" name="action" value="import" />
       <div class="offline-module-note d-none mb-3" data-offline-note>
-        Sin conexión solo queda disponible la lectura de la vista previa ya cargada.
+        Sin conexión solo queda disponible la lectura de la vista previa ya
+        cargada.
       </div>
 
       <div class="form-section-block mb-4">
@@ -257,17 +262,29 @@
             <article class="preview-mobile-card">
               <div class="preview-mobile-card__header">
                 <strong>{{ h.get('apellido_nombre', '-') }}</strong>
-                <span class="status-pill muted small-pill">{{ loop.index }}</span>
+                <span class="status-pill muted small-pill"
+                  >{{ loop.index }}</span
+                >
               </div>
-              <span><strong>DNI:</strong> {{ h.get('dni_pasaporte', '-') }}</span>
-              <span><strong>Nacionalidad:</strong> {{ h.get('nacionalidad', '-') }}</span>
-              <span><strong>Procedencia:</strong> {{ h.get('procedencia', '-') }}</span>
+              <span
+                ><strong>DNI:</strong> {{ h.get('dni_pasaporte', '-') }}</span
+              >
+              <span
+                ><strong>Nacionalidad:</strong> {{ h.get('nacionalidad', '-')
+                }}</span
+              >
+              <span
+                ><strong>Procedencia:</strong> {{ h.get('procedencia', '-')
+                }}</span
+              >
             </article>
             {% endfor %}
           </div>
         </div>
         <div class="table-responsive ops-table-wrapper mb-0">
-          <table class="table table-hover align-middle mb-0 ops-table d-none d-md-table">
+          <table
+            class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
+          >
             <thead>
               <tr>
                 <th>#</th>

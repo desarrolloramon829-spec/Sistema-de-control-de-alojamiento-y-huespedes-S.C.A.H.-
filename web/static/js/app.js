@@ -131,7 +131,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const connectivityTargets = document.querySelectorAll('[data-online-status]');
   const offlineBanner = document.querySelector('[data-offline-banner]');
-  const onlineRequiredForms = document.querySelectorAll('form[data-requires-online]');
+  const onlineRequiredForms = document.querySelectorAll(
+    'form[data-requires-online]'
+  );
 
   function updateConnectivityState() {
     const online = navigator.onLine;
@@ -147,9 +149,11 @@ document.addEventListener('DOMContentLoaded', function () {
     document.body.classList.toggle('is-offline', !online);
 
     onlineRequiredForms.forEach(function (form) {
-      form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (button) {
-        button.disabled = !online;
-      });
+      form
+        .querySelectorAll('button[type="submit"], input[type="submit"]')
+        .forEach(function (button) {
+          button.disabled = !online;
+        });
 
       form.querySelectorAll('[data-offline-note]').forEach(function (note) {
         note.classList.toggle('d-none', online);

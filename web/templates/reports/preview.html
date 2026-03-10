@@ -39,21 +39,25 @@ S.C.A.H.{% endblock %} {% block content %}
           <strong>Registro {{ loop.index }}</strong>
           <span class="status-pill muted small-pill">{{ loop.index }}</span>
         </div>
-        {% if row is mapping %}
-          {% for key, val in row.items() %}
-          <span><strong>{{ key | replace('_', ' ') | title }}:</strong> {{ val if val is not none else '-' }}</span>
-          {% endfor %}
-        {% else %}
-          {% for val in row %}
-          <span><strong>Col {{ loop.index }}:</strong> {{ val if val is not none else '-' }}</span>
-          {% endfor %}
-        {% endif %}
+        {% if row is mapping %} {% for key, val in row.items() %}
+        <span
+          ><strong>{{ key | replace('_', ' ') | title }}:</strong> {{ val if val
+          is not none else '-' }}</span
+        >
+        {% endfor %} {% else %} {% for val in row %}
+        <span
+          ><strong>Col {{ loop.index }}:</strong> {{ val if val is not none else
+          '-' }}</span
+        >
+        {% endfor %} {% endif %}
       </article>
       {% endfor %}
     </div>
   </div>
   <div class="table-responsive ops-table-wrapper">
-    <table class="table table-hover align-middle mb-0 ops-table d-none d-md-table">
+    <table
+      class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
+    >
       <thead>
         <tr>
           {% if datos[0] is mapping %} {% for key in datos[0].keys() %}

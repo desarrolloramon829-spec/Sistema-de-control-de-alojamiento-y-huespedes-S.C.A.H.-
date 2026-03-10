@@ -110,11 +110,21 @@ block content %}
           <article class="preview-mobile-card">
             <div class="preview-mobile-card__header">
               <strong>{{ h.apellido_nombre | truncar(32) }}</strong>
-              <span class="status-pill muted small-pill">{{ h.fecha_entrada or 'Sin fecha' }}</span>
+              <span class="status-pill muted small-pill"
+                >{{ h.fecha_entrada or 'Sin fecha' }}</span
+              >
             </div>
-            <span><strong>Documento:</strong> {{ h.dni_pasaporte or 'S/D' }}</span>
-            <span><strong>Hotel:</strong> {{ h.hotel | truncar(22) or 'Sin hotel' }}</span>
-            <span><strong>Nacionalidad:</strong> {{ h.nacionalidad or 'Sin nacionalidad' }}</span>
+            <span
+              ><strong>Documento:</strong> {{ h.dni_pasaporte or 'S/D' }}</span
+            >
+            <span
+              ><strong>Hotel:</strong> {{ h.hotel | truncar(22) or 'Sin hotel'
+              }}</span
+            >
+            <span
+              ><strong>Nacionalidad:</strong> {{ h.nacionalidad or 'Sin
+              nacionalidad' }}</span
+            >
             <a
               href="{{ url_for('guests.detalle', huesped_id=h.id) }}"
               class="btn btn-ghost-primary btn-sm mt-2"
@@ -132,7 +142,9 @@ block content %}
       </div>
 
       <div class="table-responsive ops-table-wrapper">
-        <table class="table table-hover align-middle mb-0 ops-table d-none d-md-table">
+        <table
+          class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
+        >
           <thead>
             <tr>
               <th>Huésped</th>

@@ -81,13 +81,18 @@ block content %}
               <small class="text-muted">ID {{ u.id }}</small>
             </div>
           </div>
-          <span class="status-pill {{ 'danger' if u.rol == 'admin' else 'info' if u.rol == 'operador' else 'muted' }} small-pill">
+          <span
+            class="status-pill {{ 'danger' if u.rol == 'admin' else 'info' if u.rol == 'operador' else 'muted' }} small-pill"
+          >
             {{ u.rol | title }}
           </span>
         </div>
         <div class="entity-mobile-card__meta">
           <span><strong>Nombre:</strong> {{ u.nombre_completo or '-' }}</span>
-          <span><strong>Estado:</strong> {{ 'Activo' if u.activo else 'Inactivo' }}</span>
+          <span
+            ><strong>Estado:</strong> {{ 'Activo' if u.activo else 'Inactivo'
+            }}</span
+          >
         </div>
         <div class="entity-mobile-card__actions">
           <a
@@ -123,7 +128,9 @@ block content %}
     </div>
   </div>
   <div class="table-responsive ops-table-wrapper">
-    <table class="table table-hover align-middle mb-0 ops-table d-none d-md-table">
+    <table
+      class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
+    >
       <thead>
         <tr>
           <th>Usuario</th>

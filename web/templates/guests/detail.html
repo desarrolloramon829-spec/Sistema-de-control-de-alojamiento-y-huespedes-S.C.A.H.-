@@ -61,7 +61,11 @@ S.C.A.H.{% endblock %} {% block content %}
         </div>
         <span>DNI: {{ duplicado.dni_pasaporte or 'S/D' }}</span>
         <span>Coincide por: {{ duplicado.coincidencias | join(', ') }}</span>
-        <a href="{{ url_for('guests.detalle', huesped_id=duplicado.id) }}" class="ops-link">Abrir expediente</a>
+        <a
+          href="{{ url_for('guests.detalle', huesped_id=duplicado.id) }}"
+          class="ops-link"
+          >Abrir expediente</a
+        >
       </div>
       {% endfor %}
     </div>
