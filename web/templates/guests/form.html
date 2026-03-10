@@ -51,7 +51,7 @@
                     <div class="form-section-block mb-4">
                         <div class="form-section-block__title">Identidad</div>
                     <div class="row g-3">
-                        <div class="col-12 col-md-8">
+                        <div class="col-12 col-sm-8">
                             <label class="form-label form-label-ops">
                                 Apellido y Nombre <span class="text-danger">*</span>
                             </label>
@@ -59,7 +59,7 @@
                                    value="{{ datos.get('apellido_nombre', '') }}" required
                                    placeholder="Ej: García, Juan Carlos">
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-sm-4">
                             <label class="form-label form-label-ops">
                                 DNI / Pasaporte <span class="text-danger">*</span>
                             </label>
@@ -95,17 +95,17 @@
                     <div class="form-section-block mb-4">
                         <div class="form-section-block__title">Perfil y origen</div>
                     <div class="row g-3 mt-1">
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-sm-6 col-md-4">
                             <label class="form-label form-label-ops">Nacionalidad</label>
                             <input type="text" class="form-control" name="nacionalidad"
                                    value="{{ datos.get('nacionalidad', '') }}" placeholder="Argentina">
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-sm-6 col-md-4">
                             <label class="form-label form-label-ops">Procedencia</label>
                             <input type="text" class="form-control" name="procedencia"
                                    value="{{ datos.get('procedencia', '') }}" placeholder="Buenos Aires">
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-sm-6 col-md-4">
                             <label class="form-label form-label-ops">Profesión</label>
                             <input type="text" class="form-control" name="profesion"
                                    value="{{ datos.get('profesion', '') }}" placeholder="Comerciante">
@@ -167,7 +167,7 @@
                             <input type="text" class="form-control" name="movilidad"
                                    value="{{ datos.get('movilidad', '') }}">
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-sm-6 col-md-4">
                             <label class="form-label form-label-ops">Teléfono</label>
                             <input type="tel" class="form-control" name="telefono" id="telefono"
                                    value="{{ datos.get('telefono', '') }}" placeholder="+54 11 1234-5678">
