@@ -633,6 +633,202 @@ textarea {
   background: var(--info);
 }
 
+.alert-nav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.alert-badge {
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.alerts-list-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.alerts-dashboard-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.alerts-type-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.alerts-type-list.compact-list {
+  gap: 0.6rem;
+}
+
+.alerts-type-item,
+.alerts-config-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.alerts-type-item small,
+.alerts-config-item small,
+.alerts-recent-item small {
+  display: block;
+  color: var(--text-muted);
+}
+
+.alerts-recent-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.alerts-recent-item {
+  padding: 0.8rem 0.9rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.alerts-recent-item.severity-critical {
+  border-color: rgba(226, 85, 85, 0.28);
+}
+
+.alerts-recent-item.severity-danger {
+  border-color: rgba(243, 182, 63, 0.28);
+}
+
+.system-alert-card {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem 1.05rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.system-alert-card.severity-critical {
+  border-color: rgba(226, 85, 85, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(226, 85, 85, 0.08);
+}
+
+.system-alert-card.severity-danger {
+  border-color: rgba(243, 182, 63, 0.28);
+}
+
+.system-alert-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.system-alert-card__header h4 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.system-alert-card__header p {
+  color: var(--text-secondary);
+}
+
+.system-alert-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.system-alert-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.preview-alert-note {
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+}
+
+.preview-inline-alert {
+  display: inline-block;
+  margin-top: 0.2rem;
+}
+
+.preview-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.preview-filter-bar .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.preview-filter-bar .btn span {
+  min-width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.72rem;
+}
+
+.preview-filter-bar .btn.is-active {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 12px 24px rgba(2, 10, 22, 0.22);
+}
+
+.preview-alert-details {
+  margin-top: 0.4rem;
+  color: var(--text-secondary);
+}
+
+.preview-alert-details summary {
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+.preview-alert-details ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1rem;
+}
+
+.table-row-blocked td,
+.preview-mobile-card.table-row-blocked {
+  background: rgba(226, 85, 85, 0.08) !important;
+}
+
+.table-row-warning td,
+.preview-mobile-card.table-row-warning {
+  background: rgba(243, 182, 63, 0.08) !important;
+}
+
+.alert-pill-critical {
+  background: rgba(226, 85, 85, 0.16);
+  border-color: rgba(226, 85, 85, 0.28);
+}
+
 .alert-copy {
   flex: 1;
 }
@@ -829,6 +1025,11 @@ textarea {
 .metric-card-warning .metric-card__icon,
 .metric-card-warning {
   color: var(--warning);
+}
+
+.metric-card-danger .metric-card__icon,
+.metric-card-danger {
+  color: var(--danger);
 }
 
 .ops-table-wrapper {

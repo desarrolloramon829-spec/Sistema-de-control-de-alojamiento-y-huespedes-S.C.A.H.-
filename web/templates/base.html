@@ -55,7 +55,7 @@
     />
     {% block extra_css %}{% endblock %}
   </head>
-  <body class="app-body shell-ready">
+  <body class="app-body shell-ready" data-alert-poll-seconds="{{ alert_poll_seconds }}">
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg fixed-top app-topbar">
       <div class="container-fluid">
@@ -97,6 +97,16 @@
 
         <div class="d-none d-lg-flex align-items-center ms-auto">
           {% if current_user %}
+          {% if current_user.rol in ('admin', 'operador') %}
+          <a
+            href="{{ url_for('alerts.index') }}"
+            class="btn btn-ghost-secondary btn-sm me-2 alert-nav-link"
+            data-alerts-link
+          >
+            <i class="bi bi-bell"></i> Alertas
+            <span class="alert-badge d-none" data-alert-count-badge>0</span>
+          </a>
+          {% endif %}
           <button
             data-install-pwa
             type="button"
@@ -189,6 +199,16 @@
                 <i class="bi bi-file-earmark-excel"></i>
                 <span>Importaciones</span>
                 <small>Procesamiento documental</small>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link {% if request.endpoint and request.endpoint.startswith('alerts.') %}active{% endif %}"
+                href="{{ url_for('alerts.index') }}"
+              >
+                <i class="bi bi-bell"></i>
+                <span>Alertas</span>
+                <small>Riesgos y seguimiento</small>
               </a>
             </li>
             {% endif %}
@@ -291,6 +311,7 @@
               request.endpoint.startswith('hotels.') %} Gestión de hoteles {%
               elif request.endpoint and request.endpoint.startswith('imports.')
               %} Centro de importaciones {% elif request.endpoint and
+              request.endpoint.startswith('alerts.') %} Centro de alertas {% elif request.endpoint and
               request.endpoint.startswith('reports.') %} Sala de reportes {%
               elif request.endpoint and request.endpoint.startswith('stats.') %}
               Inteligencia visual {% elif request.endpoint and

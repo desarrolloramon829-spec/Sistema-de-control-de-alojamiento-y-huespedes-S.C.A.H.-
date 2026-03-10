@@ -86,6 +86,22 @@ block content %}
       >
     </article>
   </div>
+  {% if alert_metrics %}
+  <div class="col-12 col-sm-6 col-xl-3">
+    <article class="metric-card metric-card-danger h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Alertas pendientes</span>
+        <span class="metric-card__icon"><i class="bi bi-bell-fill"></i></span>
+      </div>
+      <strong class="metric-card__value"
+        >{{ alert_metrics.resumen.pendientes | default(0) }}</strong
+      >
+      <small class="metric-card__meta"
+        >{{ alert_metrics.resumen.pendientes_prioritarios | default(0) }} prioritarias y {{ alert_metrics.resumen.bloqueantes_pendientes | default(0) }} bloqueantes.</small
+      >
+    </article>
+  </div>
+  {% endif %}
 </section>
 
 <section class="row g-3">
@@ -212,6 +228,59 @@ block content %}
           {% endfor %}
         </div>
       </article>
+
+      {% if alert_metrics %}
+      <article class="panel-card">
+        <header class="panel-card__header compact">
+          <div>
+            <span class="section-kicker">Radar de alertas</span>
+            <h3>Pendientes operativos</h3>
+          </div>
+          <a href="{{ url_for('alerts.index') }}" class="btn btn-ghost-primary btn-sm">
+            Abrir centro
+          </a>
+        </header>
+        <div class="panel-card__body px-3 pb-3">
+          <div class="alerts-dashboard-stack">
+            <div class="backup-summary-grid">
+              <div class="backup-stat">
+                <span>Prioridad alta</span>
+                <strong>{{ alert_metrics.resumen.pendientes_prioritarios | default(0) }}</strong>
+              </div>
+              <div class="backup-stat">
+                <span>Bloqueantes</span>
+                <strong>{{ alert_metrics.resumen.bloqueantes_pendientes | default(0) }}</strong>
+              </div>
+            </div>
+
+            {% if alert_metrics.por_tipo %}
+            <div class="alerts-type-list">
+              {% for tipo in alert_metrics.por_tipo %}
+              <div class="alerts-type-item">
+                <div>
+                  <strong>{{ tipo.label }}</strong>
+                  <small>{{ tipo.total }} total</small>
+                </div>
+                <span class="city-list__value">{{ tipo.pendientes }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if alert_metrics.recientes %}
+            <div class="alerts-recent-list">
+              {% for alerta in alert_metrics.recientes %}
+              <div class="alerts-recent-item severity-{{ alerta.severidad }}">
+                <strong>{{ alerta.sujeto_nombre }}</strong>
+                <small>{{ alerta.tipo_label }}</small>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+      {% endif %}
 
       <article class="panel-card quick-actions-panel">
         <header class="panel-card__header compact">

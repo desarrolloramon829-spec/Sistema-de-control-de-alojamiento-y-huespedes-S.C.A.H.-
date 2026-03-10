@@ -61,6 +61,7 @@ def ejecutar_migraciones():
         # Ejecutar migraciones incrementales
         migrar_v1_1()
         migrar_v1_2()
+        migrar_v1_3()
 
         return True
 
@@ -74,7 +75,7 @@ def ejecutar_migraciones():
 
 def verificar_esquema() -> tuple[bool, list]:
     """Verifica que todas las tablas necesarias existan."""
-    tablas_necesarias = ["usuarios", "hoteles", "huespedes", "importaciones_log", "auditoria"]
+    tablas_necesarias = ["usuarios", "hoteles", "huespedes", "importaciones_log", "alertas_sistema", "auditoria"]
     tablas_faltantes = []
 
     conn = db.obtener_conexion()
@@ -438,6 +439,75 @@ def migrar_v1_2():
     except Exception as e:
         conn.rollback()
         log_error("Error durante migración v1.2", e)
+        return False
+    finally:
+        db.liberar_conexion(conn)
+
+
+# ============================================================
+# MIGRACIÓN V1.3: Alertas operativas y trazabilidad avanzada
+# ============================================================
+SQL_MIGRACION_V1_3 = [
+    """
+    CREATE TABLE IF NOT EXISTS alertas_sistema (
+        id SERIAL PRIMARY KEY,
+        tipo VARCHAR(50) NOT NULL,
+        severidad VARCHAR(20) NOT NULL DEFAULT 'warning',
+        estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+        bloqueante BOOLEAN NOT NULL DEFAULT FALSE,
+        sujeto_nombre VARCHAR(300) NOT NULL,
+        sujeto_documento VARCHAR(50),
+        hotel_origen VARCHAR(300),
+        hotel_relacionado VARCHAR(300),
+        huesped_id INTEGER REFERENCES huespedes(id) ON DELETE SET NULL,
+        huesped_relacionado_id INTEGER REFERENCES huespedes(id) ON DELETE SET NULL,
+        fecha_entrada DATE,
+        fecha_salida DATE,
+        horas_lapso INTEGER,
+        resumen TEXT NOT NULL,
+        payload_json TEXT,
+        importacion_tipo VARCHAR(20),
+        usuario_creacion_id INTEGER REFERENCES usuarios(id),
+        usuario_revision_id INTEGER REFERENCES usuarios(id),
+        fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        fecha_revision TIMESTAMP,
+        CONSTRAINT chk_alerta_severidad CHECK (severidad IN ('info', 'warning', 'danger', 'critical')),
+        CONSTRAINT chk_alerta_estado CHECK (estado IN ('pendiente', 'revisada', 'descartada', 'confirmada'))
+    );
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_alertas_estado ON alertas_sistema(estado);",
+    "CREATE INDEX IF NOT EXISTS idx_alertas_tipo ON alertas_sistema(tipo);",
+    "CREATE INDEX IF NOT EXISTS idx_alertas_fecha ON alertas_sistema(fecha_creacion DESC);",
+    "CREATE INDEX IF NOT EXISTS idx_alertas_documento ON alertas_sistema(sujeto_documento);",
+]
+
+
+def migrar_v1_3():
+    """Migración v1.3: crea tabla de alertas del sistema."""
+    log_info("Ejecutando migración v1.3 (alertas operativas)...")
+
+    conn = db.obtener_conexion()
+    if not conn:
+        log_error("No se pudo obtener conexión para migración v1.3")
+        return False
+
+    try:
+        cursor = conn.cursor()
+
+        for sql in SQL_MIGRACION_V1_3:
+            try:
+                cursor.execute(sql)
+            except Exception as e:
+                log_info(f"Nota migración v1.3: {e}")
+
+        conn.commit()
+        cursor.close()
+        log_info("Migración v1.3 completada exitosamente")
+        return True
+
+    except Exception as e:
+        conn.rollback()
+        log_error("Error durante migración v1.3", e)
         return False
     finally:
         db.liberar_conexion(conn)

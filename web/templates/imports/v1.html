@@ -141,8 +141,31 @@
     </ul>
   </div>
 </section>
+{% endif %} {% if preview.alertas_resumen and (preview.alertas_resumen.bloqueadas or preview.alertas_resumen.advertencias) %}
+<section class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <article class="metric-card metric-card-danger h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Bloqueadas</span>
+        <span class="metric-card__icon"><i class="bi bi-slash-circle"></i></span>
+      </div>
+      <strong class="metric-card__value">{{ preview.alertas_resumen.bloqueadas }}</strong>
+      <small class="metric-card__meta">Duplicados exactos que no se van a insertar.</small>
+    </article>
+  </div>
+  <div class="col-6 col-md-3">
+    <article class="metric-card metric-card-warning h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Advertencias</span>
+        <span class="metric-card__icon"><i class="bi bi-bell"></i></span>
+      </div>
+      <strong class="metric-card__value">{{ preview.alertas_resumen.advertencias }}</strong>
+      <small class="metric-card__meta">Se importan pero quedarán registradas para revisión.</small>
+    </article>
+  </div>
+</section>
 {% endif %} {% if preview.huespedes %}
-<section class="panel-card mb-3">
+<section class="panel-card mb-3" data-preview-scope>
   <header class="panel-card__header compact">
     <div>
       <span class="section-kicker">Inspección de registros</span>
@@ -150,14 +173,38 @@
     </div>
     <span class="status-pill muted small-pill">Primeros 50 registros</span>
   </header>
+  <div class="panel-card__body px-3 pb-3 pt-0">
+    <div class="preview-filter-bar">
+      <button type="button" class="btn btn-primary btn-sm is-active" data-preview-filter="all">Todos <span>{{ preview.huespedes|length }}</span></button>
+      <button type="button" class="btn btn-ghost-danger btn-sm" data-preview-filter="blocked">Solo bloqueadas <span>{{ preview.alertas_resumen.bloqueadas }}</span></button>
+      <button type="button" class="btn btn-ghost-secondary btn-sm" data-preview-filter="warning">Solo advertencias <span>{{ preview.alertas_resumen.advertencias }}</span></button>
+      <button type="button" class="btn btn-ghost-secondary btn-sm" data-preview-filter="clean">Sin alertas <span>{{ preview.alertas_resumen.sin_alertas }}</span></button>
+    </div>
+  </div>
   <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
     <div class="preview-mobile-list">
       {% for h in preview.huespedes[:50] %}
-      <article class="preview-mobile-card">
+      <article class="preview-mobile-card {% if h.alert_evaluacion.estado == 'blocked' %}table-row-blocked{% elif h.alert_evaluacion.estado == 'warning' %}table-row-warning{% endif %}" data-preview-row data-alert-state="{{ h.alert_evaluacion.estado }}">
         <div class="preview-mobile-card__header">
           <strong>{{ h.get('apellido_nombre', '-') }}</strong>
           <span class="status-pill muted small-pill">{{ loop.index }}</span>
         </div>
+        {% if h.alert_evaluacion.total %}
+        <div class="preview-alert-note">
+          <span class="status-pill {% if h.alert_evaluacion.estado == 'blocked' %}alert-pill-critical{% else %}muted{% endif %}">
+            {% if h.alert_evaluacion.estado == 'blocked' %}Bloqueada{% else %}Advertencia{% endif %}
+          </span>
+          <small>{{ h.alert_evaluacion.alertas[0].resumen }}</small>
+        </div>
+        <details class="preview-alert-details">
+          <summary>Ver {{ h.alert_evaluacion.total }} alerta{% if h.alert_evaluacion.total != 1 %}s{% endif %}</summary>
+          <ul>
+            {% for alerta in h.alert_evaluacion.alertas %}
+            <li><strong>{{ alerta.tipo_label or alerta.tipo }}</strong>: {{ alerta.resumen }}</li>
+            {% endfor %}
+          </ul>
+        </details>
+        {% endif %}
         <span><strong>Hotel:</strong> {{ h.get('hotel_nombre', '-') }}</span>
         <span><strong>DNI:</strong> {{ h.get('dni_pasaporte', '-') }}</span>
         <span><strong>Nacionalidad:</strong> {{ h.get('nacionalidad', '-') }}</span>
@@ -180,10 +227,25 @@
       </thead>
       <tbody>
         {% for h in preview.huespedes[:50] %}
-        <tr>
+        <tr class="{% if h.alert_evaluacion.estado == 'blocked' %}table-row-blocked{% elif h.alert_evaluacion.estado == 'warning' %}table-row-warning{% endif %}" data-preview-row data-alert-state="{{ h.alert_evaluacion.estado }}">
           <td>{{ loop.index }}</td>
           <td>{{ h.get('hotel_nombre', '-') }}</td>
-          <td>{{ h.get('apellido_nombre', '-') }}</td>
+          <td>
+            <div>{{ h.get('apellido_nombre', '-') }}</div>
+            {% if h.alert_evaluacion.total %}
+            <small class="preview-inline-alert {% if h.alert_evaluacion.estado == 'blocked' %}text-danger{% else %}text-warning{% endif %}">
+              {{ h.alert_evaluacion.alertas[0].resumen }}
+            </small>
+            <details class="preview-alert-details d-block mt-1">
+              <summary>Ver detalle completo</summary>
+              <ul>
+                {% for alerta in h.alert_evaluacion.alertas %}
+                <li><strong>{{ alerta.tipo_label or alerta.tipo }}</strong>: {{ alerta.resumen }}</li>
+                {% endfor %}
+              </ul>
+            </details>
+            {% endif %}
+          </td>
           <td class="d-none d-md-table-cell">
             {{ h.get('dni_pasaporte', '-') }}
           </td>
@@ -197,6 +259,12 @@
     </table>
   </div>
 </section>
+
+{% if preview.alertas_resumen.bloqueadas %}
+<div class="offline-module-note mb-3">
+  Los registros marcados como bloqueados se omitirán al ejecutar la importación. Las advertencias se importarán y quedarán en el centro de alertas.
+</div>
+{% endif %}
 
 <div class="d-flex gap-2 flex-wrap form-action-row">
   <form method="POST" data-requires-online="true">

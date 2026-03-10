@@ -122,7 +122,8 @@ def _ejecutar_import_v1():
 
     flash(f"Importación completada: {import_result['importados']} importados, "
           f"{import_result['duplicados']} duplicados, "
-          f"{import_result['errores']} errores.", 'success')
+            f"{import_result['alertas']} alertas, "
+            f"{import_result['errores']} errores.", 'success')
     return redirect(url_for('imports.index'))
 
 
@@ -172,5 +173,6 @@ def _ejecutar_import_v2(hoteles):
 
     flash(f"Importación completada: {import_result['importados']} importados, "
           f"{import_result['duplicados']} duplicados, "
-          f"{import_result['errores']} errores.", 'success')
+            f"{import_result['alertas']} alertas, "
+            f"{import_result['errores']} errores.", 'success')
     return redirect(url_for('imports.index'))

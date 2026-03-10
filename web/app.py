@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from flask import Flask, send_from_directory
 from web.config import config as app_config
+from config import ALERT_NOTIFICATION_POLL_SECONDS
 
 
 def create_app(config_name: str = None) -> Flask:
@@ -47,6 +48,7 @@ def create_app(config_name: str = None) -> Flask:
             'app_name': 'S.C.A.H.',
             'app_version': '2.0 Web',
             'current_user': session.get('user'),
+            'alert_poll_seconds': ALERT_NOTIFICATION_POLL_SECONDS,
         }
 
     return app
@@ -81,6 +83,7 @@ def _register_blueprints(app: Flask):
     from web.routes.users import users_bp
     from web.routes.stats import stats_bp
     from web.routes.backups import backups_bp
+    from web.routes.alerts import alerts_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -91,6 +94,7 @@ def _register_blueprints(app: Flask):
     app.register_blueprint(users_bp)
     app.register_blueprint(stats_bp)
     app.register_blueprint(backups_bp)
+    app.register_blueprint(alerts_bp)
 
 
 def _register_pwa_routes(app: Flask):

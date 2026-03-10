@@ -86,6 +86,37 @@ CREATE TABLE IF NOT EXISTS importaciones_log (
 """
 
 # ============================================================
+# TABLA: ALERTAS DEL SISTEMA
+# ============================================================
+SQL_CREATE_ALERTAS_SISTEMA = """
+CREATE TABLE IF NOT EXISTS alertas_sistema (
+    id SERIAL PRIMARY KEY,
+    tipo VARCHAR(50) NOT NULL,
+    severidad VARCHAR(20) NOT NULL DEFAULT 'warning',
+    estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+    bloqueante BOOLEAN NOT NULL DEFAULT FALSE,
+    sujeto_nombre VARCHAR(300) NOT NULL,
+    sujeto_documento VARCHAR(50),
+    hotel_origen VARCHAR(300),
+    hotel_relacionado VARCHAR(300),
+    huesped_id INTEGER REFERENCES huespedes(id) ON DELETE SET NULL,
+    huesped_relacionado_id INTEGER REFERENCES huespedes(id) ON DELETE SET NULL,
+    fecha_entrada DATE,
+    fecha_salida DATE,
+    horas_lapso INTEGER,
+    resumen TEXT NOT NULL,
+    payload_json TEXT,
+    importacion_tipo VARCHAR(20),
+    usuario_creacion_id INTEGER REFERENCES usuarios(id),
+    usuario_revision_id INTEGER REFERENCES usuarios(id),
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_revision TIMESTAMP,
+    CONSTRAINT chk_alerta_severidad CHECK (severidad IN ('info', 'warning', 'danger', 'critical')),
+    CONSTRAINT chk_alerta_estado CHECK (estado IN ('pendiente', 'revisada', 'descartada', 'confirmada'))
+);
+"""
+
+# ============================================================
 # TABLA: AUDITORÍA
 # ============================================================
 SQL_CREATE_AUDITORIA = """
@@ -114,6 +145,10 @@ SQL_CREATE_INDICES = [
     "CREATE INDEX IF NOT EXISTS idx_huespedes_telefono ON huespedes(telefono);",
     "CREATE INDEX IF NOT EXISTS idx_hoteles_nombre ON hoteles(nombre);",
     "CREATE INDEX IF NOT EXISTS idx_hoteles_ciudad ON hoteles(ciudad_localidad);",
+    "CREATE INDEX IF NOT EXISTS idx_alertas_estado ON alertas_sistema(estado);",
+    "CREATE INDEX IF NOT EXISTS idx_alertas_tipo ON alertas_sistema(tipo);",
+    "CREATE INDEX IF NOT EXISTS idx_alertas_fecha ON alertas_sistema(fecha_creacion DESC);",
+    "CREATE INDEX IF NOT EXISTS idx_alertas_documento ON alertas_sistema(sujeto_documento);",
     "CREATE INDEX IF NOT EXISTS idx_auditoria_usuario ON auditoria(usuario_id);",
     "CREATE INDEX IF NOT EXISTS idx_auditoria_fecha ON auditoria(fecha);",
     "CREATE INDEX IF NOT EXISTS idx_usuarios_username ON usuarios(username);",
@@ -125,5 +160,6 @@ ALL_TABLES = [
     SQL_CREATE_HOTELES,
     SQL_CREATE_HUESPEDES,
     SQL_CREATE_IMPORTACIONES_LOG,
+    SQL_CREATE_ALERTAS_SISTEMA,
     SQL_CREATE_AUDITORIA,
 ]
