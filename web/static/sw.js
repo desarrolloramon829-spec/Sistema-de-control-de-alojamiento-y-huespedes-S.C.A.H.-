@@ -19,27 +19,29 @@ const PRECACHE_URLS = [
   '/static/img/icon-maskable.svg',
 ];
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE_URLS))
+    caches.open(STATIC_CACHE).then(cache => cache.addAll(PRECACHE_URLS))
   );
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => ![STATIC_CACHE, RUNTIME_CACHE].includes(key))
-          .map((key) => caches.delete(key))
+    caches
+      .keys()
+      .then(keys =>
+        Promise.all(
+          keys
+            .filter(key => ![STATIC_CACHE, RUNTIME_CACHE].includes(key))
+            .map(key => caches.delete(key))
+        )
       )
-    )
   );
   self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', event => {
   const { request } = event;
 
   if (request.method !== 'GET') {
@@ -52,7 +54,8 @@ self.addEventListener('fetch', (event) => {
   }
 
   const url = new URL(request.url);
-  const isStaticAsset = url.origin === self.location.origin && url.pathname.startsWith('/static/');
+  const isStaticAsset =
+    url.origin === self.location.origin && url.pathname.startsWith('/static/');
   const isCdnAsset = url.origin !== self.location.origin;
 
   if (isStaticAsset || isCdnAsset) {
@@ -60,21 +63,23 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener('notificationclick', event => {
   event.notification.close();
   const targetUrl = event.notification.data?.url || '/alertas/';
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (const client of windowClients) {
-        if ('focus' in client) {
-          client.navigate(targetUrl);
-          return client.focus();
+    clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then(windowClients => {
+        for (const client of windowClients) {
+          if ('focus' in client) {
+            client.navigate(targetUrl);
+            return client.focus();
+          }
         }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
-      }
-    })
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl);
+        }
+      })
   );
 });
 

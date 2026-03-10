@@ -795,7 +795,9 @@ textarea {
 }
 
 .preview-filter-bar .btn.is-active {
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 12px 24px rgba(2, 10, 22, 0.22);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 12px 24px rgba(2, 10, 22, 0.22);
 }
 
 .preview-alert-details {

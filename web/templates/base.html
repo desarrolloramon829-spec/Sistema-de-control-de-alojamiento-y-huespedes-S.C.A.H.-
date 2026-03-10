@@ -55,7 +55,10 @@
     />
     {% block extra_css %}{% endblock %}
   </head>
-  <body class="app-body shell-ready" data-alert-poll-seconds="{{ alert_poll_seconds }}">
+  <body
+    class="app-body shell-ready"
+    data-alert-poll-seconds="{{ alert_poll_seconds }}"
+  >
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg fixed-top app-topbar">
       <div class="container-fluid">
@@ -96,8 +99,8 @@
         </button>
 
         <div class="d-none d-lg-flex align-items-center ms-auto">
-          {% if current_user %}
-          {% if current_user.rol in ('admin', 'operador') %}
+          {% if current_user %} {% if current_user.rol in ('admin', 'operador')
+          %}
           <a
             href="{{ url_for('alerts.index') }}"
             class="btn btn-ghost-secondary btn-sm me-2 alert-nav-link"
@@ -311,13 +314,14 @@
               request.endpoint.startswith('hotels.') %} Gestión de hoteles {%
               elif request.endpoint and request.endpoint.startswith('imports.')
               %} Centro de importaciones {% elif request.endpoint and
-              request.endpoint.startswith('alerts.') %} Centro de alertas {% elif request.endpoint and
-              request.endpoint.startswith('reports.') %} Sala de reportes {%
-              elif request.endpoint and request.endpoint.startswith('stats.') %}
-              Inteligencia visual {% elif request.endpoint and
-              request.endpoint.startswith('users.') %} Administración de
-              usuarios {% elif request.endpoint and
-              request.endpoint.startswith('backups.') %} Respaldo del sistema {% else %} Panel operativo {% endif %}
+              request.endpoint.startswith('alerts.') %} Centro de alertas {%
+              elif request.endpoint and request.endpoint.startswith('reports.')
+              %} Sala de reportes {% elif request.endpoint and
+              request.endpoint.startswith('stats.') %} Inteligencia visual {%
+              elif request.endpoint and request.endpoint.startswith('users.') %}
+              Administración de usuarios {% elif request.endpoint and
+              request.endpoint.startswith('backups.') %} Respaldo del sistema {%
+              else %} Panel operativo {% endif %}
             </h1>
             <p class="page-shell-subtitle mb-0">
               Monitoreo, trazabilidad y control administrativo de alojamientos.
@@ -342,7 +346,10 @@
           <i class="bi bi-wifi-off"></i>
           <div>
             <strong>Sin conexión.</strong>
-            <span>Se habilita solo lectura en lo visitado y se bloquean acciones que requieren red.</span>
+            <span
+              >Se habilita solo lectura en lo visitado y se bloquean acciones
+              que requieren red.</span
+            >
           </div>
         </div>
 
