@@ -120,25 +120,49 @@ block content %}
           <option value="">Todos</option>
           <option
             value="pendiente"
-            {% if filtros.estado == 'pendiente' %}selected{% endif %}
+            {%
+            if
+            filtros.estado=""
+            ="pendiente"
+            %}selected{%
+            endif
+            %}
           >
             Pendiente
           </option>
           <option
             value="confirmada"
-            {% if filtros.estado == 'confirmada' %}selected{% endif %}
+            {%
+            if
+            filtros.estado=""
+            ="confirmada"
+            %}selected{%
+            endif
+            %}
           >
             Confirmada
           </option>
           <option
             value="revisada"
-            {% if filtros.estado == 'revisada' %}selected{% endif %}
+            {%
+            if
+            filtros.estado=""
+            ="revisada"
+            %}selected{%
+            endif
+            %}
           >
             Revisada
           </option>
           <option
             value="descartada"
-            {% if filtros.estado == 'descartada' %}selected{% endif %}
+            {%
+            if
+            filtros.estado=""
+            ="descartada"
+            %}selected{%
+            endif
+            %}
           >
             Descartada
           </option>
@@ -150,25 +174,49 @@ block content %}
           <option value="">Todas</option>
           <option
             value="critical"
-            {% if filtros.severidad == 'critical' %}selected{% endif %}
+            {%
+            if
+            filtros.severidad=""
+            ="critical"
+            %}selected{%
+            endif
+            %}
           >
             Crítica
           </option>
           <option
             value="danger"
-            {% if filtros.severidad == 'danger' %}selected{% endif %}
+            {%
+            if
+            filtros.severidad=""
+            ="danger"
+            %}selected{%
+            endif
+            %}
           >
             Alta
           </option>
           <option
             value="warning"
-            {% if filtros.severidad == 'warning' %}selected{% endif %}
+            {%
+            if
+            filtros.severidad=""
+            ="warning"
+            %}selected{%
+            endif
+            %}
           >
             Media
           </option>
           <option
             value="info"
-            {% if filtros.severidad == 'info' %}selected{% endif %}
+            {%
+            if
+            filtros.severidad=""
+            ="info"
+            %}selected{%
+            endif
+            %}
           >
             Informativa
           </option>
@@ -181,7 +229,13 @@ block content %}
           {% for tipo in configuracion_alertas.types %}
           <option
             value="{{ tipo.key }}"
-            {% if filtros.tipo == tipo.key %}selected{% endif %}
+            {%
+            if
+            filtros.tipo=""
+            ="tipo.key"
+            %}selected{%
+            endif
+            %}
           >
             {{ tipo.label }}
           </option>
