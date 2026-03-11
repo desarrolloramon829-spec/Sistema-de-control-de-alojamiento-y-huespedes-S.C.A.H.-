@@ -15,6 +15,13 @@ from web.services.alert_service import (
 
 alerts_bp = Blueprint('alerts', __name__, url_prefix='/alertas')
 
+_METRICAS_VACIO = {
+    "resumen": {"pendientes": 0, "pendientes_prioritarios": 0, "bloqueantes_pendientes": 0, "ultimas_24h": 0},
+    "por_tipo": [],
+    "por_severidad": [],
+    "recientes": [],
+}
+
 
 @alerts_bp.route('/')
 @login_required
@@ -23,14 +30,33 @@ def index():
     estado = request.args.get('estado', '').strip()
     severidad = request.args.get('severidad', '').strip()
     tipo = request.args.get('tipo', '').strip()
-    alertas = listar_alertas(limit=200, estado=estado, severidad=severidad, tipo=tipo)
+
+    try:
+        alertas = listar_alertas(limit=200, estado=estado, severidad=severidad, tipo=tipo)
+    except Exception:
+        alertas = []
+
+    try:
+        pendientes = contar_alertas_pendientes()
+    except Exception:
+        pendientes = 0
+
+    try:
+        metricas = obtener_metricas_alertas()
+        if not metricas or not isinstance(metricas.get("resumen"), dict):
+            metricas = _METRICAS_VACIO
+    except Exception:
+        metricas = _METRICAS_VACIO
+
+    configuracion = obtener_configuracion_alertas()
+
     return render_template(
         'alerts/index.html',
         alertas=alertas,
         filtros={'estado': estado, 'severidad': severidad, 'tipo': tipo},
-        pendientes=contar_alertas_pendientes(),
-        configuracion_alertas=obtener_configuracion_alertas(),
-        metricas_alertas=obtener_metricas_alertas(),
+        pendientes=pendientes,
+        configuracion_alertas=configuracion,
+        metricas_alertas=metricas,
     )
 
 

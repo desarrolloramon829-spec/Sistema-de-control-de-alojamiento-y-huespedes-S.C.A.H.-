@@ -1,26 +1,19 @@
-{% extends "base.html" %} {% block title %}Alertas - S.C.A.H.{% endblock %} {%
-block content %}
+{# prettier-ignore #}
+{% extends "base.html" %}
+{% block title %}Alertas - S.C.A.H.{% endblock %}
+{% block content %}
 <section class="module-hero mb-4">
   <div>
     <span class="section-kicker">Alertas operativas</span>
-    <h2 class="module-hero__title">
-      Seguimiento de duplicidades y estadías sospechosas.
-    </h2>
-    <p class="module-hero__subtitle mb-0">
-      Revisa casos pendientes detectados durante importaciones y operaciones
-      sobre huéspedes.
-    </p>
+    <h2 class="module-hero__title">Seguimiento de duplicidades y estadías sospechosas.</h2>
+    <p class="module-hero__subtitle mb-0">Revisa casos pendientes detectados durante importaciones y operaciones sobre huéspedes.</p>
   </div>
   <div class="module-hero__actions">
     <div class="shell-stat-chip compact-chip">
       <span>Pendientes</span>
       <strong>{{ pendientes }}</strong>
     </div>
-    <button
-      type="button"
-      class="btn btn-ghost-primary"
-      data-enable-alert-notifications
-    >
+    <button type="button" class="btn btn-ghost-primary" data-enable-alert-notifications>
       <i class="bi bi-bell"></i> Activar avisos del navegador
     </button>
   </div>
@@ -37,34 +30,15 @@ block content %}
       </header>
       <div class="panel-card__body px-3 pb-3">
         <div class="backup-summary-grid mb-3">
-          <div class="backup-stat">
-            <span>Pendientes</span>
-            <strong>{{ metricas_alertas.resumen.pendientes }}</strong>
-          </div>
-          <div class="backup-stat">
-            <span>Prioridad alta</span>
-            <strong
-              >{{ metricas_alertas.resumen.pendientes_prioritarios }}</strong
-            >
-          </div>
-          <div class="backup-stat">
-            <span>Bloqueantes</span>
-            <strong
-              >{{ metricas_alertas.resumen.bloqueantes_pendientes }}</strong
-            >
-          </div>
-          <div class="backup-stat">
-            <span>Últimas 24 h</span>
-            <strong>{{ metricas_alertas.resumen.ultimas_24h }}</strong>
-          </div>
+          <div class="backup-stat"><span>Pendientes</span><strong>{{ metricas_alertas.resumen.pendientes }}</strong></div>
+          <div class="backup-stat"><span>Prioridad alta</span><strong>{{ metricas_alertas.resumen.pendientes_prioritarios }}</strong></div>
+          <div class="backup-stat"><span>Bloqueantes</span><strong>{{ metricas_alertas.resumen.bloqueantes_pendientes }}</strong></div>
+          <div class="backup-stat"><span>Últimas 24 h</span><strong>{{ metricas_alertas.resumen.ultimas_24h }}</strong></div>
         </div>
         <div class="alerts-type-list compact-list">
           {% for tipo in metricas_alertas.por_tipo %}
           <div class="alerts-type-item">
-            <div>
-              <strong>{{ tipo.label }}</strong>
-              <small>{{ tipo.total }} total</small>
-            </div>
+            <div><strong>{{ tipo.label }}</strong><small>{{ tipo.total }} total</small></div>
             <span class="city-list__value">{{ tipo.pendientes }}</span>
           </div>
           {% endfor %}
@@ -81,22 +55,12 @@ block content %}
         </div>
       </header>
       <div class="panel-card__body px-3 pb-3">
-        <div class="offline-module-note mb-3">
-          Ventana temporal activa:
-          <strong>{{ configuracion_alertas.window_hours }} horas</strong>.
-        </div>
+        <div class="offline-module-note mb-3">Ventana temporal activa: <strong>{{ configuracion_alertas.window_hours }} horas</strong>.</div>
         <div class="d-grid gap-2">
           {% for tipo in configuracion_alertas.types %}
           <div class="alerts-config-item">
-            <div>
-              <strong>{{ tipo.label }}</strong>
-              <small>{{ tipo.severidad|upper }}</small>
-            </div>
-            <span
-              class="status-pill {% if tipo.bloqueante %}alert-pill-critical{% else %}muted{% endif %}"
-            >
-              {% if tipo.bloqueante %}Bloquea{% else %}Advierte{% endif %}
-            </span>
+            <div><strong>{{ tipo.label }}</strong><small>{{ tipo.severidad|upper }}</small></div>
+            <span class="status-pill {% if tipo.bloqueante %}alert-pill-critical{% else %}muted{% endif %}">{% if tipo.bloqueante %}Bloquea{% else %}Advierte{% endif %}</span>
           </div>
           {% endfor %}
         </div>
@@ -105,12 +69,10 @@ block content %}
   </div>
 </section>
 
+{# ---------- FILTROS ---------- #}
 <section class="panel-card mb-3">
   <header class="panel-card__header compact">
-    <div>
-      <span class="section-kicker">Filtros</span>
-      <h3>Refinar alertas</h3>
-    </div>
+    <div><span class="section-kicker">Filtros</span><h3>Refinar alertas</h3></div>
   </header>
   <div class="panel-card__body px-3 pb-3">
     <form method="GET" class="row g-2 align-items-end">
@@ -118,239 +80,87 @@ block content %}
         <label class="form-label form-label-ops">Estado</label>
         <select name="estado" class="form-select">
           <option value="">Todos</option>
-          <option
-            value="pendiente"
-            {%
-            if
-            filtros.estado=""
-            ="pendiente"
-            %}selected{%
-            endif
-            %}
-          >
-            Pendiente
-          </option>
-          <option
-            value="confirmada"
-            {%
-            if
-            filtros.estado=""
-            ="confirmada"
-            %}selected{%
-            endif
-            %}
-          >
-            Confirmada
-          </option>
-          <option
-            value="revisada"
-            {%
-            if
-            filtros.estado=""
-            ="revisada"
-            %}selected{%
-            endif
-            %}
-          >
-            Revisada
-          </option>
-          <option
-            value="descartada"
-            {%
-            if
-            filtros.estado=""
-            ="descartada"
-            %}selected{%
-            endif
-            %}
-          >
-            Descartada
-          </option>
+          <option value="pendiente" {{ 'selected' if filtros.estado == 'pendiente' }}>Pendiente</option>
+          <option value="confirmada" {{ 'selected' if filtros.estado == 'confirmada' }}>Confirmada</option>
+          <option value="revisada" {{ 'selected' if filtros.estado == 'revisada' }}>Revisada</option>
+          <option value="descartada" {{ 'selected' if filtros.estado == 'descartada' }}>Descartada</option>
         </select>
       </div>
       <div class="col-12 col-md-4">
         <label class="form-label form-label-ops">Severidad</label>
         <select name="severidad" class="form-select">
           <option value="">Todas</option>
-          <option
-            value="critical"
-            {%
-            if
-            filtros.severidad=""
-            ="critical"
-            %}selected{%
-            endif
-            %}
-          >
-            Crítica
-          </option>
-          <option
-            value="danger"
-            {%
-            if
-            filtros.severidad=""
-            ="danger"
-            %}selected{%
-            endif
-            %}
-          >
-            Alta
-          </option>
-          <option
-            value="warning"
-            {%
-            if
-            filtros.severidad=""
-            ="warning"
-            %}selected{%
-            endif
-            %}
-          >
-            Media
-          </option>
-          <option
-            value="info"
-            {%
-            if
-            filtros.severidad=""
-            ="info"
-            %}selected{%
-            endif
-            %}
-          >
-            Informativa
-          </option>
+          <option value="critical" {{ 'selected' if filtros.severidad == 'critical' }}>Crítica</option>
+          <option value="danger" {{ 'selected' if filtros.severidad == 'danger' }}>Alta</option>
+          <option value="warning" {{ 'selected' if filtros.severidad == 'warning' }}>Media</option>
+          <option value="info" {{ 'selected' if filtros.severidad == 'info' }}>Informativa</option>
         </select>
       </div>
       <div class="col-12 col-md-4">
         <label class="form-label form-label-ops">Tipo</label>
         <select name="tipo" class="form-select">
           <option value="">Todos</option>
-          {% for tipo in configuracion_alertas.types %}
-          <option
-            value="{{ tipo.key }}"
-            {%
-            if
-            filtros.tipo=""
-            ="tipo.key"
-            %}selected{%
-            endif
-            %}
-          >
-            {{ tipo.label }}
-          </option>
-          {% endfor %}
+          {% for t in configuracion_alertas.types %}<option value="{{ t.key }}" {{ 'selected' if filtros.tipo == t.key }}>{{ t.label }}</option>{% endfor %}
         </select>
       </div>
       <div class="col-12 d-flex gap-2">
-        <button type="submit" class="btn btn-primary">
-          <i class="bi bi-funnel"></i> Aplicar
-        </button>
-        <a href="{{ url_for('alerts.index') }}" class="btn btn-ghost-secondary"
-          >Limpiar</a
-        >
+        <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Aplicar</button>
+        <a href="{{ url_for('alerts.index') }}" class="btn btn-ghost-secondary">Limpiar</a>
       </div>
     </form>
   </div>
 </section>
 
+{# ---------- LISTADO ---------- #}
 <section class="panel-card">
   <header class="panel-card__header compact">
-    <div>
-      <span class="section-kicker">Listado</span>
-      <h3>Alertas registradas</h3>
-    </div>
-    <span class="status-pill muted small-pill"
-      >{{ alertas|length }} visibles</span
-    >
+    <div><span class="section-kicker">Listado</span><h3>Alertas registradas</h3></div>
+    <span class="status-pill muted small-pill">{{ alertas|length }} visibles</span>
   </header>
   <div class="panel-card__body px-3 pb-3">
     {% if alertas %}
     <div class="alerts-list-grid">
       {% for alerta in alertas %}
-      <article
-        class="system-alert-card severity-{{ alerta.severidad }} state-{{ alerta.estado }}"
-      >
+      <article class="system-alert-card severity-{{ alerta.severidad }} state-{{ alerta.estado }}">
         <div class="system-alert-card__header">
           <div>
             <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-              <span
-                class="status-pill {{ 'muted' if alerta.estado != 'pendiente' else '' }}"
-                >{{ alerta.estado|upper }}</span
-              >
-              <span class="status-pill muted"
-                >{{ alerta.severidad|upper }}</span
-              >
-              <span class="status-pill muted"
-                >{{ alerta.tipo_label or alerta.tipo }}</span
-              >
-              {% if alerta.bloqueante %}<span class="status-pill"
-                >BLOQUEANTE</span
-              >{% endif %}
+              <span class="status-pill {{ 'muted' if alerta.estado != 'pendiente' else '' }}">{{ alerta.estado|upper }}</span>
+              <span class="status-pill muted">{{ alerta.severidad|upper }}</span>
+              <span class="status-pill muted">{{ alerta.tipo_label or alerta.tipo }}</span>
+              {% if alerta.bloqueante %}<span class="status-pill">BLOQUEANTE</span>{% endif %}
             </div>
             <h4>{{ alerta.sujeto_nombre }}</h4>
             <p class="mb-0">{{ alerta.resumen }}</p>
           </div>
-          <span class="small text-secondary"
-            >{{ alerta.fecha_creacion|fecha_hora }}</span
-          >
+          <span class="small text-secondary">{{ alerta.fecha_creacion|fecha_hora }}</span>
         </div>
         <div class="system-alert-card__meta">
-          <span
-            ><strong>Documento:</strong> {{ alerta.sujeto_documento or 'Sin
-            dato' }}</span
-          >
-          <span
-            ><strong>Hotel origen:</strong> {{ alerta.hotel_origen or 'Sin
-            hotel' }}</span
-          >
-          <span
-            ><strong>Hotel relacionado:</strong> {{ alerta.hotel_relacionado or
-            'Sin referencia' }}</span
-          >
-          <span
-            ><strong>Entrada:</strong> {{ alerta.fecha_entrada|fecha }}</span
-          >
-          {% if alerta.horas_lapso %}<span
-            ><strong>Lapso:</strong> {{ alerta.horas_lapso }} h</span
-          >{% endif %}
+          <span><strong>Documento:</strong> {{ alerta.sujeto_documento or 'Sin dato' }}</span>
+          <span><strong>Hotel origen:</strong> {{ alerta.hotel_origen or 'Sin hotel' }}</span>
+          <span><strong>Hotel relacionado:</strong> {{ alerta.hotel_relacionado or 'Sin referencia' }}</span>
+          <span><strong>Entrada:</strong> {{ alerta.fecha_entrada|fecha }}</span>
+          {% if alerta.horas_lapso %}<span><strong>Lapso:</strong> {{ alerta.horas_lapso }} h</span>{% endif %}
         </div>
         <div class="system-alert-card__actions">
-          <form
-            method="POST"
-            action="{{ url_for('alerts.cambiar_estado', alerta_id=alerta.id, estado=filtros.estado, severidad=filtros.severidad, tipo=filtros.tipo) }}"
-          >
+          <form method="POST" action="{{ url_for('alerts.cambiar_estado', alerta_id=alerta.id, estado=filtros.estado, severidad=filtros.severidad, tipo=filtros.tipo) }}">
             <input type="hidden" name="estado" value="confirmada" />
-            <button type="submit" class="btn btn-primary btn-sm">
-              Confirmar
-            </button>
+            <button type="submit" class="btn btn-primary btn-sm">Confirmar</button>
           </form>
-          <form
-            method="POST"
-            action="{{ url_for('alerts.cambiar_estado', alerta_id=alerta.id, estado=filtros.estado, severidad=filtros.severidad, tipo=filtros.tipo) }}"
-          >
+          <form method="POST" action="{{ url_for('alerts.cambiar_estado', alerta_id=alerta.id, estado=filtros.estado, severidad=filtros.severidad, tipo=filtros.tipo) }}">
             <input type="hidden" name="estado" value="revisada" />
-            <button type="submit" class="btn btn-ghost-secondary btn-sm">
-              Marcar revisada
-            </button>
+            <button type="submit" class="btn btn-ghost-secondary btn-sm">Marcar revisada</button>
           </form>
-          <form
-            method="POST"
-            action="{{ url_for('alerts.cambiar_estado', alerta_id=alerta.id, estado=filtros.estado, severidad=filtros.severidad, tipo=filtros.tipo) }}"
-          >
+          <form method="POST" action="{{ url_for('alerts.cambiar_estado', alerta_id=alerta.id, estado=filtros.estado, severidad=filtros.severidad, tipo=filtros.tipo) }}">
             <input type="hidden" name="estado" value="descartada" />
-            <button type="submit" class="btn btn-ghost-danger btn-sm">
-              Descartar
-            </button>
+            <button type="submit" class="btn btn-ghost-danger btn-sm">Descartar</button>
           </form>
         </div>
       </article>
       {% endfor %}
     </div>
     {% else %}
-    <div class="offline-module-note mb-0">
-      No hay alertas para los filtros seleccionados.
-    </div>
+    <div class="offline-module-note mb-0">No hay alertas para los filtros seleccionados.</div>
     {% endif %}
   </div>
 </section>
