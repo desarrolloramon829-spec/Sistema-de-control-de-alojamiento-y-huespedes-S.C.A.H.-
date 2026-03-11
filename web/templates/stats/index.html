@@ -78,6 +78,13 @@
         <i class="bi bi-graph-up"></i>
         <span class="d-none d-sm-inline">Tendencia</span>
       </button>
+      <button
+        class="btn btn-sm btn-ghost-primary stat-btn"
+        data-tipo="origen_geografico"
+      >
+        <i class="bi bi-globe-americas"></i>
+        <span class="d-none d-sm-inline">Origen geográfico</span>
+      </button>
     </div>
   </div>
 </section>
@@ -204,22 +211,101 @@
   </div>
 </section>
 
+<section class="panel-card mt-3 d-none" id="geoBreakdownSection">
+  <header class="panel-card__header compact">
+    <div>
+      <span class="section-kicker">Segmentación geográfica</span>
+      <h3>Argentinos por provincia y extranjeros por continente</h3>
+    </div>
+  </header>
+  <div class="panel-card__body px-3 pb-3">
+    <div class="row g-3 mb-2">
+      <div class="col-12 col-xl-6">
+        <article class="panel-card h-100">
+          <header class="panel-card__header compact">
+            <div>
+              <span class="section-kicker">Extranjeros</span>
+              <h3 id="geoForeignTitle">Por continente</h3>
+            </div>
+          </header>
+          <div class="panel-card__body px-3 pb-3">
+            <div class="stats-chart-shell" style="position:relative; height:320px; max-height:45vh">
+              <canvas id="foreignChart"></canvas>
+            </div>
+            <div class="d-md-none preview-mobile-list mt-3" id="foreignMobileBody"></div>
+            <div class="table-responsive ops-table-wrapper mt-3 d-none d-md-block">
+              <table class="table table-hover align-middle mb-0 ops-table">
+                <thead>
+                  <tr>
+                    <th>Continente</th>
+                    <th class="text-end">Cantidad</th>
+                    <th class="text-end">Porcentaje</th>
+                  </tr>
+                </thead>
+                <tbody id="foreignDataBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+      </div>
+      <div class="col-12 col-xl-6">
+        <article class="panel-card h-100">
+          <header class="panel-card__header compact">
+            <div>
+              <span class="section-kicker">Argentinos</span>
+              <h3 id="geoArgTitle">Por provincia</h3>
+            </div>
+          </header>
+          <div class="panel-card__body px-3 pb-3">
+            <div class="stats-chart-shell" style="position:relative; height:320px; max-height:45vh">
+              <canvas id="argChart"></canvas>
+            </div>
+            <div class="d-md-none preview-mobile-list mt-3" id="argMobileBody"></div>
+            <div class="table-responsive ops-table-wrapper mt-3 d-none d-md-block">
+              <table class="table table-hover align-middle mb-0 ops-table">
+                <thead>
+                  <tr>
+                    <th>Provincia</th>
+                    <th class="text-end">Cantidad</th>
+                    <th class="text-end">Porcentaje</th>
+                  </tr>
+                </thead>
+                <tbody id="argDataBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
       let mainChart = null;
+      let foreignChart = null;
+      let argChart = null;
       let currentData = null;
       let currentType = 'bar';
       let currentLabel = 'Nacionalidades';
 
       const ctx = document.getElementById('mainChart').getContext('2d');
+      const foreignCtx = document.getElementById('foreignChart').getContext('2d');
+      const argCtx = document.getElementById('argChart').getContext('2d');
       const activeStatLabel = document.getElementById('activeStatLabel');
       const statsCategoryCount = document.getElementById('statsCategoryCount');
       const statsTotalCount = document.getElementById('statsTotalCount');
       const statsTopLabel = document.getElementById('statsTopLabel');
       const statsTopMeta = document.getElementById('statsTopMeta');
-        const statsMobileBody = document.getElementById('statsMobileBody');
+      const statsMobileBody = document.getElementById('statsMobileBody');
+      const chartSwitcher = document.querySelector('.stats-chart-switcher');
+      const geoBreakdownSection = document.getElementById('geoBreakdownSection');
+      const foreignDataBody = document.getElementById('foreignDataBody');
+      const argDataBody = document.getElementById('argDataBody');
+      const foreignMobileBody = document.getElementById('foreignMobileBody');
+      const argMobileBody = document.getElementById('argMobileBody');
       const colors = [
           '#0d6efd', '#198754', '#dc3545', '#ffc107', '#0dcaf0',
           '#6f42c1', '#fd7e14', '#20c997', '#d63384', '#6610f2',
@@ -236,8 +322,10 @@
                   loading.style.display = 'none';
                   currentData = data;
                   currentLabel = document.querySelector(`.stat-btn[data-tipo="${tipo}"]`).textContent.trim();
+                  toggleGeoMode(data.modo === 'geografico');
                   renderChart(data, currentType);
                   renderTable(data);
+                  renderGeoBreakdown(data);
                   document.getElementById('chartTitle').textContent = currentLabel;
                   renderSummary(data, currentLabel);
               })
@@ -246,6 +334,26 @@
                   console.error(err);
               });
       }
+
+            function toggleGeoMode(isGeoMode) {
+              if (geoBreakdownSection) {
+                geoBreakdownSection.classList.toggle('d-none', !isGeoMode);
+              }
+              if (chartSwitcher) {
+                chartSwitcher.classList.toggle('d-none', isGeoMode);
+              }
+
+              if (!isGeoMode) {
+                if (foreignChart) {
+                  foreignChart.destroy();
+                  foreignChart = null;
+                }
+                if (argChart) {
+                  argChart.destroy();
+                  argChart = null;
+                }
+              }
+            }
 
       function renderChart(data, type) {
           if (mainChart) mainChart.destroy();
@@ -282,31 +390,65 @@
           });
       }
 
-            function renderSummary(data, label) {
-              const labels = data.labels || [];
-              const values = data.valores || data.values || [];
-              const total = values.reduce((a, b) => a + b, 0);
-              let topIndex = -1;
+          function renderSeriesChart(chartRef, context, data, type) {
+            if (chartRef) chartRef.destroy();
 
-              values.forEach((value, index) => {
-                if (topIndex === -1 || value > values[topIndex]) {
-                  topIndex = index;
+            const labels = data.labels || [];
+            const values = data.values || [];
+            const bgColors = labels.map((_, i) => colors[i % colors.length]);
+
+            return new Chart(context, {
+              type: type,
+              data: {
+                labels: labels,
+                datasets: [{
+                  label: 'Cantidad',
+                  data: values,
+                  backgroundColor: type === 'line' ? colors[0] + '33' : bgColors,
+                  borderColor: type === 'line' ? colors[0] : bgColors,
+                  borderWidth: type === 'line' ? 2 : 1,
+                  fill: type === 'line',
+                  tension: 0.3
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: type === 'pie' }
+                },
+                scales: type === 'pie' ? {} : {
+                  y: { beginAtZero: true }
                 }
-              });
-
-              activeStatLabel.textContent = label || 'Sin serie';
-              statsCategoryCount.textContent = labels.length;
-              statsTotalCount.textContent = total;
-
-              if (topIndex >= 0) {
-                const pct = total > 0 ? ((values[topIndex] / total) * 100).toFixed(1) : '0.0';
-                statsTopLabel.textContent = labels[topIndex];
-                statsTopMeta.textContent = `${values[topIndex]} registros · ${pct}% del total`;
-              } else {
-                statsTopLabel.textContent = '-';
-                statsTopMeta.textContent = 'Sin datos disponibles.';
               }
+            });
+          }
+
+          function renderSummary(data, label) {
+            const labels = data.labels || [];
+            const values = data.valores || data.values || [];
+            const total = values.reduce((a, b) => a + b, 0);
+            let topIndex = -1;
+
+            values.forEach((value, index) => {
+              if (topIndex === -1 || value > values[topIndex]) {
+                topIndex = index;
+              }
+            });
+
+            activeStatLabel.textContent = label || 'Sin serie';
+            statsCategoryCount.textContent = labels.length;
+            statsTotalCount.textContent = total;
+
+            if (topIndex >= 0) {
+              const pct = total > 0 ? ((values[topIndex] / total) * 100).toFixed(1) : '0.0';
+              statsTopLabel.textContent = labels[topIndex];
+              statsTopMeta.textContent = `${values[topIndex]} registros · ${pct}% del total`;
+            } else {
+              statsTopLabel.textContent = '-';
+              statsTopMeta.textContent = 'Sin datos disponibles.';
             }
+          }
 
       function renderTable(data) {
           const labels = data.labels || [];
@@ -337,6 +479,57 @@
               }).join('');
           }
       }
+
+            function renderGeoTable(targetBody, mobileBody, labels, values) {
+              const total = values.reduce((a, b) => a + b, 0);
+
+              if (targetBody) {
+                targetBody.innerHTML = labels.map((label, i) => {
+                  const pct = total > 0 ? ((values[i] / total) * 100).toFixed(1) : '0.0';
+                  return `<tr>
+                  <td class="fw-semibold">${label}</td>
+                  <td class="text-end fw-semibold">${values[i]}</td>
+                  <td class="text-end">${pct}%</td>
+                  </tr>`;
+                }).join('');
+              }
+
+              if (mobileBody) {
+                mobileBody.innerHTML = labels.map((label, i) => {
+                  const pct = total > 0 ? ((values[i] / total) * 100).toFixed(1) : '0.0';
+                  return `<article class="preview-mobile-card">
+                  <div class="preview-mobile-card__header">
+                    <strong>${label}</strong>
+                    <span class="status-pill muted small-pill">${pct}%</span>
+                  </div>
+                  <span><strong>Cantidad:</strong> ${values[i]}</span>
+                  <span><strong>Participación:</strong> ${pct}% del total</span>
+                  </article>`;
+                }).join('');
+              }
+            }
+
+            function renderGeoBreakdown(data) {
+              if (data.modo !== 'geografico') {
+                if (foreignDataBody) foreignDataBody.innerHTML = '';
+                if (argDataBody) argDataBody.innerHTML = '';
+                if (foreignMobileBody) foreignMobileBody.innerHTML = '';
+                if (argMobileBody) argMobileBody.innerHTML = '';
+                return;
+              }
+
+              const extranjeros = data.series?.extranjeros || { labels: [], values: [] };
+              const argentinos = data.series?.argentinos || { labels: [], values: [] };
+
+              document.getElementById('geoForeignTitle').textContent = extranjeros.titulo || 'Extranjeros por continente';
+              document.getElementById('geoArgTitle').textContent = argentinos.titulo || 'Argentinos por provincia';
+
+              foreignChart = renderSeriesChart(foreignChart, foreignCtx, extranjeros, 'bar');
+              argChart = renderSeriesChart(argChart, argCtx, argentinos, 'bar');
+
+              renderGeoTable(foreignDataBody, foreignMobileBody, extranjeros.labels || [], extranjeros.values || []);
+              renderGeoTable(argDataBody, argMobileBody, argentinos.labels || [], argentinos.values || []);
+            }
 
       // Stat type buttons
       document.querySelectorAll('.stat-btn').forEach(btn => {

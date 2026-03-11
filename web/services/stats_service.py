@@ -8,9 +8,215 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from datetime import datetime
+from collections import Counter
+import re
+import unicodedata
 from database.connection import db
 from utils.logger import log_error
 from utils.formatters import formato_fecha
+
+
+ARGENTINA_ALIASES = {
+    'argentina', 'argentina republica', 'republica argentina', 'argentino',
+    'arg', 'ar', 'argentina.'
+}
+
+PROVINCIAS_ARGENTINAS = {
+    'Buenos Aires': {'buenos aires', 'bs as', 'buenosaires', 'provincia de buenos aires'},
+    'CABA': {'caba', 'capital federal', 'ciudad autonoma de buenos aires', 'ciudad de buenos aires', 'capital'},
+    'Catamarca': {'catamarca'},
+    'Chaco': {'chaco'},
+    'Chubut': {'chubut'},
+    'Córdoba': {'cordoba', 'córdoba'},
+    'Corrientes': {'corrientes'},
+    'Entre Ríos': {'entre rios', 'entre ríos'},
+    'Formosa': {'formosa'},
+    'Jujuy': {'jujuy'},
+    'La Pampa': {'la pampa', 'lapampa'},
+    'La Rioja': {'la rioja', 'larioja'},
+    'Mendoza': {'mendoza'},
+    'Misiones': {'misiones'},
+    'Neuquén': {'neuquen', 'neuquén'},
+    'Río Negro': {'rio negro', 'río negro'},
+    'Salta': {'salta'},
+    'San Juan': {'san juan', 'sanjuan'},
+    'San Luis': {'san luis', 'sanluis'},
+    'Santa Cruz': {'santa cruz', 'santacruz'},
+    'Santa Fe': {'santa fe', 'santafe'},
+    'Santiago del Estero': {'santiago del estero', 'santiagodelestero'},
+    'Tierra del Fuego': {'tierra del fuego', 'tdf', 'tierra del fuego aiass'},
+    'Tucumán': {'tucuman', 'tucumán'},
+}
+
+CONTINENTES = {
+    'América del Sur': {
+        'america del sur', 'sudamerica', 'sud américa', 'brasil', 'brazil', 'uruguay', 'paraguay',
+        'bolivia', 'chile', 'peru', 'perú', 'ecuador', 'colombia', 'venezuela', 'guyana',
+        'surinam', 'suriname', 'guayana francesa'
+    },
+    'América del Norte': {
+        'america del norte', 'norteamerica', 'north america', 'estados unidos', 'usa', 'eeuu',
+        'united states', 'canada', 'canadá', 'mexico', 'méxico'
+    },
+    'América Central y Caribe': {
+        'america central', 'centroamerica', 'caribe', 'costa rica', 'panama', 'panamá', 'guatemala',
+        'honduras', 'el salvador', 'nicaragua', 'belice', 'cuba', 'republica dominicana',
+        'república dominicana', 'haiti', 'haití', 'jamaica', 'puerto rico', 'trinidad y tobago'
+    },
+    'Europa': {
+        'europa', 'españa', 'espana', 'spain', 'italia', 'italy', 'francia', 'france', 'alemania',
+        'germany', 'portugal', 'reino unido', 'uk', 'inglaterra', 'england', 'irlanda', 'ireland',
+        'suiza', 'switzerland', 'belgica', 'bélgica', 'holanda', 'paises bajos', 'países bajos',
+        'netherlands', 'austria', 'polonia', 'poland', 'ucrania', 'ukraine', 'rusia', 'russia',
+        'grecia', 'greece', 'croacia', 'croatia', 'suecia', 'sweden', 'noruega', 'norway',
+        'dinamarca', 'denmark', 'finlandia', 'finland'
+    },
+    'Asia': {
+        'asia', 'china', 'japon', 'japón', 'japan', 'corea', 'corea del sur', 'korea', 'india',
+        'pakistan', 'pakistán', 'bangladesh', 'nepal', 'tailandia', 'thailand', 'vietnam',
+        'filipinas', 'philippines', 'indonesia', 'malasia', 'malaysia', 'singapur', 'singapore',
+        'israel', 'turquia', 'turquía', 'turkey', 'libano', 'líbano', 'arabia saudita', 'saudi arabia'
+    },
+    'África': {
+        'africa', 'áfrica', 'marruecos', 'morocco', 'egipto', 'egypt', 'sudafrica', 'sudáfrica',
+        'south africa', 'nigeria', 'kenia', 'kenya', 'etiopia', 'ethiopia', 'ghana', 'argelia',
+        'algeria', 'tunisia', 'tunez', 'túnez'
+    },
+    'Oceanía': {
+        'oceania', 'oceanía', 'australia', 'nueva zelanda', 'new zealand', 'fiji'
+    },
+}
+
+
+def _normalizar_texto_geo(valor: str) -> str:
+    if not valor:
+        return ''
+
+    texto = unicodedata.normalize('NFKD', str(valor))
+    texto = ''.join(ch for ch in texto if not unicodedata.combining(ch))
+    texto = texto.lower()
+    texto = re.sub(r'[^a-z0-9\s]', ' ', texto)
+    return re.sub(r'\s+', ' ', texto).strip()
+
+
+def _es_argentino(nacionalidad: str) -> bool:
+    nacionalidad_norm = _normalizar_texto_geo(nacionalidad)
+    if not nacionalidad_norm:
+        return False
+
+    return nacionalidad_norm in ARGENTINA_ALIASES or nacionalidad_norm.startswith('argentin')
+
+
+def _resolver_provincia(procedencia: str) -> str:
+    procedencia_norm = _normalizar_texto_geo(procedencia)
+    if not procedencia_norm:
+        return 'Provincia no informada'
+
+    for provincia, aliases in PROVINCIAS_ARGENTINAS.items():
+        if procedencia_norm == _normalizar_texto_geo(provincia):
+            return provincia
+        if procedencia_norm in {_normalizar_texto_geo(alias) for alias in aliases}:
+            return provincia
+        if any(_normalizar_texto_geo(alias) in procedencia_norm for alias in aliases):
+            return provincia
+
+    return 'Provincia no reconocida'
+
+
+def _resolver_continente(*valores: str) -> str:
+    textos = [_normalizar_texto_geo(valor) for valor in valores if _normalizar_texto_geo(valor)]
+    if not textos:
+        return 'Continente no informado'
+
+    for texto in textos:
+        for continente, aliases in CONTINENTES.items():
+            aliases_normalizados = {_normalizar_texto_geo(alias) for alias in aliases}
+            if texto == _normalizar_texto_geo(continente):
+                return continente
+            if texto in aliases_normalizados:
+                return continente
+            if any(alias in texto for alias in aliases_normalizados):
+                return continente
+
+    return 'Continente no reconocido'
+
+
+def _serie_desde_counter(counter: Counter, titulo: str, tipo_chart: str = 'bar') -> dict:
+    items = sorted(counter.items(), key=lambda item: (-item[1], item[0]))
+    return {
+        'titulo': titulo,
+        'labels': [label for label, _ in items],
+        'values': [value for _, value in items],
+        'tipo_chart': tipo_chart,
+    }
+
+
+def _obtener_estadistica_origen_geografico() -> dict:
+    try:
+        resultados = db.ejecutar_query(
+            """
+            SELECT nacionalidad, procedencia
+            FROM huespedes
+            WHERE COALESCE(TRIM(nacionalidad), '') != '' OR COALESCE(TRIM(procedencia), '') != ''
+            """,
+            fetch=True,
+        ) or []
+
+        argentinos = Counter()
+        extranjeros = Counter()
+        resumen = Counter({'Argentinos': 0, 'Extranjeros': 0, 'Sin clasificar': 0})
+
+        for fila in resultados:
+            nacionalidad = fila.get('nacionalidad') or ''
+            procedencia = fila.get('procedencia') or ''
+
+            if _es_argentino(nacionalidad):
+                resumen['Argentinos'] += 1
+                argentinos[_resolver_provincia(procedencia)] += 1
+                continue
+
+            if _normalizar_texto_geo(nacionalidad):
+                resumen['Extranjeros'] += 1
+                extranjeros[_resolver_continente(procedencia, nacionalidad)] += 1
+                continue
+
+            resumen['Sin clasificar'] += 1
+
+        return {
+            'modo': 'geografico',
+            'titulo': 'Origen geográfico de huéspedes',
+            'tipo_chart': 'bar',
+            'labels': ['Argentinos', 'Extranjeros', 'Sin clasificar'],
+            'values': [
+                resumen['Argentinos'],
+                resumen['Extranjeros'],
+                resumen['Sin clasificar'],
+            ],
+            'series': {
+                'argentinos': _serie_desde_counter(argentinos, 'Huéspedes argentinos por provincia'),
+                'extranjeros': _serie_desde_counter(extranjeros, 'Huéspedes extranjeros por continente'),
+            },
+            'resumen': {
+                'argentinos': resumen['Argentinos'],
+                'extranjeros': resumen['Extranjeros'],
+                'sin_clasificar': resumen['Sin clasificar'],
+                'total': sum(resumen.values()),
+            },
+        }
+    except Exception as e:
+        log_error('Error al obtener estadística geográfica', e)
+        return {
+            'modo': 'geografico',
+            'titulo': 'Origen geográfico de huéspedes',
+            'tipo_chart': 'bar',
+            'labels': ['Argentinos', 'Extranjeros', 'Sin clasificar'],
+            'values': [0, 0, 0],
+            'series': {
+                'argentinos': {'titulo': 'Huéspedes argentinos por provincia', 'labels': [], 'values': [], 'tipo_chart': 'bar'},
+                'extranjeros': {'titulo': 'Huéspedes extranjeros por continente', 'labels': [], 'values': [], 'tipo_chart': 'bar'},
+            },
+            'resumen': {'argentinos': 0, 'extranjeros': 0, 'sin_clasificar': 0, 'total': 0},
+        }
 
 
 def obtener_kpis() -> dict:
@@ -106,6 +312,9 @@ def obtener_estadistica(tipo: str) -> dict:
     Obtiene datos de una estadística por tipo.
     Retorna dict con 'labels', 'values' y 'titulo'.
     """
+    if tipo == 'origen_geografico':
+        return _obtener_estadistica_origen_geografico()
+
     queries = {
         "nacionalidades": {
             "sql": """SELECT nacionalidad as label, COUNT(*) as total FROM huespedes

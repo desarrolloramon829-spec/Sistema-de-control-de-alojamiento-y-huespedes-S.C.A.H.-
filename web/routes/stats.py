@@ -2,7 +2,7 @@
 S.C.A.H. Web - Rutas de Estadísticas.
 """
 
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, jsonify
 from web.routes.decorators import login_required, permission_required
 from web.services.stats_service import obtener_estadistica
 
@@ -22,7 +22,8 @@ def index():
 def api_datos(tipo):
     """API que retorna datos para gráficos Chart.js."""
     tipos_validos = ['nacionalidades', 'profesiones', 'procedencia',
-                     'destinos', 'por_hotel', 'edades', 'tendencia']
+                     'destinos', 'por_hotel', 'edades', 'tendencia',
+                     'origen_geografico']
     if tipo not in tipos_validos:
         return jsonify({'error': 'Tipo inválido'}), 400
 
