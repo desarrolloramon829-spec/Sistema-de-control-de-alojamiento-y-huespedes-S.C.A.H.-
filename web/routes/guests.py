@@ -122,14 +122,14 @@ def nuevo():
             return redirect(url_for('guests.detalle', huesped_id=huesped_id))
         else:
             flash(msg, 'danger')
-                return render_template('guests/form.html', datos=datos, hoteles=hoteles,
-                           es_edicion=False,
-                           duplicados=_obtener_alertas_duplicados(datos),
-                           **_contexto_geo_formulario())
+            return render_template('guests/form.html', datos=datos, hoteles=hoteles,
+                                   es_edicion=False,
+                                   duplicados=_obtener_alertas_duplicados(datos),
+                                   **_contexto_geo_formulario())
 
     return render_template('guests/form.html', datos={}, hoteles=hoteles,
-                       es_edicion=False, duplicados=[],
-                       **_contexto_geo_formulario())
+                           es_edicion=False, duplicados=[],
+                           **_contexto_geo_formulario())
 
 
 @guests_bp.route('/<int:huesped_id>/editar', methods=['GET', 'POST'])
