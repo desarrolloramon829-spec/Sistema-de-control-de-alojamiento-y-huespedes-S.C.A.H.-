@@ -86,6 +86,24 @@ block content %}
       >
     </article>
   </div>
+  {% if alert_metrics %}
+  <div class="col-12 col-sm-6 col-xl-3">
+    <article class="metric-card metric-card-danger h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Alertas pendientes</span>
+        <span class="metric-card__icon"><i class="bi bi-bell-fill"></i></span>
+      </div>
+      <strong class="metric-card__value"
+        >{{ alert_metrics.resumen.pendientes | default(0) }}</strong
+      >
+      <small class="metric-card__meta"
+        >{{ alert_metrics.resumen.pendientes_prioritarios | default(0) }}
+        prioritarias y {{ alert_metrics.resumen.bloqueantes_pendientes |
+        default(0) }} bloqueantes.</small
+      >
+    </article>
+  </div>
+  {% endif %}
 </section>
 
 <section class="row g-3">
@@ -104,8 +122,47 @@ block content %}
         </a>
       </header>
 
+      <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
+        <div class="preview-mobile-list">
+          {% for h in ultimos %}
+          <article class="preview-mobile-card">
+            <div class="preview-mobile-card__header">
+              <strong>{{ h.apellido_nombre | truncar(32) }}</strong>
+              <span class="status-pill muted small-pill"
+                >{{ h.fecha_entrada or 'Sin fecha' }}</span
+              >
+            </div>
+            <span
+              ><strong>Documento:</strong> {{ h.dni_pasaporte or 'S/D' }}</span
+            >
+            <span
+              ><strong>Hotel:</strong> {{ h.hotel | truncar(22) or 'Sin hotel'
+              }}</span
+            >
+            <span
+              ><strong>Nacionalidad:</strong> {{ h.nacionalidad or 'Sin
+              nacionalidad' }}</span
+            >
+            <a
+              href="{{ url_for('guests.detalle', huesped_id=h.id) }}"
+              class="btn btn-ghost-primary btn-sm mt-2"
+            >
+              <i class="bi bi-eye"></i> Ver expediente
+            </a>
+          </article>
+          {% else %}
+          <div class="empty-state empty-state-compact">
+            <i class="bi bi-database-exclamation"></i>
+            <p class="mb-0">No hay huéspedes registrados todavía.</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
       <div class="table-responsive ops-table-wrapper">
-        <table class="table table-hover align-middle mb-0 ops-table">
+        <table
+          class="table table-hover align-middle mb-0 ops-table d-none d-md-table"
+        >
           <thead>
             <tr>
               <th>Huésped</th>
@@ -146,7 +203,7 @@ block content %}
             {% else %}
             <tr>
               <td colspan="4">
-                <div class="empty-state empty-state-compact">
+                <div class="empty-state empty-state-compact d-none d-md-block">
                   <i class="bi bi-database-exclamation"></i>
                   <p class="mb-0">No hay huéspedes registrados todavía.</p>
                 </div>
@@ -186,6 +243,66 @@ block content %}
         </div>
       </article>
 
+      {% if alert_metrics %}
+      <article class="panel-card">
+        <header class="panel-card__header compact">
+          <div>
+            <span class="section-kicker">Radar de alertas</span>
+            <h3>Pendientes operativos</h3>
+          </div>
+          <a
+            href="{{ url_for('alerts.index') }}"
+            class="btn btn-ghost-primary btn-sm"
+          >
+            Abrir centro
+          </a>
+        </header>
+        <div class="panel-card__body px-3 pb-3">
+          <div class="alerts-dashboard-stack">
+            <div class="backup-summary-grid">
+              <div class="backup-stat">
+                <span>Prioridad alta</span>
+                <strong
+                  >{{ alert_metrics.resumen.pendientes_prioritarios | default(0)
+                  }}</strong
+                >
+              </div>
+              <div class="backup-stat">
+                <span>Bloqueantes</span>
+                <strong
+                  >{{ alert_metrics.resumen.bloqueantes_pendientes | default(0)
+                  }}</strong
+                >
+              </div>
+            </div>
+
+            {% if alert_metrics.por_tipo %}
+            <div class="alerts-type-list">
+              {% for tipo in alert_metrics.por_tipo %}
+              <div class="alerts-type-item">
+                <div>
+                  <strong>{{ tipo.label }}</strong>
+                  <small>{{ tipo.total }} total</small>
+                </div>
+                <span class="city-list__value">{{ tipo.pendientes }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %} {% if alert_metrics.recientes %}
+            <div class="alerts-recent-list">
+              {% for alerta in alert_metrics.recientes %}
+              <div class="alerts-recent-item severity-{{ alerta.severidad }}">
+                <strong>{{ alerta.sujeto_nombre }}</strong>
+                <small>{{ alerta.tipo_label }}</small>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+      {% endif %}
+
       <article class="panel-card quick-actions-panel">
         <header class="panel-card__header compact">
           <div>
@@ -210,6 +327,12 @@ block content %}
             <i class="bi bi-file-bar-graph"></i>
             <span>Generar reporte</span>
           </a>
+          {% if current_user and current_user.rol == 'admin' %}
+          <a href="{{ url_for('backups.index') }}" class="quick-action-tile">
+            <i class="bi bi-shield-lock"></i>
+            <span>Generar backup</span>
+          </a>
+          {% endif %}
         </div>
       </article>
     </div>

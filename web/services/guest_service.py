@@ -16,6 +16,126 @@ from utils.logger import log_info, log_error, Auditoria
 from config import DEFAULT_PAGE_SIZE
 
 
+def _normalizar_documento(valor: str) -> str:
+    """Normaliza DNI o pasaporte para comparaciones de duplicidad."""
+    if not valor:
+        return ""
+    return "".join(char for char in str(valor).upper().strip() if char.isalnum())
+
+
+def _normalizar_telefono(valor: str) -> str:
+    """Normaliza teléfono conservando solo dígitos."""
+    if not valor:
+        return ""
+    return "".join(char for char in str(valor) if char.isdigit())
+
+
+def _registrar_duplicado(duplicados: dict, fila: dict, motivo: str):
+    """Acumula coincidencias de duplicidad sin repetir registros."""
+    registro_id = fila["id"]
+    if registro_id not in duplicados:
+        duplicados[registro_id] = {
+            "id": registro_id,
+            "apellido_nombre": fila.get("apellido_nombre") or "",
+            "hotel": fila.get("hotel") or "",
+            "dni_pasaporte": formato_dni(str(fila.get("dni_pasaporte") or "")),
+            "telefono": fila.get("telefono") or "",
+            "fecha_entrada": formato_fecha(fila.get("fecha_entrada")),
+            "fecha_salida": formato_fecha(fila.get("fecha_salida")),
+            "coincidencias": [],
+        }
+
+    if motivo not in duplicados[registro_id]["coincidencias"]:
+        duplicados[registro_id]["coincidencias"].append(motivo)
+
+
+def buscar_posibles_duplicados(
+    dni_pasaporte: str = "",
+    apellido_nombre: str = "",
+    telefono: str = "",
+    hotel_id: int | None = None,
+    fecha_entrada=None,
+    exclude_id: int | None = None,
+    limit: int = 5,
+) -> list:
+    """Busca huéspedes potencialmente duplicados por documento y otros datos clave."""
+    duplicados = {}
+    dni_normalizado = _normalizar_documento(dni_pasaporte)
+    telefono_normalizado = _normalizar_telefono(telefono)
+    nombre_limpio = sanitizar_texto(apellido_nombre)
+
+    base_query = """
+        SELECT h.id, h.apellido_nombre, h.dni_pasaporte, h.telefono,
+               h.fecha_entrada, h.fecha_salida, ht.nombre AS hotel
+        FROM huespedes h
+        JOIN hoteles ht ON ht.id = h.hotel_id
+        WHERE {condicion}
+        {exclusion}
+        ORDER BY h.fecha_registro DESC
+        LIMIT %s
+    """
+    exclusion = "AND h.id <> %s" if exclude_id else ""
+
+    try:
+        if dni_normalizado:
+            params = [dni_normalizado]
+            if exclude_id:
+                params.append(exclude_id)
+            params.append(limit)
+            query = base_query.format(
+                condicion=(
+                    "regexp_replace(upper(COALESCE(h.dni_pasaporte, '')), '[^A-Z0-9]', '', 'g') = %s"
+                ),
+                exclusion=exclusion,
+            )
+            resultado = db.ejecutar_query(query, tuple(params), fetch=True) or []
+            for fila in resultado:
+                _registrar_duplicado(duplicados, fila, "Mismo DNI/Pasaporte")
+
+        if nombre_limpio and hotel_id and fecha_entrada:
+            ok, _, fecha_entrada_valida = validar_fecha(fecha_entrada, permite_vacio=True)
+            if ok and fecha_entrada_valida:
+                params = [nombre_limpio, hotel_id, fecha_entrada_valida]
+                if exclude_id:
+                    params.append(exclude_id)
+                params.append(limit)
+                query = base_query.format(
+                    condicion=(
+                        "LOWER(TRIM(COALESCE(h.apellido_nombre, ''))) = LOWER(TRIM(%s)) "
+                        "AND h.hotel_id = %s AND h.fecha_entrada = %s"
+                    ),
+                    exclusion=exclusion,
+                )
+                resultado = db.ejecutar_query(query, tuple(params), fetch=True) or []
+                for fila in resultado:
+                    _registrar_duplicado(duplicados, fila, "Mismo nombre, hotel y fecha de entrada")
+
+        if telefono_normalizado and hotel_id:
+            params = [telefono_normalizado, hotel_id]
+            if exclude_id:
+                params.append(exclude_id)
+            params.append(limit)
+            query = base_query.format(
+                condicion=(
+                    "regexp_replace(COALESCE(h.telefono, ''), '[^0-9]', '', 'g') = %s "
+                    "AND h.hotel_id = %s"
+                ),
+                exclusion=exclusion,
+            )
+            resultado = db.ejecutar_query(query, tuple(params), fetch=True) or []
+            for fila in resultado:
+                _registrar_duplicado(duplicados, fila, "Mismo teléfono en el hotel")
+
+        return sorted(
+            duplicados.values(),
+            key=lambda item: (-len(item["coincidencias"]), item["apellido_nombre"]),
+        )
+
+    except Exception as e:
+        log_error("Error buscando duplicados de huéspedes", e)
+        return []
+
+
 def busqueda_rapida(termino: str, page: int = 1, per_page: int = DEFAULT_PAGE_SIZE):
     """
     Búsqueda rápida en 11 campos ILIKE.
@@ -250,20 +370,18 @@ def verificar_duplicado_dni(dni: str) -> list:
         return []
 
 
-def crear_huesped(datos: dict, usuario_id: int) -> tuple[bool, str, int | None]:
-    """
-    Crea un nuevo huésped. 
-    datos debe contener: hotel_id, apellido_nombre, dni_pasaporte, 
-    y opcionalmente todos los demás campos.
-    Retorna (exito, mensaje, huesped_id).
-    """
-    # Validaciones
+def _validar_datos_huesped(datos: dict) -> tuple[list[str], object, object, object, int | None]:
+    """Valida y normaliza los datos del huésped para alta y edición."""
     errores = []
 
     if not datos.get("hotel_id") and not datos.get("hotel_nombre"):
         errores.append("Hotel es requerido")
 
-    ok, msg = validar_texto_obligatorio(datos.get("apellido_nombre", ""), "Apellido y Nombre", min_len=3)
+    ok, msg = validar_texto_obligatorio(
+        datos.get("apellido_nombre", ""),
+        "Apellido y Nombre",
+        min_len=3
+    )
     if not ok:
         errores.append(msg)
 
@@ -271,7 +389,6 @@ def crear_huesped(datos: dict, usuario_id: int) -> tuple[bool, str, int | None]:
     if not ok:
         errores.append(msg)
 
-    # Fechas opcionales
     fecha_nac = None
     if datos.get("fecha_nacimiento"):
         ok, msg, fecha_nac = validar_fecha(datos["fecha_nacimiento"], permite_vacio=True)
@@ -311,6 +428,17 @@ def crear_huesped(datos: dict, usuario_id: int) -> tuple[bool, str, int | None]:
         if not ok:
             errores.append(msg)
 
+    return errores, fecha_nac, fecha_entrada, fecha_salida, edad
+
+
+def crear_huesped(datos: dict, usuario_id: int) -> tuple[bool, str, int | None]:
+    """
+    Crea un nuevo huésped. 
+    datos debe contener: hotel_id, apellido_nombre, dni_pasaporte, 
+    y opcionalmente todos los demás campos.
+    Retorna (exito, mensaje, huesped_id).
+    """
+    errores, fecha_nac, fecha_entrada, fecha_salida, edad = _validar_datos_huesped(datos)
     if errores:
         return False, "Errores de validación:\n• " + "\n• ".join(errores), None
 
@@ -396,6 +524,70 @@ def crear_huesped(datos: dict, usuario_id: int) -> tuple[bool, str, int | None]:
     except Exception as e:
         log_error("Error al crear huésped", e)
         return False, f"Error al guardar: {str(e)}", None
+
+
+def actualizar_huesped(huesped_id: int, datos: dict, usuario_id: int) -> tuple[bool, str]:
+    """Actualiza un huésped existente."""
+    errores, fecha_nac, fecha_entrada, fecha_salida, edad = _validar_datos_huesped(datos)
+    if errores:
+        return False, "Errores de validación:\n• " + "\n• ".join(errores)
+
+    try:
+        db.ejecutar_query("""
+            UPDATE huespedes SET
+                hotel_id = %s,
+                nacionalidad = %s,
+                procedencia = %s,
+                apellido_nombre = %s,
+                dni_pasaporte = %s,
+                fecha_nacimiento = %s,
+                edad = %s,
+                profesion = %s,
+                fecha_entrada = %s,
+                fecha_salida = %s,
+                habitacion = %s,
+                domicilio = %s,
+                destino = %s,
+                movilidad = %s,
+                telefono = %s
+            WHERE id = %s
+        """, (
+            datos.get("hotel_id"),
+            sanitizar_texto(datos.get("nacionalidad", "")),
+            sanitizar_texto(datos.get("procedencia", "")),
+            sanitizar_texto(datos.get("apellido_nombre", "")),
+            sanitizar_texto(datos.get("dni_pasaporte", "").replace(".", "").replace("-", "")),
+            fecha_nac,
+            edad,
+            sanitizar_texto(datos.get("profesion", "")),
+            fecha_entrada,
+            fecha_salida,
+            sanitizar_texto(datos.get("habitacion", "")),
+            sanitizar_texto(datos.get("domicilio", "")),
+            sanitizar_texto(datos.get("destino", "")),
+            sanitizar_texto(datos.get("movilidad", "")),
+            sanitizar_texto(datos.get("telefono", "")),
+            huesped_id
+        ))
+
+        try:
+            conn_aud = db.obtener_conexion()
+            if conn_aud:
+                Auditoria(conn_aud).registrar(
+                    usuario_id, "editar_registros", "huespedes",
+                    registro_id=huesped_id,
+                    detalle=f"Huésped actualizado: {datos.get('apellido_nombre', '')}"
+                )
+                db.liberar_conexion(conn_aud)
+        except Exception:
+            pass
+
+        log_info(f"Huésped actualizado: {datos.get('apellido_nombre', '')} (ID: {huesped_id})")
+        return True, "Huésped actualizado correctamente"
+
+    except Exception as e:
+        log_error(f"Error al actualizar huésped {huesped_id}", e)
+        return False, f"Error al actualizar: {str(e)}"
 
 
 def obtener_hoteles_lista() -> list:

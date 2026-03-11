@@ -10,7 +10,7 @@
             Registra identidad, procedencia y datos de estadía en un único flujo controlado.
         </p>
     </div>
-    <div class="module-hero__actions">
+    <div class="module-hero__actions mobile-hide-duplicate-action">
         <a href="{{ url_for('guests.index') }}" class="btn btn-ghost-secondary">
             <i class="bi bi-arrow-left"></i> Volver
         </a>
@@ -27,13 +27,28 @@
                 </div>
             </header>
             <div class="panel-card__body px-3 pb-3">
-                <form method="POST">
-                    <div class="form-section-block mb-4">
+                <nav class="form-mobile-nav d-md-none mb-4" aria-label="Secciones del formulario">
+                    <a href="#seccion-principal" class="status-pill muted small-pill">Principal</a>
+                    <a href="#seccion-identidad" class="status-pill muted small-pill">Identidad</a>
+                    <a href="#seccion-perfil" class="status-pill muted small-pill">Perfil</a>
+                    <a href="#seccion-fechas" class="status-pill muted small-pill">Fechas</a>
+                    <a href="#seccion-estadia" class="status-pill muted small-pill">Estadía</a>
+                </nav>
+                <form method="POST" action="{{ url_for('guests.editar', huesped_id=huesped_id) if es_edicion else url_for('guests.nuevo') }}"
+                      id="guestForm"
+                      data-requires-online="true"
+                      data-duplicate-check-url="{{ url_for('guests.api_duplicados') }}"
+                      data-exclude-id="{{ huesped_id if es_edicion else '' }}">
+                    <div class="offline-module-note d-none mb-4" data-offline-note>
+                        Necesitás conexión para guardar cambios. Podés seguir revisando datos cargados localmente.
+                    </div>
+
+                    <div class="form-section-block mb-4" id="seccion-principal">
                         <div class="form-section-block__title">Asignación principal</div>
                         <div class="row g-3">
                             <div class="col-12 col-lg-6">
                         <label class="form-label form-label-ops">Hotel <span class="text-danger">*</span></label>
-                        <select class="form-select" name="hotel_id" required>
+                        <select class="form-select" name="hotel_id" id="hotel_id" required>
                             <option value="">Seleccione un hotel</option>
                             {% for h in hoteles %}
                             <option value="{{ h.id }}" {% if datos.get('hotel_id')|string == h.id|string %}selected{% endif %}>
@@ -45,14 +60,14 @@
                         </div>
                     </div>
 
-                    <div class="form-section-block mb-4">
+                    <div class="form-section-block mb-4" id="seccion-identidad">
                         <div class="form-section-block__title">Identidad</div>
                     <div class="row g-3">
                         <div class="col-12 col-md-8">
                             <label class="form-label form-label-ops">
                                 Apellido y Nombre <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" name="apellido_nombre"
+                            <input type="text" class="form-control" name="apellido_nombre" id="apellido_nombre"
                                    value="{{ datos.get('apellido_nombre', '') }}" required
                                    placeholder="Ej: García, Juan Carlos">
                         </div>
@@ -60,14 +75,36 @@
                             <label class="form-label form-label-ops">
                                 DNI / Pasaporte <span class="text-danger">*</span>
                             </label>
-                            <input type="text" class="form-control" name="dni_pasaporte"
+                            <input type="text" class="form-control" name="dni_pasaporte" id="dni_pasaporte"
                                    value="{{ datos.get('dni_pasaporte', '') }}" required
                                    placeholder="12345678">
                         </div>
                     </div>
                     </div>
 
-                    <div class="form-section-block mb-4">
+                    <div id="duplicateAlert" class="alert alert-warning app-alert {% if not duplicados %}d-none{% endif %} mb-4" role="alert">
+                        <span class="alert-accent"></span>
+                        <i class="bi bi-exclamation-circle"></i>
+                        <div class="alert-copy">
+                            <strong>Posibles registros duplicados detectados.</strong>
+                            <div class="mt-2" id="duplicateAlertContent">
+                                {% if duplicados %}
+                                <div class="duplicate-alert-list">
+                                    {% for duplicado in duplicados %}
+                                    <div class="duplicate-alert-item">
+                                        <strong>{{ duplicado.apellido_nombre }}</strong>
+                                        <span>{{ duplicado.hotel or 'Sin hotel' }}</span>
+                                        <span>DNI: {{ duplicado.dni_pasaporte or 'S/D' }}</span>
+                                        <span>Coincide por: {{ duplicado.coincidencias | join(', ') }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section-block mb-4" id="seccion-perfil">
                         <div class="form-section-block__title">Perfil y origen</div>
                     <div class="row g-3 mt-1">
                         <div class="col-12 col-md-4">
@@ -88,7 +125,7 @@
                     </div>
                     </div>
 
-                    <div class="form-section-block mb-4">
+                    <div class="form-section-block mb-4" id="seccion-fechas">
                         <div class="form-section-block__title">Fechas clave</div>
                     <div class="row g-3 mt-1">
                         <div class="col-6 col-md-3">
@@ -108,7 +145,7 @@
                             <label class="form-label form-label-ops">
                                 Fecha Entrada <span class="text-danger">*</span>
                             </label>
-                            <input type="date" class="form-control" name="fecha_entrada"
+                            <input type="date" class="form-control" name="fecha_entrada" id="fecha_entrada"
                                    value="{{ datos.get('fecha_entrada', '') }}" required>
                         </div>
                         <div class="col-6 col-md-3">
@@ -119,7 +156,7 @@
                     </div>
                     </div>
 
-                    <div class="form-section-block mb-4">
+                    <div class="form-section-block mb-4" id="seccion-estadia">
                         <div class="form-section-block__title">Estadía y contacto</div>
                     <div class="row g-3 mt-1">
                         <div class="col-4 col-md-2">
@@ -144,24 +181,33 @@
                         </div>
                         <div class="col-12 col-md-4">
                             <label class="form-label form-label-ops">Teléfono</label>
-                            <input type="tel" class="form-control" name="telefono"
-                                   value="{{ datos.get('telefono', '') }}" placeholder="+54 11 1234-5678">
+                            <input type="text" class="form-control" name="telefono" id="telefono"
+                                value="{{ datos.get('telefono', '') }}" placeholder="Ingrese el teléfono">
                         </div>
                     </div>
                     </div>
 
-                    <div class="d-flex justify-content-between flex-wrap gap-2 mt-4 form-action-row">
+                    <div class="d-flex justify-content-between flex-wrap gap-2 mt-4 form-action-row mobile-hide-duplicate-action-row">
                         <a href="{{ url_for('guests.index') }}" class="btn btn-ghost-secondary">
                             <i class="bi bi-arrow-left"></i> Volver
                         </a>
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-lg"></i> Guardar
+                            <i class="bi bi-check-lg"></i> {{ 'Actualizar' if es_edicion else 'Guardar' }}
                         </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
+</div>
+
+<div class="form-mobile-submitbar d-md-none">
+    <a href="{{ url_for('guests.index') }}" class="btn btn-ghost-secondary flex-fill">
+        <i class="bi bi-arrow-left"></i> Volver
+    </a>
+    <button type="submit" form="guestForm" class="btn btn-primary flex-fill">
+        <i class="bi bi-check-lg"></i> {{ 'Actualizar' if es_edicion else 'Guardar' }}
+    </button>
 </div>
 
 <script>
@@ -175,5 +221,75 @@ function calcularEdad() {
     if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) edad--;
     if (edad >= 0 && edad <= 150) document.getElementById('edad').value = edad;
 }
+
+function renderDuplicateAlert(duplicados) {
+    const alertBox = document.getElementById('duplicateAlert');
+    const content = document.getElementById('duplicateAlertContent');
+    if (!alertBox || !content) return;
+
+    if (!duplicados || duplicados.length === 0) {
+        alertBox.classList.add('d-none');
+        content.innerHTML = '';
+        return;
+    }
+
+    content.innerHTML = '<div class="duplicate-alert-list">' + duplicados.map(function (duplicado) {
+        const coincidencias = (duplicado.coincidencias || []).join(', ');
+        const detalleUrl = '/huespedes/' + duplicado.id;
+        return `
+            <div class="duplicate-alert-item">
+                <strong>${duplicado.apellido_nombre || 'Sin nombre'}</strong>
+                <span>${duplicado.hotel || 'Sin hotel'}</span>
+                <span>DNI: ${duplicado.dni_pasaporte || 'S/D'}</span>
+                <span>Coincide por: ${coincidencias || 'Sin criterio'}</span>
+                <a href="${detalleUrl}" class="ops-link">Ver expediente</a>
+            </div>
+        `;
+    }).join('') + '</div>';
+    alertBox.classList.remove('d-none');
+}
+
+async function verificarDuplicados() {
+    const form = document.getElementById('guestForm');
+    if (!form) return;
+
+    const params = new URLSearchParams();
+    const hotelId = document.getElementById('hotel_id')?.value || '';
+    const nombre = document.getElementById('apellido_nombre')?.value || '';
+    const dni = document.getElementById('dni_pasaporte')?.value || '';
+    const telefono = document.getElementById('telefono')?.value || '';
+    const fechaEntrada = document.getElementById('fecha_entrada')?.value || '';
+    const excludeId = form.dataset.excludeId || '';
+
+    if (!dni && !(nombre && hotelId && fechaEntrada) && !(telefono && hotelId)) {
+        renderDuplicateAlert([]);
+        return;
+    }
+
+    if (dni) params.set('dni_pasaporte', dni);
+    if (nombre) params.set('apellido_nombre', nombre);
+    if (telefono) params.set('telefono', telefono);
+    if (hotelId) params.set('hotel_id', hotelId);
+    if (fechaEntrada) params.set('fecha_entrada', fechaEntrada);
+    if (excludeId) params.set('exclude_id', excludeId);
+
+    try {
+        const response = await fetch(`${form.dataset.duplicateCheckUrl}?${params.toString()}`);
+        if (!response.ok) return;
+        const payload = await response.json();
+        renderDuplicateAlert(payload.duplicados || []);
+    } catch (error) {
+        console.warn('No se pudo verificar duplicados', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    ['hotel_id', 'apellido_nombre', 'dni_pasaporte', 'telefono', 'fecha_entrada'].forEach(function (id) {
+        const element = document.getElementById(id);
+        if (!element) return;
+        element.addEventListener('blur', verificarDuplicados);
+        element.addEventListener('change', verificarDuplicados);
+    });
+});
 </script>
 {% endblock %}

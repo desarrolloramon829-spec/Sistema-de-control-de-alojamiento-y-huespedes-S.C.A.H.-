@@ -22,6 +22,40 @@ DB_CONFIG = {
 APP_NAME = "S.C.A.H."
 APP_FULL_NAME = "Sistema de Control de Alojamiento y Huéspedes"
 APP_VERSION = "1.0.0"
+ALERT_WINDOW_HOURS = int(os.environ.get("SCAH_ALERT_WINDOW_HOURS", 48))
+ALERT_NOTIFICATION_POLL_SECONDS = int(
+    os.environ.get("SCAH_ALERT_NOTIFICATION_POLL_SECONDS", 60)
+)
+ALERT_ENABLED_TYPES = tuple(
+    item.strip()
+    for item in os.environ.get(
+        "SCAH_ALERT_ENABLED_TYPES",
+        "duplicado_exacto,duplicado_en_lote,mismo_sujeto_mismo_hotel,sujeto_en_hoteles_distintos_lapso_corto",
+    ).split(",")
+    if item.strip()
+)
+ALERT_TYPE_SETTINGS = {
+    "duplicado_exacto": {
+        "label": "Duplicado exacto",
+        "severidad": "critical",
+        "bloqueante": True,
+    },
+    "duplicado_en_lote": {
+        "label": "Duplicado dentro del lote",
+        "severidad": "critical",
+        "bloqueante": True,
+    },
+    "mismo_sujeto_mismo_hotel": {
+        "label": "Coincidencia fuerte en el mismo hotel",
+        "severidad": "warning",
+        "bloqueante": False,
+    },
+    "sujeto_en_hoteles_distintos_lapso_corto": {
+        "label": "Traslado entre hoteles en corto lapso",
+        "severidad": "danger",
+        "bloqueante": False,
+    },
+}
 
 # Dimensiones de la ventana principal
 WINDOW_WIDTH = 1280
@@ -40,7 +74,7 @@ ROLES = {
             "importar_excel", "carga_manual", "busqueda",
             "gestionar_hoteles", "gestionar_huespedes",
             "estadisticas", "reportes", "gestionar_usuarios",
-            "editar_registros", "eliminar_registros", "backup"
+            "editar_registros", "eliminar_registros", "backup", "ver_alertas"
         ]
     },
     "operador": {
@@ -49,7 +83,7 @@ ROLES = {
         "permisos": [
             "importar_excel", "carga_manual", "busqueda",
             "gestionar_hoteles", "gestionar_huespedes",
-            "estadisticas", "reportes", "editar_registros"
+            "estadisticas", "reportes", "editar_registros", "ver_alertas"
         ]
     },
     "consulta": {

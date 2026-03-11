@@ -3,7 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1565C0" />
+    <meta name="theme-color" content="#0a1220" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta
+      name="description"
+      content="Acceso al Sistema de Control de Alojamiento y Huéspedes"
+    />
     <title>S.C.A.H. - Iniciar Sesión</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -19,6 +28,15 @@
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
       rel="stylesheet"
+    />
+    <link
+      rel="manifest"
+      href="{{ url_for('static', filename='manifest.json') }}"
+    />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="{{ url_for('static', filename='img/icon-app.svg') }}"
     />
     <link
       rel="stylesheet"
@@ -71,6 +89,21 @@
             <div>
               <h2>S.C.A.H.</h2>
               <p>Sistema de Control de Alojamiento y Huéspedes</p>
+            </div>
+          </div>
+
+          <div class="login-mobile-brief d-md-none">
+            <p>
+              Accedé desde celular a huéspedes, hoteles, importaciones y
+              reportes con una interfaz optimizada para uso táctil.
+            </p>
+            <div class="login-mobile-brief__chips">
+              <span class="status-pill muted">
+                <i class="bi bi-phone"></i> Modo móvil
+              </span>
+              <span class="status-pill muted">
+                <i class="bi bi-shield-check"></i> Sesión segura
+              </span>
             </div>
           </div>
 

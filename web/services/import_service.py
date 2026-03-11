@@ -13,6 +13,11 @@ from database.connection import db
 from config import (EXCEL_HOTEL_MAP, EXCEL_HUESPED_COLS, EXCEL_HUESPED_START_ROW,
                     EXCEL_V2_HUESPED_COLS, EXCEL_V2_HUESPED_START_ROW,
                     EXCEL_V2_HEADER_ALIASES)
+from web.services.alert_service import (
+    analizar_preview_importacion,
+    crear_alertas_desde_evaluacion,
+    evaluar_huesped_importacion,
+)
 from utils.validators import (validar_fecha, validar_edad, validar_telefono,
                                validar_habitacion, sanitizar_texto)
 from utils.formatters import formato_fecha
@@ -402,7 +407,17 @@ def procesar_archivos_v1(rutas_archivos: list) -> dict:
             errores.append(error_msg)
             log_error(error_msg, e)
 
-    return {"hoteles": hoteles, "huespedes": huespedes, "errores": errores}
+    huespedes_enriquecidos, alertas_resumen = analizar_preview_importacion(
+        huespedes,
+        _resolver_hotel_preview_v1,
+    )
+
+    return {
+        "hoteles": hoteles,
+        "huespedes": huespedes_enriquecidos,
+        "errores": errores,
+        "alertas_resumen": alertas_resumen,
+    }
 
 
 def procesar_archivos_v2(rutas_archivos: list) -> dict:
@@ -434,10 +449,16 @@ def procesar_archivos_v2(rutas_archivos: list) -> dict:
             errores.append(error_msg)
             log_error(error_msg, e)
 
+    huespedes_enriquecidos, alertas_resumen = analizar_preview_importacion(
+        huespedes,
+        _resolver_hotel_preview_v2,
+    )
+
     return {
-        "huespedes": huespedes,
+        "huespedes": huespedes_enriquecidos,
         "errores": errores,
         "columnas_detectadas": mapeo_columnas,
+        "alertas_resumen": alertas_resumen,
     }
 
 
@@ -445,11 +466,12 @@ def importar_datos_v1(huespedes: list, usuario_id: int) -> dict:
     """
     Importa huéspedes del formato V1 a la base de datos.
     Crea hoteles automáticamente si no existen.
-    Retorna {importados, duplicados, errores}
+    Retorna {importados, duplicados, errores, alertas}
     """
     importados = 0
     errores_count = 0
     duplicados = 0
+    alertas_creadas = 0
 
     try:
         conn = db.obtener_conexion()
@@ -459,6 +481,7 @@ def importar_datos_v1(huespedes: list, usuario_id: int) -> dict:
 
         cursor = conn.cursor()
         hoteles_cache = {}
+        estado_lote = _crear_estado_lote_importacion()
 
         for huesped in huespedes:
             try:
@@ -471,8 +494,24 @@ def importar_datos_v1(huespedes: list, usuario_id: int) -> dict:
                 else:
                     hotel_id = hoteles_cache[hotel_key]
 
-                if _es_duplicado(cursor, hotel_id, huesped):
+                evaluacion = evaluar_huesped_importacion(
+                    conn,
+                    huesped,
+                    hotel_id=hotel_id,
+                    hotel_nombre=hotel_data.get("nombre", ""),
+                    estado_lote=estado_lote,
+                )
+
+                if evaluacion["bloqueante"]:
                     duplicados += 1
+                    alertas_creadas += crear_alertas_desde_evaluacion(
+                        cursor,
+                        huesped,
+                        evaluacion,
+                        usuario_id,
+                        "excel",
+                        hotel_data.get("nombre", ""),
+                    )
                     continue
 
                 cursor.execute("""
@@ -481,6 +520,7 @@ def importar_datos_v1(huespedes: list, usuario_id: int) -> dict:
                         dni_pasaporte, fecha_nacimiento, edad, profesion,
                         fecha_entrada, fecha_salida, origen_carga, usuario_carga_id
                     ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'excel',%s)
+                    RETURNING id
                 """, (
                     hotel_id, huesped["nacionalidad"], huesped["procedencia"],
                     huesped["apellido_nombre"], huesped["dni_pasaporte"],
@@ -488,29 +528,41 @@ def importar_datos_v1(huespedes: list, usuario_id: int) -> dict:
                     huesped["profesion"], huesped.get("fecha_entrada"),
                     huesped.get("fecha_salida"), usuario_id
                 ))
+                nuevo_huesped_id = cursor.fetchone()[0]
                 importados += 1
+                if evaluacion["total"]:
+                    alertas_creadas += crear_alertas_desde_evaluacion(
+                        cursor,
+                        huesped,
+                        evaluacion,
+                        usuario_id,
+                        "excel",
+                        hotel_data.get("nombre", ""),
+                        huesped_id=nuevo_huesped_id,
+                    )
             except Exception as e:
                 errores_count += 1
                 log_error(f"Error importando huésped: {huesped.get('apellido_nombre', '?')}", e)
 
         _registrar_log_importacion(cursor, "excel_v1", importados, errores_count,
-                                    duplicados, usuario_id)
+                                    duplicados, usuario_id, alertas_creadas)
         conn.commit()
         cursor.close()
         db.liberar_conexion(conn)
 
         _registrar_auditoria(usuario_id, "importar_excel",
                              f"V1 - Importados: {importados}, Errores: {errores_count}, "
-                             f"Duplicados: {duplicados}")
+                             f"Duplicados: {duplicados}, Alertas: {alertas_creadas}")
 
     except Exception as e:
         log_error("Error general en importación V1", e)
         return {"importados": importados, "duplicados": duplicados,
-                "errores": errores_count + 1, "mensaje": str(e)}
+                "errores": errores_count + 1, "alertas": alertas_creadas, "mensaje": str(e)}
 
     return {"importados": importados, "duplicados": duplicados,
             "errores": errores_count,
-            "mensaje": f"Importados: {importados}, Duplicados: {duplicados}, Errores: {errores_count}"}
+            "alertas": alertas_creadas,
+            "mensaje": f"Importados: {importados}, Duplicados: {duplicados}, Alertas: {alertas_creadas}, Errores: {errores_count}"}
 
 
 def importar_datos_v2(huespedes: list, hotel_nombre: str, usuario_id: int,
@@ -518,11 +570,12 @@ def importar_datos_v2(huespedes: list, hotel_nombre: str, usuario_id: int,
     """
     Importa huéspedes del formato V2 a la base de datos.
     Requiere selección explícita de hotel.
-    Retorna {importados, duplicados, errores}
+    Retorna {importados, duplicados, errores, alertas}
     """
     importados = 0
     errores_count = 0
     duplicados = 0
+    alertas_creadas = 0
 
     try:
         conn = db.obtener_conexion()
@@ -531,6 +584,7 @@ def importar_datos_v2(huespedes: list, hotel_nombre: str, usuario_id: int,
                     "mensaje": "Error de conexión a la base de datos"}
 
         cursor = conn.cursor()
+        estado_lote = _crear_estado_lote_importacion()
 
         if nuevo_hotel:
             extra = hotel_extra or {}
@@ -560,8 +614,24 @@ def importar_datos_v2(huespedes: list, hotel_nombre: str, usuario_id: int,
 
         for huesped in huespedes:
             try:
-                if _es_duplicado(cursor, hotel_id, huesped):
+                evaluacion = evaluar_huesped_importacion(
+                    conn,
+                    huesped,
+                    hotel_id=hotel_id,
+                    hotel_nombre=hotel_nombre,
+                    estado_lote=estado_lote,
+                )
+
+                if evaluacion["bloqueante"]:
                     duplicados += 1
+                    alertas_creadas += crear_alertas_desde_evaluacion(
+                        cursor,
+                        huesped,
+                        evaluacion,
+                        usuario_id,
+                        "excel_v2",
+                        hotel_nombre,
+                    )
                     continue
 
                 cursor.execute("""
@@ -572,6 +642,7 @@ def importar_datos_v2(huespedes: list, hotel_nombre: str, usuario_id: int,
                         habitacion, domicilio, destino, movilidad, telefono,
                         origen_carga, usuario_carga_id
                     ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'excel_v2',%s)
+                    RETURNING id
                 """, (
                     hotel_id, huesped.get("nacionalidad", ""),
                     huesped.get("procedencia", ""),
@@ -583,29 +654,41 @@ def importar_datos_v2(huespedes: list, hotel_nombre: str, usuario_id: int,
                     huesped.get("destino", ""), huesped.get("movilidad", ""),
                     huesped.get("telefono", ""), usuario_id
                 ))
+                nuevo_huesped_id = cursor.fetchone()[0]
                 importados += 1
+                if evaluacion["total"]:
+                    alertas_creadas += crear_alertas_desde_evaluacion(
+                        cursor,
+                        huesped,
+                        evaluacion,
+                        usuario_id,
+                        "excel_v2",
+                        hotel_nombre,
+                        huesped_id=nuevo_huesped_id,
+                    )
             except Exception as e:
                 errores_count += 1
                 log_error(f"Error importando: {huesped.get('apellido_nombre', '?')}", e)
 
         _registrar_log_importacion(cursor, "excel_v2", importados, errores_count,
-                                    duplicados, usuario_id)
+                                    duplicados, usuario_id, alertas_creadas)
         conn.commit()
         cursor.close()
         db.liberar_conexion(conn)
 
         _registrar_auditoria(usuario_id, "importar_excel_v2",
                              f"Tabular - Importados: {importados}, Errores: {errores_count}, "
-                             f"Duplicados: {duplicados}")
+                             f"Duplicados: {duplicados}, Alertas: {alertas_creadas}")
 
     except Exception as e:
         log_error("Error general en importación V2", e)
         return {"importados": importados, "duplicados": duplicados,
-                "errores": errores_count + 1, "mensaje": str(e)}
+                "errores": errores_count + 1, "alertas": alertas_creadas, "mensaje": str(e)}
 
     return {"importados": importados, "duplicados": duplicados,
             "errores": errores_count,
-            "mensaje": f"Importados: {importados}, Duplicados: {duplicados}, Errores: {errores_count}"}
+            "alertas": alertas_creadas,
+            "mensaje": f"Importados: {importados}, Duplicados: {duplicados}, Alertas: {alertas_creadas}, Errores: {errores_count}"}
 
 
 def obtener_hoteles_activos() -> list:
@@ -646,16 +729,18 @@ def _es_duplicado(cursor, hotel_id: int, huesped: dict) -> bool:
 
 
 def _registrar_log_importacion(cursor, tipo: str, importados: int,
-                                errores: int, duplicados: int, usuario_id: int):
+                                errores: int, duplicados: int, usuario_id: int,
+                                alertas: int = 0):
     cursor.execute("""
         INSERT INTO importaciones_log (
             archivo_nombre, fecha_importacion, usuario_id,
-            registros_importados, registros_error, registros_duplicados, estado
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+            registros_importados, registros_error, registros_duplicados, estado, detalle
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
     """, (
         f"upload_{tipo}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
         datetime.now(), usuario_id, importados, errores, duplicados,
-        "completado" if errores == 0 else "parcial"
+        "completado" if errores == 0 else "parcial",
+        f"Alertas generadas: {alertas}"
     ))
 
 
@@ -668,3 +753,30 @@ def _registrar_auditoria(usuario_id: int, accion: str, detalle: str):
             db.liberar_conexion(conn)
     except Exception:
         pass
+
+
+def _crear_estado_lote_importacion() -> dict:
+    return {
+        "exactos": {},
+        "por_documento": {},
+        "por_telefono": {},
+        "por_nombre": {},
+    }
+
+
+def _resolver_hotel_preview_v1(conn, huesped: dict) -> tuple[int | None, str]:
+    hotel_data = huesped.get("hotel_data", {}) or {}
+    nombre = hotel_data.get("nombre") or huesped.get("hotel_nombre") or ""
+    if not nombre:
+        return None, ""
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id FROM hoteles WHERE LOWER(nombre) = LOWER(%s)", (nombre,))
+        resultado = cursor.fetchone()
+        return (resultado[0] if resultado else None, nombre)
+    finally:
+        cursor.close()
+
+
+def _resolver_hotel_preview_v2(conn, huesped: dict) -> tuple[int | None, str]:
+    return None, huesped.get("hotel_nombre", "") or ""

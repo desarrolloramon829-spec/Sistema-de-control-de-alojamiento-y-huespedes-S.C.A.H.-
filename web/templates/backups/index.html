@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Backups - S.C.A.H.{% endblock %}
+
+{% block content %}
+<section class="module-hero mb-4">
+    <div>
+        <span class="section-kicker">Resguardo operativo</span>
+        <h2 class="module-hero__title">Backups del sistema</h2>
+        <p class="module-hero__subtitle mb-0">
+            Genera un respaldo completo de los datos operativos en un archivo ZIP con JSON y esquema SQL.
+        </p>
+    </div>
+    <div class="module-hero__actions">
+        <a href="{{ url_for('backups.descargar') }}" class="btn btn-primary">
+            <i class="bi bi-download"></i> Descargar backup
+        </a>
+    </div>
+</section>
+
+<section class="panel-card mb-3">
+    <header class="panel-card__header compact">
+        <div>
+            <span class="section-kicker">Cobertura del respaldo</span>
+            <h3>Resumen de datos incluidos</h3>
+        </div>
+    </header>
+    <div class="panel-card__body px-3 pb-3">
+        <div class="backup-summary-grid">
+            <div class="backup-stat">
+                <span>Huéspedes</span>
+                <strong>{{ resumen.huespedes or 0 }}</strong>
+            </div>
+            <div class="backup-stat">
+                <span>Hoteles</span>
+                <strong>{{ resumen.hoteles or 0 }}</strong>
+            </div>
+            <div class="backup-stat">
+                <span>Usuarios</span>
+                <strong>{{ resumen.usuarios or 0 }}</strong>
+            </div>
+            <div class="backup-stat">
+                <span>Auditoría</span>
+                <strong>{{ resumen.auditoria or 0 }}</strong>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="panel-card">
+    <header class="panel-card__header compact">
+        <div>
+            <span class="section-kicker">Formato</span>
+            <h3>Qué contiene el archivo</h3>
+        </div>
+    </header>
+    <div class="panel-card__body px-3 pb-3">
+        <div class="duplicate-alert-list">
+            <div class="duplicate-alert-item">
+                <strong>backup.json</strong>
+                <span>Incluye huéspedes, hoteles, usuarios, auditoría e historial de importaciones.</span>
+            </div>
+            <div class="duplicate-alert-item">
+                <strong>schema.sql</strong>
+                <span>Contiene el esquema base de tablas e índices del sistema.</span>
+            </div>
+            <div class="duplicate-alert-item">
+                <strong>Último backup registrado</strong>
+                <span>{{ resumen.ultimo_backup | fecha_hora if resumen.ultimo_backup else 'Sin backups registrados en auditoría' }}</span>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -29,8 +29,17 @@ block content %}
         </div>
       </header>
       <div class="panel-card__body px-3 pb-3">
-        <form method="POST" action="{{ url_for('reports.generar') }}">
-          <div class="form-section-block mb-4">
+        <nav class="form-mobile-nav d-md-none mb-4" aria-label="Secciones del reporte">
+          <a href="#seccion-tipo-reporte" class="status-pill muted small-pill">Tipo</a>
+          <a href="#seccion-fechas-reporte" class="status-pill muted small-pill">Fechas</a>
+          <a href="#seccion-formato-reporte" class="status-pill muted small-pill">Formato</a>
+        </nav>
+        <form method="POST" action="{{ url_for('reports.generar') }}" id="reportForm" data-requires-online="true">
+          <div class="offline-module-note d-none mb-4" data-offline-note>
+            La generación y exportación de reportes requiere conexión activa.
+          </div>
+
+          <div class="form-section-block mb-4" id="seccion-tipo-reporte">
             <div class="form-section-block__title">Tipo de reporte</div>
             <select name="tipo" class="form-select" id="tipoReporte">
               <option value="general">General - Todos los huéspedes</option>
@@ -46,6 +55,7 @@ block content %}
             id="fechasContainer"
             class="form-section-block mb-4"
             style="display:none"
+            data-report-date-section
           >
             <div class="form-section-block__title">Ventana temporal</div>
             <div class="row g-2">
@@ -60,9 +70,9 @@ block content %}
             </div>
           </div>
 
-          <div class="form-section-block mb-4">
+          <div class="form-section-block mb-4" id="seccion-formato-reporte">
             <div class="form-section-block__title">Formato de salida</div>
-            <div class="d-flex gap-3">
+            <div class="d-flex gap-3 flex-wrap">
               <div class="form-check report-format-check">
                 <input
                   type="radio"
@@ -91,7 +101,7 @@ block content %}
             </div>
           </div>
 
-          <div class="d-flex gap-2 flex-wrap form-action-row">
+          <div class="d-flex gap-2 flex-wrap form-action-row mobile-hide-duplicate-action-row">
             <button type="submit" class="btn btn-primary">
               <i class="bi bi-download"></i> Generar y Descargar
             </button>
@@ -105,24 +115,37 @@ block content %}
   </div>
 </div>
 
+<div class="form-mobile-submitbar d-md-none">
+  <a href="#" class="btn btn-ghost-secondary flex-fill" id="btnPreviewMobile">
+    <i class="bi bi-eye"></i> Vista previa
+  </a>
+  <button type="submit" form="reportForm" class="btn btn-primary flex-fill">
+    <i class="bi bi-download"></i> Generar
+  </button>
+</div>
+
 {% block extra_js %}
 <script>
   document.addEventListener('DOMContentLoaded', function() {
       const tipo = document.getElementById('tipoReporte');
       const fechas = document.getElementById('fechasContainer');
       const btnPreview = document.getElementById('btnPreview');
+      const btnPreviewMobile = document.getElementById('btnPreviewMobile');
 
       tipo.addEventListener('change', function() {
           fechas.style.display = (this.value === 'por_fechas') ? 'block' : 'none';
       });
 
-      btnPreview.addEventListener('click', function(e) {
+      function goPreview(e) {
           e.preventDefault();
           const t = tipo.value;
           const desde = document.querySelector('[name="desde"]').value || '';
           const hasta = document.querySelector('[name="hasta"]').value || '';
           window.location.href = `{{ url_for('reports.preview') }}?tipo=${t}&desde=${desde}&hasta=${hasta}`;
-      });
+      }
+
+      btnPreview.addEventListener('click', goPreview);
+      if (btnPreviewMobile) btnPreviewMobile.addEventListener('click', goPreview);
   });
 </script>
 {% endblock %} {% endblock %}

@@ -141,26 +141,18 @@ def calcular_edad(fecha_nacimiento: date, fecha_referencia: date = None) -> int 
 
 def validar_telefono(valor) -> tuple[bool, str, str]:
     """
-    Valida un número de teléfono (flexible).
-    Acepta dígitos, espacios, guiones, paréntesis y '+'.
+    Valida un teléfono de forma flexible.
+    Si el campo se completa, acepta cualquier contenido desde 1 carácter
+    hasta el límite soportado por la base de datos.
     Retorna (es_valido, mensaje_error, valor_limpio).
     """
     if valor is None or str(valor).strip() == "":
         return True, "", ""
 
     valor_str = str(valor).strip()
-    # Limpiar caracteres comunes en teléfonos
-    limpio = re.sub(r'[^0-9+\-\s()]', '', valor_str)
 
-    if not limpio:
-        return False, "Formato de teléfono inválido", ""
-
-    # Verificar que tenga al menos algunos dígitos
-    solo_digitos = re.sub(r'[^0-9]', '', limpio)
-    if len(solo_digitos) < 6:
-        return False, "El teléfono debe tener al menos 6 dígitos", ""
-    if len(solo_digitos) > 15:
-        return False, "El teléfono no debe exceder 15 dígitos", ""
+    if len(valor_str) > 50:
+        return False, "El teléfono no debe exceder 50 caracteres", ""
 
     return True, "", valor_str
 
