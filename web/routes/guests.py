@@ -11,6 +11,7 @@ from web.services.guest_service import (
     obtener_huesped, eliminar_huesped, obtener_hoteles_lista,
     obtener_ciudades_lista
 )
+from utils.geography import obtener_sugerencias_nacionalidad, obtener_sugerencias_procedencia
 from utils.validators import validar_fecha
 
 guests_bp = Blueprint('guests', __name__, url_prefix='/huespedes')
@@ -45,6 +46,13 @@ def _obtener_alertas_duplicados(datos: dict, exclude_id: int | None = None) -> l
         fecha_entrada=datos.get('fecha_entrada', ''),
         exclude_id=exclude_id,
     )
+
+
+def _contexto_geo_formulario() -> dict:
+    return {
+        'nacionalidades_sugeridas': obtener_sugerencias_nacionalidad()[1:],
+        'procedencias_sugeridas': obtener_sugerencias_procedencia()[1:],
+    }
 
 
 @guests_bp.route('/')
@@ -114,12 +122,14 @@ def nuevo():
             return redirect(url_for('guests.detalle', huesped_id=huesped_id))
         else:
             flash(msg, 'danger')
-            return render_template('guests/form.html', datos=datos, hoteles=hoteles,
-                                   es_edicion=False,
-                                   duplicados=_obtener_alertas_duplicados(datos))
+                return render_template('guests/form.html', datos=datos, hoteles=hoteles,
+                           es_edicion=False,
+                           duplicados=_obtener_alertas_duplicados(datos),
+                           **_contexto_geo_formulario())
 
     return render_template('guests/form.html', datos={}, hoteles=hoteles,
-                           es_edicion=False, duplicados=[])
+                       es_edicion=False, duplicados=[],
+                       **_contexto_geo_formulario())
 
 
 @guests_bp.route('/<int:huesped_id>/editar', methods=['GET', 'POST'])
@@ -163,11 +173,13 @@ def editar(huesped_id):
         flash(msg, 'danger')
         return render_template('guests/form.html', datos=datos, hoteles=hoteles,
                                es_edicion=True, huesped_id=huesped_id,
-                               duplicados=_obtener_alertas_duplicados(datos, huesped_id))
+                               duplicados=_obtener_alertas_duplicados(datos, huesped_id),
+                               **_contexto_geo_formulario())
 
     return render_template('guests/form.html', datos=_preparar_datos_formulario(huesped),
                            hoteles=hoteles, es_edicion=True, huesped_id=huesped_id,
-                           duplicados=_obtener_alertas_duplicados(huesped, huesped_id))
+                           duplicados=_obtener_alertas_duplicados(huesped, huesped_id),
+                           **_contexto_geo_formulario())
 
 
 @guests_bp.route('/<int:huesped_id>')

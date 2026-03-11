@@ -11,6 +11,7 @@ from database.connection import db
 from utils.validators import (validar_dni, validar_fecha, validar_texto_obligatorio,
                                validar_edad, validar_fechas_estadia, calcular_edad,
                                sanitizar_texto, validar_telefono, validar_habitacion)
+from utils.geography import normalizar_campos_geograficos
 from utils.formatters import formato_fecha, formato_dni
 from utils.logger import log_info, log_error, Auditoria
 from config import DEFAULT_PAGE_SIZE
@@ -448,6 +449,10 @@ def crear_huesped(datos: dict, usuario_id: int) -> tuple[bool, str, int | None]:
             return False, "No se pudo conectar a la base de datos", None
 
         cursor = conn.cursor()
+        nacionalidad, procedencia = normalizar_campos_geograficos(
+            sanitizar_texto(datos.get("nacionalidad", "")),
+            sanitizar_texto(datos.get("procedencia", "")),
+        )
 
         # Obtener o crear hotel
         hotel_id = datos.get("hotel_id")
@@ -483,8 +488,8 @@ def crear_huesped(datos: dict, usuario_id: int) -> tuple[bool, str, int | None]:
             RETURNING id
         """, (
             hotel_id,
-            sanitizar_texto(datos.get("nacionalidad", "")),
-            sanitizar_texto(datos.get("procedencia", "")),
+            nacionalidad,
+            procedencia,
             sanitizar_texto(datos.get("apellido_nombre", "")),
             sanitizar_texto(datos.get("dni_pasaporte", "").replace(".", "").replace("-", "")),
             fecha_nac,
@@ -533,6 +538,10 @@ def actualizar_huesped(huesped_id: int, datos: dict, usuario_id: int) -> tuple[b
         return False, "Errores de validación:\n• " + "\n• ".join(errores)
 
     try:
+        nacionalidad, procedencia = normalizar_campos_geograficos(
+            sanitizar_texto(datos.get("nacionalidad", "")),
+            sanitizar_texto(datos.get("procedencia", "")),
+        )
         db.ejecutar_query("""
             UPDATE huespedes SET
                 hotel_id = %s,
@@ -553,8 +562,8 @@ def actualizar_huesped(huesped_id: int, datos: dict, usuario_id: int) -> tuple[b
             WHERE id = %s
         """, (
             datos.get("hotel_id"),
-            sanitizar_texto(datos.get("nacionalidad", "")),
-            sanitizar_texto(datos.get("procedencia", "")),
+            nacionalidad,
+            procedencia,
             sanitizar_texto(datos.get("apellido_nombre", "")),
             sanitizar_texto(datos.get("dni_pasaporte", "").replace(".", "").replace("-", "")),
             fecha_nac,

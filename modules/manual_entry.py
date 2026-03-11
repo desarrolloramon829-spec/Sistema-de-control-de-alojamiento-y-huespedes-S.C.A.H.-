@@ -13,6 +13,11 @@ from ui.dialogs import mostrar_exito, mostrar_error, mostrar_advertencia
 from utils.validators import (validar_dni, validar_fecha, validar_texto_obligatorio,
                                validar_edad, validar_fechas_estadia, calcular_edad,
                                sanitizar_texto, validar_telefono, validar_habitacion)
+from utils.geography import (
+    normalizar_campos_geograficos,
+    obtener_sugerencias_nacionalidad,
+    obtener_sugerencias_procedencia,
+)
 from utils.logger import log_info, log_error, Auditoria
 
 
@@ -24,6 +29,8 @@ class ManualEntryModule(ctk.CTkFrame):
 
         self.usuario = usuario
         self.hoteles = []
+        self.sugerencias_nacionalidad = obtener_sugerencias_nacionalidad()
+        self.sugerencias_procedencia = obtener_sugerencias_procedencia()
 
         self._cargar_hoteles()
         self._crear_ui()
@@ -135,12 +142,14 @@ class ManualEntryModule(ctk.CTkFrame):
         row2.grid_columnconfigure((0, 1), weight=1)
 
         self.input_nacionalidad = InputConLabel(
-            row2, "Nacionalidad", "Ej: Argentina"
+            row2, "Nacionalidad", "Argentina", tipo="combo",
+            values=self.sugerencias_nacionalidad
         )
         self.input_nacionalidad.grid(row=0, column=0, sticky="ew", padx=(0, 10))
 
         self.input_procedencia = InputConLabel(
-            row2, "Procedencia", "Ej: Buenos Aires"
+            row2, "Procedencia", "Buenos Aires", tipo="combo",
+            values=self.sugerencias_procedencia
         )
         self.input_procedencia.grid(row=0, column=1, sticky="ew")
 
@@ -468,6 +477,10 @@ class ManualEntryModule(ctk.CTkFrame):
             _, _, fecha_entrada = validar_fecha(self.input_entrada.get(), permite_vacio=True)
             _, _, fecha_salida = validar_fecha(self.input_salida.get(), permite_vacio=True)
             _, _, edad = validar_edad(self.input_edad.get())
+            nacionalidad, procedencia = normalizar_campos_geograficos(
+                sanitizar_texto(self.input_nacionalidad.get()),
+                sanitizar_texto(self.input_procedencia.get()),
+            )
 
             # Insertar huésped
             cursor.execute("""
@@ -481,8 +494,8 @@ class ManualEntryModule(ctk.CTkFrame):
                 RETURNING id
             """, (
                 hotel_id,
-                sanitizar_texto(self.input_nacionalidad.get()),
-                sanitizar_texto(self.input_procedencia.get()),
+                nacionalidad,
+                procedencia,
                 sanitizar_texto(self.input_nombre.get()),
                 sanitizar_texto(self.input_dni.get().replace(".", "").replace("-", "")),
                 fecha_nac,

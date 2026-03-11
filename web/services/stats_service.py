@@ -18,16 +18,16 @@ from utils.formatters import formato_fecha
 
 ARGENTINA_ALIASES = {
     'argentina', 'argentina republica', 'republica argentina', 'argentino',
-    'arg', 'ar', 'argentina.'
+    'arg', 'ar', 'argentina.', 'argentina republic', 'argento'
 }
 
 PROVINCIAS_ARGENTINAS = {
-    'Buenos Aires': {'buenos aires', 'bs as', 'buenosaires', 'provincia de buenos aires'},
-    'CABA': {'caba', 'capital federal', 'ciudad autonoma de buenos aires', 'ciudad de buenos aires', 'capital'},
+    'Buenos Aires': {'buenos aires', 'bs as', 'bs. as.', 'bsas', 'buenosaires', 'provincia de buenos aires', 'pba'},
+    'CABA': {'caba', 'capital federal', 'ciudad autonoma de buenos aires', 'ciudad de buenos aires', 'capital', 'buenos aires capital'},
     'Catamarca': {'catamarca'},
     'Chaco': {'chaco'},
     'Chubut': {'chubut'},
-    'Córdoba': {'cordoba', 'córdoba'},
+    'Córdoba': {'cordoba', 'córdoba', 'cdoba'},
     'Corrientes': {'corrientes'},
     'Entre Ríos': {'entre rios', 'entre ríos'},
     'Formosa': {'formosa'},
@@ -39,24 +39,24 @@ PROVINCIAS_ARGENTINAS = {
     'Neuquén': {'neuquen', 'neuquén'},
     'Río Negro': {'rio negro', 'río negro'},
     'Salta': {'salta'},
-    'San Juan': {'san juan', 'sanjuan'},
-    'San Luis': {'san luis', 'sanluis'},
+    'San Juan': {'san juan', 'sanjuan', 's juan'},
+    'San Luis': {'san luis', 'sanluis', 's luis'},
     'Santa Cruz': {'santa cruz', 'santacruz'},
     'Santa Fe': {'santa fe', 'santafe'},
     'Santiago del Estero': {'santiago del estero', 'santiagodelestero'},
     'Tierra del Fuego': {'tierra del fuego', 'tdf', 'tierra del fuego aiass'},
-    'Tucumán': {'tucuman', 'tucumán'},
+    'Tucumán': {'tucuman', 'tucumán', 'tuc'},
 }
 
 CONTINENTES = {
     'América del Sur': {
         'america del sur', 'sudamerica', 'sud américa', 'brasil', 'brazil', 'uruguay', 'paraguay',
         'bolivia', 'chile', 'peru', 'perú', 'ecuador', 'colombia', 'venezuela', 'guyana',
-        'surinam', 'suriname', 'guayana francesa'
+        'surinam', 'suriname', 'guayana francesa', 'venenzuela', 'argentina'
     },
     'América del Norte': {
         'america del norte', 'norteamerica', 'north america', 'estados unidos', 'usa', 'eeuu',
-        'united states', 'canada', 'canadá', 'mexico', 'méxico'
+        'united states', 'canada', 'canadá', 'mexico', 'méxico', 'ee uu', 'ee. uu.', 'eeuu.', 'ee.uu.'
     },
     'América Central y Caribe': {
         'america central', 'centroamerica', 'caribe', 'costa rica', 'panama', 'panamá', 'guatemala',
@@ -217,6 +217,11 @@ def _obtener_estadistica_origen_geografico() -> dict:
             },
             'resumen': {'argentinos': 0, 'extranjeros': 0, 'sin_clasificar': 0, 'total': 0},
         }
+
+
+def obtener_segmentacion_geografica() -> dict:
+    """Retorna la segmentación geográfica reutilizable para dashboard, estadísticas y reportes."""
+    return _obtener_estadistica_origen_geografico()
 
 
 def obtener_kpis() -> dict:

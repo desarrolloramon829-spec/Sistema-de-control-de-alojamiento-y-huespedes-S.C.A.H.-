@@ -12,6 +12,7 @@ from web.services.import_service import (
     importar_datos_v1, importar_datos_v2,
     obtener_hoteles_activos
 )
+from utils.geography import obtener_sugerencias_nacionalidad, obtener_sugerencias_procedencia
 
 imports_bp = Blueprint('imports', __name__, url_prefix='/importar')
 
@@ -20,6 +21,13 @@ ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
 
 def _allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _contexto_geo_importacion() -> dict:
+    return {
+        'nacionalidades_sugeridas': obtener_sugerencias_nacionalidad()[1:10],
+        'procedencias_sugeridas': obtener_sugerencias_procedencia()[1:12],
+    }
 
 
 @imports_bp.route('/')
@@ -43,7 +51,7 @@ def importar_v1():
         elif action == 'import':
             return _ejecutar_import_v1()
 
-    return render_template('imports/v1.html', preview=None)
+    return render_template('imports/v1.html', preview=None, **_contexto_geo_importacion())
 
 
 @imports_bp.route('/v2', methods=['GET', 'POST'])
@@ -61,7 +69,7 @@ def importar_v2():
         elif action == 'import':
             return _ejecutar_import_v2(hoteles)
 
-    return render_template('imports/v2.html', preview=None, hoteles=hoteles)
+    return render_template('imports/v2.html', preview=None, hoteles=hoteles, **_contexto_geo_importacion())
 
 
 def _guardar_archivos_temporales(files) -> list:
@@ -93,19 +101,19 @@ def _preview_v1():
     files = request.files.getlist('archivos')
     if not files or not files[0].filename:
         flash('Seleccione al menos un archivo Excel.', 'warning')
-        return render_template('imports/v1.html', preview=None)
+        return render_template('imports/v1.html', preview=None, **_contexto_geo_importacion())
 
     rutas = _guardar_archivos_temporales(files)
     if not rutas:
         flash('No se encontraron archivos Excel válidos.', 'warning')
-        return render_template('imports/v1.html', preview=None)
+        return render_template('imports/v1.html', preview=None, **_contexto_geo_importacion())
 
     result = procesar_archivos_v1(rutas)
 
     # Guardar rutas en sesión para import posterior
     session['import_v1_files'] = rutas
 
-    return render_template('imports/v1.html', preview=result)
+    return render_template('imports/v1.html', preview=result, **_contexto_geo_importacion())
 
 
 def _ejecutar_import_v1():
@@ -131,17 +139,17 @@ def _preview_v2(hoteles):
     files = request.files.getlist('archivos')
     if not files or not files[0].filename:
         flash('Seleccione al menos un archivo Excel.', 'warning')
-        return render_template('imports/v2.html', preview=None, hoteles=hoteles)
+        return render_template('imports/v2.html', preview=None, hoteles=hoteles, **_contexto_geo_importacion())
 
     rutas = _guardar_archivos_temporales(files)
     if not rutas:
         flash('No se encontraron archivos Excel válidos.', 'warning')
-        return render_template('imports/v2.html', preview=None, hoteles=hoteles)
+        return render_template('imports/v2.html', preview=None, hoteles=hoteles, **_contexto_geo_importacion())
 
     result = procesar_archivos_v2(rutas)
     session['import_v2_files'] = rutas
 
-    return render_template('imports/v2.html', preview=result, hoteles=hoteles)
+    return render_template('imports/v2.html', preview=result, hoteles=hoteles, **_contexto_geo_importacion())
 
 
 def _ejecutar_import_v2(hoteles):

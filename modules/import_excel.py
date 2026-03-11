@@ -8,6 +8,7 @@ import customtkinter as ctk
 from tkinter import filedialog
 from openpyxl import load_workbook
 from datetime import datetime
+from utils.geography import normalizar_huesped_geografia
 
 try:
     import xlrd
@@ -564,7 +565,7 @@ class ImportExcelModule(ctk.CTkFrame):
                     "fecha_entrada": fecha_entrada,
                     "fecha_salida": fecha_salida,
                 }
-                huespedes.append(huesped)
+                huespedes.append(normalizar_huesped_geografia(huesped))
 
             except Exception as e:
                 log_error(f"Error leyendo huésped en fila {fila}", e)

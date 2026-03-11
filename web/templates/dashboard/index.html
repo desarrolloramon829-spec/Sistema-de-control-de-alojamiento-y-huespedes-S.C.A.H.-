@@ -243,6 +243,54 @@ block content %}
         </div>
       </article>
 
+      <article class="panel-card">
+        <header class="panel-card__header compact">
+          <div>
+            <span class="section-kicker">Origen geográfico</span>
+            <h3>Argentinos y extranjeros</h3>
+          </div>
+          <a
+            href="{{ url_for('stats.index') }}"
+            class="btn btn-ghost-primary btn-sm"
+          >
+            Abrir análisis
+          </a>
+        </header>
+        <div class="panel-card__body px-3 pb-3">
+          <div class="backup-summary-grid mb-3">
+            <div class="backup-stat">
+              <span>Argentinos</span>
+              <strong>{{ geo.resumen.argentinos | default(0) }}</strong>
+            </div>
+            <div class="backup-stat">
+              <span>Extranjeros</span>
+              <strong>{{ geo.resumen.extranjeros | default(0) }}</strong>
+            </div>
+            <div class="backup-stat">
+              <span>Sin clasificar</span>
+              <strong>{{ geo.resumen.sin_clasificar | default(0) }}</strong>
+            </div>
+          </div>
+
+          <div class="alerts-type-list">
+            <div class="alerts-type-item">
+              <div>
+                <strong>{{ geo.series.argentinos.labels[0] if geo.series.argentinos.labels else 'Sin provincia líder' }}</strong>
+                <small>Provincia argentina con más registros</small>
+              </div>
+              <span class="city-list__value">{{ geo.series.argentinos.values[0] if geo.series.argentinos.values else 0 }}</span>
+            </div>
+            <div class="alerts-type-item">
+              <div>
+                <strong>{{ geo.series.extranjeros.labels[0] if geo.series.extranjeros.labels else 'Sin continente líder' }}</strong>
+                <small>Continente extranjero con más registros</small>
+              </div>
+              <span class="city-list__value">{{ geo.series.extranjeros.values[0] if geo.series.extranjeros.values else 0 }}</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
       {% if alert_metrics %}
       <article class="panel-card">
         <header class="panel-card__header compact">

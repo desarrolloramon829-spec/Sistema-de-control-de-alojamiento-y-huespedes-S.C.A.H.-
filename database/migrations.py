@@ -7,6 +7,7 @@ import bcrypt
 from database.connection import db
 from database.models import ALL_TABLES, SQL_CREATE_INDICES
 from config import DEFAULT_ADMIN
+from utils.geography import normalizar_historico_huespedes
 from utils.logger import log_info, log_error
 
 
@@ -62,6 +63,7 @@ def ejecutar_migraciones():
         migrar_v1_1()
         migrar_v1_2()
         migrar_v1_3()
+        migrar_v1_4()
 
         return True
 
@@ -508,6 +510,30 @@ def migrar_v1_3():
     except Exception as e:
         conn.rollback()
         log_error("Error durante migración v1.3", e)
+        return False
+    finally:
+        db.liberar_conexion(conn)
+
+
+def migrar_v1_4():
+    """Migración v1.4: normaliza nacionalidad y procedencia históricas."""
+    log_info("Ejecutando migración v1.4 (normalización geográfica)...")
+
+    conn = db.obtener_conexion()
+    if not conn:
+        log_error("No se pudo obtener conexión para migración v1.4")
+        return False
+
+    try:
+        resultado = normalizar_historico_huespedes(conn)
+        conn.commit()
+        log_info(
+            f"Migración v1.4 completada: {resultado['actualizados']} huéspedes normalizados de {resultado['total']}"
+        )
+        return True
+    except Exception as e:
+        conn.rollback()
+        log_error("Error durante migración v1.4", e)
         return False
     finally:
         db.liberar_conexion(conn)

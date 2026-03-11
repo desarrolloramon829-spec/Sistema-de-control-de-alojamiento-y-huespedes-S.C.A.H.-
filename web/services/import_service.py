@@ -20,6 +20,7 @@ from web.services.alert_service import (
 )
 from utils.validators import (validar_fecha, validar_edad, validar_telefono,
                                validar_habitacion, sanitizar_texto)
+from utils.geography import normalizar_huesped_geografia
 from utils.formatters import formato_fecha
 from utils.logger import log_info, log_error, Auditoria
 
@@ -253,7 +254,7 @@ def _leer_huespedes_v1(hoja, hotel_data: dict) -> list:
                 "fecha_entrada": fecha_entrada,
                 "fecha_salida": fecha_salida,
             }
-            huespedes.append(huesped)
+            huespedes.append(normalizar_huesped_geografia(huesped))
         except Exception as e:
             log_error(f"Error leyendo huésped en fila {fila}", e)
 
@@ -369,7 +370,7 @@ def _leer_huespedes_v2(hoja, mapeo: dict, nombre_archivo: str, hoja_nombre: str)
                     if "movilidad" in mapeo else "",
                 "telefono": telefono,
             }
-            huespedes.append(huesped)
+            huespedes.append(normalizar_huesped_geografia(huesped))
         except Exception as e:
             log_error(f"Error leyendo huésped fila {fila} de {nombre_archivo}", e)
 

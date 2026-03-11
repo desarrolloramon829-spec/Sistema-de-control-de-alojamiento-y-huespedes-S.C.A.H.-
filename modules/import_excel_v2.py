@@ -16,6 +16,7 @@ from database.connection import db
 from ui.themes import COLORS, obtener_fuente
 from ui.components import TablaScrollable, BarraProgreso, InputConLabel
 from ui.dialogs import mostrar_exito, mostrar_error, mostrar_advertencia, confirmar
+from utils.geography import normalizar_huesped_geografia
 from utils.validators import (validar_fecha, validar_edad, validar_telefono,
                                validar_habitacion, sanitizar_texto)
 from utils.formatters import formato_fecha
@@ -552,7 +553,7 @@ class ImportExcelV2Module(ctk.CTkFrame):
                         if "movilidad" in mapeo else "",
                     "telefono": telefono,
                 }
-                huespedes.append(huesped)
+                huespedes.append(normalizar_huesped_geografia(huesped))
 
             except Exception as e:
                 log_error(f"Error leyendo huésped en fila {fila} de {nombre_archivo}", e)

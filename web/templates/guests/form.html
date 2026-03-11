@@ -109,12 +109,12 @@
                     <div class="row g-3 mt-1">
                         <div class="col-12 col-md-4">
                             <label class="form-label form-label-ops">Nacionalidad</label>
-                            <input type="text" class="form-control" name="nacionalidad"
+                            <input type="text" class="form-control" name="nacionalidad" list="nacionalidadesSugeridas"
                                    value="{{ datos.get('nacionalidad', '') }}" placeholder="Argentina o país de origen">
                         </div>
                         <div class="col-12 col-md-4">
                             <label class="form-label form-label-ops">Procedencia</label>
-                            <input type="text" class="form-control" name="procedencia"
+                            <input type="text" class="form-control" name="procedencia" list="procedenciasSugeridas"
                                    value="{{ datos.get('procedencia', '') }}" placeholder="Provincia, ciudad o país de procedencia">
                         </div>
                         <div class="col-12 col-md-4">
@@ -123,6 +123,17 @@
                                    value="{{ datos.get('profesion', '') }}" placeholder="Comerciante">
                         </div>
                     </div>
+                    <datalist id="nacionalidadesSugeridas">
+                        {% for item in nacionalidades_sugeridas %}
+                        <option value="{{ item }}"></option>
+                        {% endfor %}
+                    </datalist>
+                    <datalist id="procedenciasSugeridas">
+                        {% for item in procedencias_sugeridas %}
+                        <option value="{{ item }}"></option>
+                        {% endfor %}
+                    </datalist>
+                    <div class="form-text mt-2">Use valores sugeridos para que la clasificación automática reconozca provincias argentinas y países válidos.</div>
                     </div>
 
                     <div class="form-section-block mb-4" id="seccion-fechas">

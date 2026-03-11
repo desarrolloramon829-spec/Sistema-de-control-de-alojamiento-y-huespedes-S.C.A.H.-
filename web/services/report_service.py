@@ -11,6 +11,7 @@ from datetime import datetime
 from database.connection import db
 from utils.logger import log_info, log_error
 from utils.formatters import formato_nombre_archivo
+from web.services.stats_service import obtener_segmentacion_geografica
 
 
 def obtener_datos_reporte(tipo: str, params: dict = None) -> tuple[list, str]:
@@ -26,6 +27,8 @@ def obtener_datos_reporte(tipo: str, params: dict = None) -> tuple[list, str]:
         return _reporte_por_fechas(params.get("desde"), params.get("hasta"))
     elif tipo == "estadistico":
         return _reporte_estadistico()
+    elif tipo == "geografico":
+        return _reporte_geografico()
     elif tipo == "importaciones":
         return _reporte_importaciones()
     elif tipo == "auditoria":
@@ -105,6 +108,51 @@ def _reporte_estadistico():
                 })
 
     return datos_combinados, "Reporte Estadístico"
+
+
+def _reporte_geografico():
+    data = obtener_segmentacion_geografica()
+    datos = []
+
+    resumen = data.get('resumen', {})
+    datos.extend([
+        {
+            'segmento': 'Resumen general',
+            'agrupacion': 'Argentinos',
+            'detalle': 'Total clasificado como argentino',
+            'total': resumen.get('argentinos', 0),
+        },
+        {
+            'segmento': 'Resumen general',
+            'agrupacion': 'Extranjeros',
+            'detalle': 'Total clasificado como extranjero',
+            'total': resumen.get('extranjeros', 0),
+        },
+        {
+            'segmento': 'Resumen general',
+            'agrupacion': 'Sin clasificar',
+            'detalle': 'Registros sin datos suficientes o no reconocidos',
+            'total': resumen.get('sin_clasificar', 0),
+        },
+    ])
+
+    for label, value in zip(data.get('series', {}).get('argentinos', {}).get('labels', []), data.get('series', {}).get('argentinos', {}).get('values', [])):
+        datos.append({
+            'segmento': 'Argentinos',
+            'agrupacion': 'Provincia',
+            'detalle': label,
+            'total': value,
+        })
+
+    for label, value in zip(data.get('series', {}).get('extranjeros', {}).get('labels', []), data.get('series', {}).get('extranjeros', {}).get('values', [])):
+        datos.append({
+            'segmento': 'Extranjeros',
+            'agrupacion': 'Continente',
+            'detalle': label,
+            'total': value,
+        })
+
+    return datos, 'Reporte Geográfico de Huéspedes'
 
 
 def _reporte_importaciones():

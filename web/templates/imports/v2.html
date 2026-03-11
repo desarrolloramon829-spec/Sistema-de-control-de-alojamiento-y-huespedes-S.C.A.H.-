@@ -34,6 +34,11 @@
     </div>
   </header>
   <div class="panel-card__body px-3 pb-3">
+    <div class="alert alert-info border-0 mb-3">
+      La importación normaliza automáticamente Nacionalidad y Procedencia con un catálogo sugerido.
+      Nacionalidades ejemplo: {{ nacionalidades_sugeridas | join(', ') }}.
+      Procedencias ejemplo: {{ procedencias_sugeridas | join(', ') }}.
+    </div>
     <form
       method="POST"
       enctype="multipart/form-data"
