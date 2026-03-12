@@ -1817,6 +1817,18 @@ textarea {
   min-height: 44px;
 }
 
+.form-select option {
+  background: #f4f8fc;
+  color: #0f1b2d;
+}
+
+.form-select option:checked,
+.form-select option:hover,
+.form-select option:focus {
+  background: #d7ebff;
+  color: #081321;
+}
+
 .input-group-text {
   color: var(--text-secondary);
 }
