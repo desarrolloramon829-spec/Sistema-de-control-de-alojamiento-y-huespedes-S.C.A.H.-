@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'scah-static-v2';
-const RUNTIME_CACHE = 'scah-runtime-v2';
+const STATIC_CACHE = 'scah-static-v3';
+const RUNTIME_CACHE = 'scah-runtime-v3';
 const OFFLINE_URL = '/static/offline.html';
 const MODULE_FALLBACKS = {
   '/dashboard': '/static/offline-dashboard.html',

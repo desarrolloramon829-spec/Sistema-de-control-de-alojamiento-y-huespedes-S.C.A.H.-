@@ -26,6 +26,7 @@
   --radius-md: 14px;
   --topbar-height: 78px;
   --sidebar-width: 292px;
+  --sidebar-width-collapsed: 92px;
 }
 
 html,
@@ -268,6 +269,13 @@ textarea {
   box-shadow: none !important;
 }
 
+.sidebar-desktop-toggle {
+  width: 42px;
+  min-width: 42px;
+  padding-inline: 0;
+  justify-content: center;
+}
+
 .btn {
   border-radius: 14px;
   font-size: 0.92rem;
@@ -455,6 +463,10 @@ textarea {
     z-index: 1000;
     padding-top: 0.5rem;
   }
+
+  body.sidebar-collapsed .sidebar-offcanvas {
+    width: var(--sidebar-width-collapsed);
+  }
 }
 
 .sidebar-group-label {
@@ -525,6 +537,39 @@ textarea {
   position: absolute;
 }
 
+@media (min-width: 992px) {
+  body.sidebar-collapsed .sidebar-group-label,
+  body.sidebar-collapsed .sidebar-header .offcanvas-title,
+  body.sidebar-collapsed .sidebar-offcanvas .mobile-user-bar,
+  body.sidebar-collapsed .sidebar-offcanvas [data-install-pwa],
+  body.sidebar-collapsed .sidebar-nav .nav-link span,
+  body.sidebar-collapsed .sidebar-nav .nav-link small {
+    display: none !important;
+  }
+
+  body.sidebar-collapsed .sidebar-nav .nav-link {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    justify-items: center;
+    padding: 0.95rem 0.75rem;
+    margin-inline: 0.7rem;
+  }
+
+  body.sidebar-collapsed .sidebar-nav .nav-link i {
+    grid-row: auto;
+    font-size: 1.1rem;
+  }
+
+  body.sidebar-collapsed .sidebar-header {
+    justify-content: center;
+    padding-inline: 0.75rem;
+  }
+
+  body.sidebar-collapsed .sidebar-header .btn-close {
+    display: none;
+  }
+}
+
 .mobile-user-bar {
   color: var(--text-primary);
 }
@@ -534,6 +579,12 @@ textarea {
   margin-top: var(--topbar-height);
   min-height: calc(100vh - var(--topbar-height));
   padding: 1.25rem;
+}
+
+@media (min-width: 992px) {
+  body.sidebar-collapsed .main-content {
+    margin-left: var(--sidebar-width-collapsed);
+  }
 }
 
 .page-shell-header {
@@ -1224,6 +1275,22 @@ textarea {
   gap: 0.8rem;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.hero-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 54px;
+  padding: 0.85rem 1.2rem;
+  border-radius: 18px;
+  white-space: nowrap;
+  align-self: center;
+}
+
+.hero-action-btn i {
+  font-size: 1rem;
 }
 
 .compact-chip {

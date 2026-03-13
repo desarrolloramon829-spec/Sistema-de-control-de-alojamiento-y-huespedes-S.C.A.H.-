@@ -8,7 +8,7 @@ import os
 # Agregar raíz del proyecto al path para acceder a database/, config, etc.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, url_for
 from web.config import config as app_config
 from config import ALERT_NOTIFICATION_POLL_SECONDS
 
@@ -44,11 +44,21 @@ def create_app(config_name: str = None) -> Flask:
     @app.context_processor
     def inject_globals():
         from flask import session
+
+        def asset_url(filename: str) -> str:
+            asset_path = os.path.join(app.static_folder, filename)
+            try:
+                version = int(os.path.getmtime(asset_path))
+            except OSError:
+                version = 1
+            return url_for('static', filename=filename, v=version)
+
         return {
             'app_name': 'S.C.A.H.',
             'app_version': '2.0 Web',
             'current_user': session.get('user'),
             'alert_poll_seconds': ALERT_NOTIFICATION_POLL_SECONDS,
+            'asset_url': asset_url,
         }
 
     return app

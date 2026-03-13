@@ -5,6 +5,63 @@
 document.addEventListener('DOMContentLoaded', function () {
   document.body.classList.add('is-loaded');
 
+  const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+  const sidebarStorageKey = 'scah-sidebar-collapsed';
+
+  function syncSidebarToggle(collapsed) {
+    if (!sidebarToggle) return;
+
+    const icon = sidebarToggle.querySelector('i');
+    sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+    sidebarToggle.setAttribute(
+      'aria-label',
+      collapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'
+    );
+    sidebarToggle.setAttribute(
+      'title',
+      collapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'
+    );
+
+    if (icon) {
+      icon.className = collapsed
+        ? 'bi bi-layout-sidebar'
+        : 'bi bi-layout-sidebar-inset';
+    }
+  }
+
+  function applySidebarState(collapsed) {
+    document.body.classList.toggle('sidebar-collapsed', collapsed);
+    syncSidebarToggle(collapsed);
+  }
+
+  const savedSidebarState = window.localStorage.getItem(sidebarStorageKey);
+  if (window.innerWidth >= 992 && savedSidebarState === 'true') {
+    applySidebarState(true);
+  } else {
+    syncSidebarToggle(false);
+  }
+
+  if (sidebarToggle) {
+    sidebarToggle.addEventListener('click', function () {
+      if (window.innerWidth < 992) return;
+      const collapsed = !document.body.classList.contains('sidebar-collapsed');
+      applySidebarState(collapsed);
+      window.localStorage.setItem(sidebarStorageKey, String(collapsed));
+    });
+  }
+
+  window.addEventListener('resize', function () {
+    if (window.innerWidth < 992) {
+      document.body.classList.remove('sidebar-collapsed');
+      syncSidebarToggle(false);
+      return;
+    }
+
+    applySidebarState(
+      window.localStorage.getItem(sidebarStorageKey) === 'true'
+    );
+  });
+
   document.querySelectorAll('.fade-up').forEach(function (element, index) {
     const delay = Math.min(index * 45, 320);
     element.style.transitionDelay = `${delay}ms`;

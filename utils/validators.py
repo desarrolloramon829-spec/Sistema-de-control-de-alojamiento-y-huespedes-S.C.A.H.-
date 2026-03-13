@@ -10,26 +10,35 @@ from config import DATE_FORMATS
 
 def validar_dni(valor: str) -> tuple[bool, str]:
     """
-    Valida un DNI argentino (7-8 dígitos) o pasaporte.
+    Valida un documento de forma flexible.
     Retorna (es_valido, mensaje_error).
     """
     if not valor or not valor.strip():
         return False, "DNI/Pasaporte es obligatorio"
 
-    valor = valor.strip().replace(".", "").replace("-", "").replace(" ", "")
+    valor_limpio = sanitizar_texto(valor)
 
-    # DNI argentino: 7(viejos)-8 dígitos
-    if valor.isdigit():
-        if 7 <= len(valor) <= 8:
-            return True, ""
-        else:
-            return False, "El DNI debe tener entre 7 y 8 dígitos"
+    if len(valor_limpio) > 50:
+        return False, "DNI/Pasaporte no debe exceder 50 caracteres"
 
-    # Pasaporte: letras y números, entre 5 y 15 caracteres
-    if re.match(r'^[A-Za-z0-9]{5,15}$', valor):
-        return True, ""
+    if not re.match(r'^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ\s\.\-_/()]+$', valor_limpio):
+        return False, "DNI/Pasaporte contiene caracteres no permitidos"
 
-    return False, "Formato de DNI/Pasaporte inválido"
+    return True, ""
+
+
+def normalizar_documento_guardado(valor: str) -> str:
+    """Normaliza el documento para almacenamiento sin perder formatos mixtos."""
+    if not valor:
+        return ""
+
+    valor_limpio = sanitizar_texto(valor)
+    solo_digitos = re.sub(r'[\.\-\s]', '', valor_limpio)
+
+    if solo_digitos and solo_digitos.isdigit() and re.fullmatch(r'[\d\.\-\s]+', valor_limpio):
+        return solo_digitos
+
+    return valor_limpio
 
 
 def validar_fecha(valor, permite_vacio: bool = False) -> tuple[bool, str, date | None]:

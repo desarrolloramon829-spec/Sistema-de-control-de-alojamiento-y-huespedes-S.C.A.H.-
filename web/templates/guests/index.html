@@ -17,7 +17,7 @@
             <strong>{{ total }}</strong>
         </div>
         {% if current_user and current_user.rol in ('admin', 'operador') %}
-        <a href="{{ url_for('guests.nuevo') }}" class="btn btn-primary">
+        <a href="{{ url_for('guests.nuevo') }}" class="btn btn-primary hero-action-btn">
             <i class="bi bi-plus-circle"></i> Cargar huésped
         </a>
         {% endif %}

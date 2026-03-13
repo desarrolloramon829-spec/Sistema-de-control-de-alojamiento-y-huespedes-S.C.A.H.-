@@ -10,7 +10,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from database.connection import db
 from utils.validators import (validar_dni, validar_fecha, validar_texto_obligatorio,
                                validar_edad, validar_fechas_estadia, calcular_edad,
-                               sanitizar_texto, validar_telefono, validar_habitacion)
+                               sanitizar_texto, validar_telefono, validar_habitacion,
+                               normalizar_documento_guardado)
 from utils.geography import normalizar_campos_geograficos
 from utils.formatters import formato_fecha, formato_dni
 from utils.logger import log_info, log_error, Auditoria
@@ -359,11 +360,13 @@ def verificar_duplicado_dni(dni: str) -> list:
     if not dni:
         return []
     try:
+        dni_normalizado = _normalizar_documento(normalizar_documento_guardado(dni))
         resultado = db.ejecutar_query(
             "SELECT h.apellido_nombre, ht.nombre as hotel "
             "FROM huespedes h JOIN hoteles ht ON h.hotel_id = ht.id "
-            "WHERE h.dni_pasaporte = %s ORDER BY h.fecha_entrada DESC LIMIT 3",
-            (dni.replace(".", "").replace("-", ""),),
+            "WHERE regexp_replace(upper(COALESCE(h.dni_pasaporte, '')), '[^A-Z0-9]', '', 'g') = %s "
+            "ORDER BY h.fecha_entrada DESC LIMIT 3",
+            (dni_normalizado,),
             fetch=True
         )
         return resultado if resultado else []
@@ -491,7 +494,7 @@ def crear_huesped(datos: dict, usuario_id: int) -> tuple[bool, str, int | None]:
             nacionalidad,
             procedencia,
             sanitizar_texto(datos.get("apellido_nombre", "")),
-            sanitizar_texto(datos.get("dni_pasaporte", "").replace(".", "").replace("-", "")),
+            normalizar_documento_guardado(datos.get("dni_pasaporte", "")),
             fecha_nac,
             edad,
             sanitizar_texto(datos.get("profesion", "")),
@@ -565,7 +568,7 @@ def actualizar_huesped(huesped_id: int, datos: dict, usuario_id: int) -> tuple[b
             nacionalidad,
             procedencia,
             sanitizar_texto(datos.get("apellido_nombre", "")),
-            sanitizar_texto(datos.get("dni_pasaporte", "").replace(".", "").replace("-", "")),
+            normalizar_documento_guardado(datos.get("dni_pasaporte", "")),
             fecha_nac,
             edad,
             sanitizar_texto(datos.get("profesion", "")),

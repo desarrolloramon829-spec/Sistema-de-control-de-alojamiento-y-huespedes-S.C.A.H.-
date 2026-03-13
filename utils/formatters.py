@@ -29,14 +29,15 @@ def formato_dni(dni: str) -> str:
     """Formatea un DNI argentino con puntos separadores."""
     if not dni:
         return ""
-    dni = str(dni).strip().replace(".", "").replace("-", "").replace(" ", "")
-    if dni.isdigit() and len(dni) >= 7:
+    dni_str = str(dni).strip()
+    dni_numerico = dni_str.replace(".", "").replace("-", "").replace(" ", "")
+    if dni_numerico.isdigit() and len(dni_numerico) >= 7:
         # Formato: XX.XXX.XXX
-        if len(dni) == 8:
-            return f"{dni[:2]}.{dni[2:5]}.{dni[5:]}"
-        elif len(dni) == 7:
-            return f"{dni[0]}.{dni[1:4]}.{dni[4:]}"
-    return dni
+        if len(dni_numerico) == 8:
+            return f"{dni_numerico[:2]}.{dni_numerico[2:5]}.{dni_numerico[5:]}"
+        elif len(dni_numerico) == 7:
+            return f"{dni_numerico[0]}.{dni_numerico[1:4]}.{dni_numerico[4:]}"
+    return dni_str
 
 
 def formato_edad(edad) -> str:
