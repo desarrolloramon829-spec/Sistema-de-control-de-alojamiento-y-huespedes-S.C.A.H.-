@@ -704,11 +704,30 @@ def obtener_hoteles_activos() -> list:
 # ── Funciones auxiliares internas ─────────────────────────────
 
 def _obtener_o_crear_hotel(cursor, hotel_data: dict, usuario_id: int) -> int:
+    """Obtiene el ID de un hotel existente o lo crea.
+    Si ya existe, actualiza campos vacíos con datos del Excel."""
     nombre = hotel_data.get("nombre", "Sin nombre")
     cursor.execute("SELECT id FROM hoteles WHERE LOWER(nombre) = LOWER(%s)", (nombre,))
     resultado = cursor.fetchone()
     if resultado:
-        return resultado[0]
+        hotel_id = resultado[0]
+        # Actualizar campos vacíos del hotel con datos del Excel
+        updates = []
+        params = []
+        for campo_db, campo_data in [("direccion", "direccion"),
+                                      ("ciudad_localidad", "ciudad"),
+                                      ("nro_orden", "nro_orden")]:
+            valor = hotel_data.get(campo_data, "")
+            if valor:
+                updates.append(f"{campo_db} = COALESCE(NULLIF({campo_db}, ''), %s)")
+                params.append(valor)
+        if updates:
+            params.append(hotel_id)
+            cursor.execute(
+                f"UPDATE hoteles SET {', '.join(updates)} WHERE id = %s",
+                tuple(params)
+            )
+        return hotel_id
     cursor.execute("""
         INSERT INTO hoteles (nombre, nro_orden, direccion, ciudad_localidad, usuario_registro_id)
         VALUES (%s,%s,%s,%s,%s) RETURNING id

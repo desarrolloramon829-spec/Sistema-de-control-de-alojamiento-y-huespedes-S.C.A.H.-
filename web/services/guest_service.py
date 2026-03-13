@@ -186,9 +186,9 @@ def busqueda_avanzada(filtros: dict, page: int = 1, per_page: int = DEFAULT_PAGE
     """
     params = []
 
-    if filtros.get("hotel"):
-        query += " AND ht.nombre = %s"
-        params.append(filtros["hotel"])
+    if filtros.get("hotel_id"):
+        query += " AND h.hotel_id = %s"
+        params.append(int(filtros["hotel_id"]))
 
     if filtros.get("ciudad"):
         query += " AND ht.ciudad_localidad = %s"

@@ -80,12 +80,20 @@ h.activo %}{% set ns.activos = ns.activos + 1 %}{% endif %}{% endfor %}
         <strong>{{ h.ciudad_localidad or '-' }}</strong>
       </div>
       <div>
-        <span>Huéspedes</span>
-        <strong>{{ h.num_huespedes }}</strong>
+        <span>Total Huéspedes</span>
+        <strong>{{ h.total_huespedes }}</strong>
       </div>
       <div class="hotel-card__address">
         <span>Dirección</span>
         <strong>{{ h.direccion or '-' }}</strong>
+      </div>
+      <div class="hotel-card__address">
+        <span>Carga reciente</span>
+        <div class="d-flex align-items-center gap-2 mt-2">
+            <span class="status-pill muted small-pill">Hoy: <strong>{{ h.huespedes_dia or 0 }}</strong></span>
+            <span class="status-pill muted small-pill">7d: <strong>{{ h.huespedes_semana or 0 }}</strong></span>
+            <span class="status-pill muted small-pill">Mes: <strong>{{ h.huespedes_mes or 0 }}</strong></span>
+        </div>
       </div>
     </div>
 

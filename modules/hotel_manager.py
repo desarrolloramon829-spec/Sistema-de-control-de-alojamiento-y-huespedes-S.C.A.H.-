@@ -101,7 +101,8 @@ class HotelManagerModule(ctk.CTkFrame):
             query = """
                 SELECT h.id, h.nombre, h.categoria, h.nro_orden, h.direccion,
                        h.telefono, h.ciudad_localidad,
-                       h.activo, COUNT(hu.id) as total_huespedes
+                       h.activo,
+                       COUNT(hu.id) as total_huespedes
                 FROM hoteles h
                 LEFT JOIN huespedes hu ON h.id = hu.hotel_id
             """

@@ -18,7 +18,11 @@ def listar_hoteles(filtro: str = None) -> list:
         query = """
             SELECT h.id, h.nombre, h.categoria, h.nro_orden, h.direccion,
                    h.telefono, h.ciudad_localidad,
-                   h.activo, COUNT(hu.id) as total_huespedes
+                   h.activo,
+                   COUNT(hu.id) as total_huespedes,
+                   SUM(CASE WHEN hu.fecha_entrada >= CURRENT_DATE - INTERVAL '1 day' THEN 1 ELSE 0 END) as huespedes_dia,
+                   SUM(CASE WHEN hu.fecha_entrada >= CURRENT_DATE - INTERVAL '7 days' THEN 1 ELSE 0 END) as huespedes_semana,
+                   SUM(CASE WHEN hu.fecha_entrada >= CURRENT_DATE - INTERVAL '30 days' THEN 1 ELSE 0 END) as huespedes_mes
             FROM hoteles h
             LEFT JOIN huespedes hu ON h.id = hu.hotel_id
         """

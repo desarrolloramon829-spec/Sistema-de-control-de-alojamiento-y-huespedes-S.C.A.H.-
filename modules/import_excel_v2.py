@@ -705,6 +705,11 @@ class ImportExcelV2Module(ctk.CTkFrame):
             log_info(f"Importación Excel V2: {importados} importados, "
                      f"{duplicados} duplicados, {errores} errores")
 
+            # Refrescar lista de hoteles para el combo
+            self._cargar_hoteles()
+            nombres_hoteles = [h["nombre"] for h in self.hoteles] if self.hoteles else []
+            self.input_hotel.entry.configure(values=[""] + nombres_hoteles)
+
         except Exception as e:
             log_error("Error general en importación V2", e)
             mostrar_error(self, "Error de importación",

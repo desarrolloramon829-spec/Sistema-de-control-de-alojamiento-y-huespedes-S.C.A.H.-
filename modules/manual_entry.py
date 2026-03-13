@@ -538,6 +538,12 @@ class ManualEntryModule(ctk.CTkFrame):
             mostrar_exito(self, "Registro exitoso",
                           f"Huésped '{self.input_nombre.get()}' registrado correctamente.")
 
+            # Refrescar lista de hoteles si se creó uno nuevo
+            if self.check_nuevo.get():
+                self._cargar_hoteles()
+                nombres_hoteles = [h["nombre"] for h in self.hoteles] if self.hoteles else []
+                self.input_hotel.entry.configure(values=[""] + nombres_hoteles)
+
             return True
 
         except Exception as e:
