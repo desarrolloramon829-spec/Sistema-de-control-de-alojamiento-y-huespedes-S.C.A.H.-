@@ -67,7 +67,8 @@ def index():
     filtros = {}
     for campo in ['apellido_nombre', 'dni_pasaporte', 'nacionalidad', 'procedencia',
                    'profesion', 'hotel_id', 'fecha_desde', 'fecha_hasta',
-                   'edad_min', 'edad_max', 'origen_carga', 'destino', 'movilidad']:
+                   'edad_min', 'edad_max', 'origen_carga', 'destino', 'movilidad',
+                   'habitacion', 'telefono', 'ciudad']:
         val = request.args.get(campo, '').strip()
         if val:
             filtros[campo] = val

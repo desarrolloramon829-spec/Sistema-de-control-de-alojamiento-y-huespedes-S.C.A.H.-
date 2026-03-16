@@ -186,21 +186,26 @@ def busqueda_avanzada(filtros: dict, page: int = 1, per_page: int = DEFAULT_PAGE
     """
     params = []
 
+    if filtros.get("apellido_nombre"):
+        query += " AND h.apellido_nombre ILIKE %s"
+        params.append(f"%{filtros['apellido_nombre']}%")
+
     if filtros.get("hotel_id"):
         query += " AND h.hotel_id = %s"
         params.append(int(filtros["hotel_id"]))
 
     if filtros.get("ciudad"):
-        query += " AND ht.ciudad_localidad = %s"
-        params.append(filtros["ciudad"])
+        query += " AND ht.ciudad_localidad ILIKE %s"
+        params.append(f"%{filtros['ciudad']}%")
 
     if filtros.get("nacionalidad"):
         query += " AND h.nacionalidad ILIKE %s"
         params.append(f"%{filtros['nacionalidad']}%")
 
-    if filtros.get("dni"):
+    dni_val = filtros.get("dni_pasaporte") or filtros.get("dni")
+    if dni_val:
         query += " AND h.dni_pasaporte ILIKE %s"
-        params.append(f"%{filtros['dni']}%")
+        params.append(f"%{dni_val}%")
 
     if filtros.get("profesion"):
         query += " AND h.profesion ILIKE %s"
@@ -243,6 +248,14 @@ def busqueda_avanzada(filtros: dict, page: int = 1, per_page: int = DEFAULT_PAGE
     if filtros.get("destino"):
         query += " AND h.destino ILIKE %s"
         params.append(f"%{filtros['destino']}%")
+        
+    if filtros.get("movilidad"):
+        query += " AND h.movilidad ILIKE %s"
+        params.append(f"%{filtros['movilidad']}%")
+
+    if filtros.get("origen_carga"):
+        query += " AND h.origen_carga ILIKE %s"
+        params.append(f"%{filtros['origen_carga']}%")
 
     if filtros.get("telefono"):
         query += " AND h.telefono ILIKE %s"
