@@ -28,8 +28,10 @@ def nuevo():
     if request.method == 'POST':
         datos = {
             'nombre': request.form.get('nombre', ''),
+            'categoria': request.form.get('categoria', ''),
             'nro_orden': request.form.get('nro_orden', ''),
             'direccion': request.form.get('direccion', ''),
+            'telefono': request.form.get('telefono', ''),
             'ciudad_localidad': request.form.get('ciudad_localidad', ''),
         }
         usuario_id = session['user']['id']
@@ -55,8 +57,10 @@ def editar(hotel_id):
     if request.method == 'POST':
         datos = {
             'nombre': request.form.get('nombre', ''),
+            'categoria': request.form.get('categoria', ''),
             'nro_orden': request.form.get('nro_orden', ''),
             'direccion': request.form.get('direccion', ''),
+            'telefono': request.form.get('telefono', ''),
             'ciudad_localidad': request.form.get('ciudad_localidad', ''),
         }
         ok, msg = actualizar_hotel(hotel_id, datos)

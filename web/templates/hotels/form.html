@@ -61,6 +61,16 @@
                   value="{{ datos.get('nro_orden', '') if datos is mapping else datos.nro_orden if datos else '' }}"
                 />
               </div>
+              <div class="col-12">
+                <label class="form-label form-label-ops">Categoría</label>
+                <input
+                  type="text"
+                  name="categoria"
+                  class="form-control"
+                  placeholder="Ej: HOTEL 5*, HOSTEL, CABAÑA..."
+                  value="{{ datos.get('categoria', '') if datos is mapping else datos.categoria if datos else '' }}"
+                />
+              </div>
             </div>
           </div>
           <div class="form-section-block mb-4" id="seccion-ubicacion-hotel">
@@ -84,6 +94,15 @@
                   name="direccion"
                   class="form-control"
                   value="{{ datos.get('direccion', '') if datos is mapping else datos.direccion if datos else '' }}"
+                />
+              </div>
+              <div class="col-12">
+                <label class="form-label form-label-ops">Teléfono</label>
+                <input
+                  type="text"
+                  name="telefono"
+                  class="form-control"
+                  value="{{ datos.get('telefono', '') if datos is mapping else datos.telefono if datos else '' }}"
                 />
               </div>
             </div>
