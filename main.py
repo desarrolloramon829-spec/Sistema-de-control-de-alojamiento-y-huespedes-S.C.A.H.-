@@ -7,6 +7,9 @@ Ejecutar: python main.py
 
 import sys
 import os
+import threading
+import traceback
+from datetime import datetime
 
 # Forzar encoding UTF-8 en la consola de Windows
 if sys.platform == "win32":
@@ -24,6 +27,47 @@ from tkinter import messagebox
 
 from config import APP_NAME, APP_VERSION
 from utils.logger import log_info, log_error
+
+
+CRASH_LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "crash_log.txt")
+
+
+def registrar_crash(origen, exc_type, exc_value, exc_traceback):
+    """Guarda un reporte simple de crash para diagnosticar cierres inesperados."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    detalle = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+
+    try:
+        with open(CRASH_LOG_PATH, "a", encoding="utf-8") as crash_file:
+            crash_file.write(f"\n=== {timestamp} | {origen} ===\n")
+            crash_file.write(detalle)
+            crash_file.write("\n")
+    except Exception as log_exc:
+        print(f"[WARN] No se pudo escribir crash_log.txt: {log_exc}")
+
+
+def instalar_handlers_globales():
+    """Instala handlers para capturar excepciones fuera del ciclo principal de Tk."""
+    def _handle_exception(exc_type, exc_value, exc_traceback):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+
+        log_error("Excepcion no controlada", exc_value)
+        registrar_crash("sys.excepthook", exc_type, exc_value, exc_traceback)
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+
+    def _handle_thread_exception(args):
+        log_error(f"Excepcion no controlada en hilo '{args.thread.name}'", args.exc_value)
+        registrar_crash(
+            f"threading.excepthook:{args.thread.name}",
+            args.exc_type,
+            args.exc_value,
+            args.exc_traceback,
+        )
+
+    sys.excepthook = _handle_exception
+    threading.excepthook = _handle_thread_exception
 
 
 def inicializar_sistema():
@@ -97,6 +141,7 @@ def main():
     """Funcion principal de la aplicacion."""
     # Crear directorio de logs si no existe
     os.makedirs("logs", exist_ok=True)
+    instalar_handlers_globales()
 
     # Configuracion de CustomTkinter
     ctk.set_appearance_mode("dark")
@@ -122,10 +167,16 @@ def main():
     root = ctk.CTk()
     root.withdraw()
 
+    def on_root_close():
+        log_info("Cierre solicitado sobre la ventana principal")
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", on_root_close)
+
     # Capturar excepciones no manejadas en Tkinter
     def handle_tk_exception(exc, val, tb):
-        import traceback
         log_error(f"Error no manejado en UI: {val}")
+        registrar_crash("tkinter.callback", exc, val, tb)
         traceback.print_exception(exc, val, tb)
 
     root.report_callback_exception = handle_tk_exception

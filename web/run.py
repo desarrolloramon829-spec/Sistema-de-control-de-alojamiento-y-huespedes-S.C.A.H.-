@@ -13,12 +13,17 @@ if ROOT_DIR not in sys.path:
 
 from web.app import create_app
 
-app = create_app(os.environ.get('FLASK_ENV', 'development'))
+FLASK_ENV = os.environ.get('FLASK_ENV', 'production')
+
+app = create_app(FLASK_ENV)
 
 if __name__ == '__main__':
     host = os.environ.get('FLASK_HOST', '0.0.0.0')
     port = int(os.environ.get('FLASK_PORT', 5000))
-    debug = os.environ.get('FLASK_ENV', 'development') == 'development'
+    debug = FLASK_ENV == 'development'
+    use_reloader = debug and os.environ.get('SCAH_WEB_RELOAD', '0').lower() in {
+        '1', 'true', 'yes', 'on'
+    }
 
     print(f"""
 ╔══════════════════════════════════════════════╗
@@ -28,7 +33,8 @@ if __name__ == '__main__':
 ║  >>> http://localhost:{port}                    ║
 ║                                              ║
 ║  Usuario: admin  Contraseña: admin123        ║
+║  Modo debug: {'ACTIVO' if debug else 'DESACTIVADO':<28}║
 ╚══════════════════════════════════════════════╝
     """)
 
-    app.run(host=host, port=port, debug=debug)
+    app.run(host=host, port=port, debug=debug, use_reloader=use_reloader)
