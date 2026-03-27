@@ -2,13 +2,17 @@
 S.C.A.H. Web - Rutas de Hoteles.
 """
 
+import io
+from datetime import datetime
+
 from flask import (Blueprint, render_template, request, redirect,
-                   url_for, flash, session)
+                   url_for, flash, session, send_file)
 from web.routes.decorators import login_required, permission_required
 from web.services.hotel_service import (
     listar_hoteles, obtener_hotel, crear_hotel,
-    actualizar_hotel, toggle_activo
+    actualizar_hotel, toggle_activo, obtener_hoteles_para_exportacion
 )
+from web.services.report_service import generar_pdf
 
 hotels_bp = Blueprint('hotels', __name__, url_prefix='/hoteles')
 
@@ -19,6 +23,32 @@ def index():
     filtro = request.args.get('q', '').strip()
     hoteles = listar_hoteles(filtro)
     return render_template('hotels/index.html', hoteles=hoteles, filtro=filtro)
+
+
+@hotels_bp.route('/descargar-pdf')
+@login_required
+def descargar_pdf():
+    datos = obtener_hoteles_para_exportacion()
+    if not datos:
+        flash('No se encontraron hoteles para exportar.', 'warning')
+        return redirect(url_for('hotels.index'))
+
+    contenido = generar_pdf(
+        datos,
+        'Listado de Hoteles',
+        columnas_mostrar=[
+            'nombre', 'categoria', 'direccion',
+            'telefono', 'ciudad_localidad'
+        ]
+    )
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    return send_file(
+        io.BytesIO(contenido),
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f'SCAH_hoteles_{timestamp}.pdf'
+    )
 
 
 @hotels_bp.route('/nuevo', methods=['GET', 'POST'])

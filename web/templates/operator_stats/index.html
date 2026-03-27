@@ -1,0 +1,633 @@
+{% extends "base.html" %}
+{% block title %}Control de Cargas - S.C.A.H.{% endblock %}
+{% block content %}
+
+<section class="module-hero mb-4">
+  <div>
+    <span class="section-kicker">Supervisión operativa</span>
+    <h2 class="module-hero__title">Control de cargas por operador</h2>
+    <p class="module-hero__subtitle mb-0">
+      Visualiza la actividad de carga de datos de cada operador y administrador: volumen, tipo de carga, calidad y tendencia temporal.
+    </p>
+  </div>
+  <div class="module-hero__actions">
+    <div class="shell-stat-chip compact-chip">
+      <span>Acceso</span>
+      <strong>Solo Admin</strong>
+    </div>
+    <div class="shell-stat-chip compact-chip">
+      <span>Fuentes</span>
+      <strong>Huéspedes &middot; Importaciones</strong>
+    </div>
+  </div>
+</section>
+
+<!-- Filtro de rango de fechas -->
+<section class="panel-card mb-3">
+  <header class="panel-card__header compact">
+    <div>
+      <span class="section-kicker">Período de análisis</span>
+      <h3>Filtrar por rango de fechas</h3>
+    </div>
+  </header>
+  <div class="panel-card__body px-3 pb-3">
+    <div class="d-flex flex-wrap align-items-end gap-3">
+      <div class="btn-group btn-group-sm" id="rangePresets">
+        <button class="btn btn-ghost-primary range-btn" data-dias="7">7 días</button>
+        <button class="btn btn-primary range-btn active" data-dias="30">30 días</button>
+        <button class="btn btn-ghost-primary range-btn" data-dias="90">90 días</button>
+        <button class="btn btn-ghost-primary range-btn" data-dias="0">Todo</button>
+      </div>
+      <div class="d-flex align-items-end gap-2">
+        <div>
+          <label class="form-label small mb-1">Desde</label>
+          <input type="date" class="form-control form-control-sm" id="fechaDesde" />
+        </div>
+        <div>
+          <label class="form-label small mb-1">Hasta</label>
+          <input type="date" class="form-control form-control-sm" id="fechaHasta" />
+        </div>
+        <button class="btn btn-sm btn-primary" id="btnFiltrar">
+          <i class="bi bi-funnel"></i> Filtrar
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- KPIs -->
+<section class="row g-3 mb-3" id="kpiSection">
+  <div class="col-6 col-xl-3">
+    <article class="metric-card metric-card-primary h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Total cargas</span>
+        <span class="metric-card__icon"><i class="bi bi-database-add"></i></span>
+      </div>
+      <strong class="metric-card__value" id="kpiTotal">0</strong>
+      <small class="metric-card__meta">Registros cargados en el período.</small>
+    </article>
+  </div>
+  <div class="col-6 col-xl-3">
+    <article class="metric-card metric-card-success h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Operadores activos</span>
+        <span class="metric-card__icon"><i class="bi bi-person-check"></i></span>
+      </div>
+      <strong class="metric-card__value" id="kpiOperadores">0</strong>
+      <small class="metric-card__meta">Usuarios con al menos una carga.</small>
+    </article>
+  </div>
+  <div class="col-6 col-xl-3">
+    <article class="metric-card metric-card-info h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Promedio diario</span>
+        <span class="metric-card__icon"><i class="bi bi-calendar-day"></i></span>
+      </div>
+      <strong class="metric-card__value" id="kpiPromedio">0</strong>
+      <small class="metric-card__meta">Cargas por día en promedio.</small>
+    </article>
+  </div>
+  <div class="col-6 col-xl-3">
+    <article class="metric-card metric-card-warning h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Tipo predominante</span>
+        <span class="metric-card__icon"><i class="bi bi-trophy"></i></span>
+      </div>
+      <strong class="metric-card__value" id="kpiTipo">-</strong>
+      <small class="metric-card__meta">Método de carga más utilizado.</small>
+    </article>
+  </div>
+</section>
+
+<!-- Gráficos row -->
+<section class="row g-3 mb-3">
+  <!-- Tendencia por operador -->
+  <div class="col-12 col-xl-8">
+    <article class="panel-card h-100">
+      <header class="panel-card__header compact d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <span class="section-kicker">Tendencia temporal</span>
+          <h3>Cargas por día</h3>
+        </div>
+        <div class="btn-group btn-group-sm">
+          <button class="btn btn-ghost-secondary chart-type-btn active" data-vista="operador" title="Por operador">
+            <i class="bi bi-people"></i> <span class="d-none d-sm-inline">Por Operador</span>
+          </button>
+          <button class="btn btn-ghost-secondary chart-type-btn" data-vista="tipo" title="Por tipo de carga">
+            <i class="bi bi-layers"></i> <span class="d-none d-sm-inline">Por Tipo</span>
+          </button>
+        </div>
+      </header>
+      <div class="panel-card__body px-3 pb-3">
+        <div id="trendLoading" class="text-center py-5" style="display:none">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="text-muted mt-2">Cargando datos...</p>
+        </div>
+        <div class="stats-chart-shell" style="position:relative; height:350px; max-height:50vh">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+    </article>
+  </div>
+  <!-- Distribución por tipo -->
+  <div class="col-12 col-xl-4">
+    <article class="panel-card h-100">
+      <header class="panel-card__header compact">
+        <div>
+          <span class="section-kicker">Distribución</span>
+          <h3>Por tipo de carga</h3>
+        </div>
+      </header>
+      <div class="panel-card__body px-3 pb-3">
+        <div class="stats-chart-shell" style="position:relative; height:350px; max-height:50vh">
+          <canvas id="pieChart"></canvas>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- Tabla de operadores -->
+<section class="panel-card mb-3">
+  <header class="panel-card__header compact">
+    <div>
+      <span class="section-kicker">Detalle por usuario</span>
+      <h3>Actividad de cada operador</h3>
+    </div>
+  </header>
+  <!-- Desktop table -->
+  <div class="table-responsive ops-table-wrapper">
+    <table class="table table-hover align-middle mb-0 ops-table d-none d-md-table" id="operatorsTable">
+      <thead>
+        <tr>
+          <th>Operador</th>
+          <th>Rol</th>
+          <th class="text-end">Total</th>
+          <th class="text-end">Excel V1</th>
+          <th class="text-end">Excel V2</th>
+          <th class="text-end">Manual</th>
+          <th class="text-end">Errores</th>
+          <th class="text-end">Duplicados</th>
+          <th>Última carga</th>
+          <th class="text-end">%</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="operatorsBody"></tbody>
+    </table>
+  </div>
+  <!-- Mobile cards -->
+  <div class="d-md-none panel-card__body pt-0 px-3 pb-3">
+    <div class="preview-mobile-list" id="operatorsMobileBody"></div>
+  </div>
+</section>
+
+<!-- Modal detalle operador -->
+<div class="modal fade" id="operatorDetailModal" tabindex="-1" aria-labelledby="operatorDetailTitle" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content" style="background:var(--bg-surface-2);border:1px solid var(--border-default);border-radius:var(--radius-lg)">
+      <div class="modal-header border-bottom" style="border-color:var(--border-default)!important">
+        <h5 class="modal-title" id="operatorDetailTitle">Detalle del operador</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body" id="operatorDetailBody">
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="text-muted mt-2">Cargando detalle...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  let trendChart = null;
+  let pieChart = null;
+  let detailDayChart = null;
+  let detailHotelChart = null;
+  let detailTypeChart = null;
+  let trendData = null;
+  let currentVista = 'operador';
+
+  const trendCtx = document.getElementById('trendChart').getContext('2d');
+  const pieCtx = document.getElementById('pieChart').getContext('2d');
+
+  const palette = [
+    '#23c0ff', '#2bd67b', '#f3b63f', '#e25555', '#a97ef8',
+    '#fd7e14', '#20c997', '#d63384', '#6610f2', '#0dcaf0'
+  ];
+
+  // --- Estado de fechas ---
+  let fechaDesde = null;
+  let fechaHasta = null;
+
+  function setDefaultRange(dias) {
+    if (dias === 0) {
+      fechaDesde = null;
+      fechaHasta = null;
+      document.getElementById('fechaDesde').value = '';
+      document.getElementById('fechaHasta').value = '';
+    } else {
+      const hoy = new Date();
+      const desde = new Date();
+      desde.setDate(hoy.getDate() - dias);
+      fechaDesde = desde.toISOString().slice(0, 10);
+      fechaHasta = hoy.toISOString().slice(0, 10);
+      document.getElementById('fechaDesde').value = fechaDesde;
+      document.getElementById('fechaHasta').value = fechaHasta;
+    }
+  }
+
+  function buildQS() {
+    const params = new URLSearchParams();
+    if (fechaDesde) params.set('fecha_desde', fechaDesde);
+    if (fechaHasta) params.set('fecha_hasta', fechaHasta);
+    const qs = params.toString();
+    return qs ? '?' + qs : '';
+  }
+
+  // --- Cargar todo ---
+  function loadAll() {
+    loadKPIs();
+    loadOperadores();
+    loadTendencia();
+  }
+
+  // --- KPIs ---
+  function loadKPIs() {
+    fetch('/control-cargas/api/resumen' + buildQS())
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('kpiTotal').textContent = data.total.toLocaleString('es-AR');
+        document.getElementById('kpiOperadores').textContent = data.operadores_activos;
+        document.getElementById('kpiPromedio').textContent = data.promedio_diario;
+        document.getElementById('kpiTipo').textContent = data.tipo_predominante;
+        renderPie(data.por_tipo);
+      });
+  }
+
+  // --- Gráfico pie distribución ---
+  function renderPie(porTipo) {
+    if (pieChart) pieChart.destroy();
+    const labels = ['Excel V1', 'Excel V2', 'Manual'];
+    const values = [porTipo.excel || 0, porTipo.excel_v2 || 0, porTipo.manual || 0];
+    const colors = ['#23c0ff', '#2bd67b', '#f3b63f'];
+    pieChart = new Chart(pieCtx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: colors,
+          borderColor: 'transparent',
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#a8bed3', padding: 16 } }
+        }
+      }
+    });
+  }
+
+  // --- Tendencia ---
+  function loadTendencia() {
+    const loading = document.getElementById('trendLoading');
+    loading.style.display = 'block';
+    fetch('/control-cargas/api/tendencia' + buildQS())
+      .then(r => r.json())
+      .then(data => {
+        loading.style.display = 'none';
+        trendData = data;
+        renderTrend();
+      })
+      .catch(() => { loading.style.display = 'none'; });
+  }
+
+  function renderTrend() {
+    if (!trendData) return;
+    if (trendChart) trendChart.destroy();
+
+    const datasets = currentVista === 'operador' ? trendData.por_operador : trendData.por_tipo;
+
+    trendChart = new Chart(trendCtx, {
+      type: 'line',
+      data: { labels: trendData.labels, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#a8bed3', padding: 12, usePointStyle: true } }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { color: '#a8bed3' }, grid: { color: '#1a2a3f' } },
+          x: { ticks: { color: '#a8bed3', maxRotation: 45 }, grid: { color: '#1a2a3f' } }
+        }
+      }
+    });
+  }
+
+  // --- Tabla operadores ---
+  function loadOperadores() {
+    fetch('/control-cargas/api/operadores' + buildQS())
+      .then(r => r.json())
+      .then(data => {
+        renderOperatorsTable(data);
+        renderOperatorsMobile(data);
+      });
+  }
+
+  function rolLabel(rol) {
+    return { admin: 'Admin', operador: 'Operador', consulta: 'Consulta' }[rol] || rol;
+  }
+
+  function rolPillClass(rol) {
+    return { admin: 'status-pill info', operador: 'status-pill success', consulta: 'status-pill muted' }[rol] || 'status-pill muted';
+  }
+
+  function renderOperatorsTable(data) {
+    const tbody = document.getElementById('operatorsBody');
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">No hay cargas en el período seleccionado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(op => `
+      <tr>
+        <td>
+          <strong>${op.nombre}</strong>
+          <br><small class="text-muted">${op.username}</small>
+        </td>
+        <td><span class="${rolPillClass(op.rol)} small-pill">${rolLabel(op.rol)}</span></td>
+        <td class="text-end fw-semibold">${op.total.toLocaleString('es-AR')}</td>
+        <td class="text-end">${op.excel_v1.toLocaleString('es-AR')}</td>
+        <td class="text-end">${op.excel_v2.toLocaleString('es-AR')}</td>
+        <td class="text-end">${op.manual.toLocaleString('es-AR')}</td>
+        <td class="text-end ${op.errores > 0 ? 'text-danger' : ''}">${op.errores}</td>
+        <td class="text-end ${op.duplicados > 0 ? 'text-warning' : ''}">${op.duplicados}</td>
+        <td><small>${op.ultima_carga}</small></td>
+        <td class="text-end">${op.porcentaje}%</td>
+        <td>
+          <button class="btn btn-ghost-primary btn-sm" onclick="showOperatorDetail(${op.usuario_id})" title="Ver detalle">
+            <i class="bi bi-eye"></i>
+          </button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function renderOperatorsMobile(data) {
+    const container = document.getElementById('operatorsMobileBody');
+    if (!data.length) {
+      container.innerHTML = '<p class="text-center text-muted py-4">No hay cargas en el período seleccionado.</p>';
+      return;
+    }
+    container.innerHTML = data.map(op => `
+      <article class="preview-mobile-card">
+        <div class="preview-mobile-card__header">
+          <strong>${op.nombre}</strong>
+          <span class="${rolPillClass(op.rol)} small-pill">${rolLabel(op.rol)}</span>
+        </div>
+        <span><strong>Total:</strong> ${op.total.toLocaleString('es-AR')} registros (${op.porcentaje}%)</span>
+        <span><strong>Excel V1:</strong> ${op.excel_v1} · <strong>Excel V2:</strong> ${op.excel_v2} · <strong>Manual:</strong> ${op.manual}</span>
+        <span><strong>Errores:</strong> ${op.errores} · <strong>Duplicados:</strong> ${op.duplicados}</span>
+        <span><strong>Última carga:</strong> ${op.ultima_carga}</span>
+        <button class="btn btn-ghost-primary btn-sm mt-2" onclick="showOperatorDetail(${op.usuario_id})">
+          <i class="bi bi-eye"></i> Ver detalle
+        </button>
+      </article>
+    `).join('');
+  }
+
+  // --- Detalle operador (modal) ---
+  window.showOperatorDetail = function (userId) {
+    const modal = new bootstrap.Modal(document.getElementById('operatorDetailModal'));
+    const body = document.getElementById('operatorDetailBody');
+    body.innerHTML = `<div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="text-muted mt-2">Cargando detalle...</p>
+    </div>`;
+    modal.show();
+
+    fetch('/control-cargas/api/operador/' + userId + buildQS())
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          body.innerHTML = '<p class="text-danger text-center py-4">' + data.error + '</p>';
+          return;
+        }
+        renderDetailModal(data, body);
+      })
+      .catch(() => {
+        body.innerHTML = '<p class="text-danger text-center py-4">Error al cargar el detalle.</p>';
+      });
+  };
+
+  function renderDetailModal(data, container) {
+    const u = data.usuario;
+    document.getElementById('operatorDetailTitle').textContent = u.nombre + ' (' + rolLabel(u.rol) + ')';
+
+    container.innerHTML = `
+      <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+          <article class="metric-card metric-card-primary h-100">
+            <div class="metric-card__top">
+              <span class="metric-card__label">Total cargados</span>
+            </div>
+            <strong class="metric-card__value">${data.total.toLocaleString('es-AR')}</strong>
+          </article>
+        </div>
+        <div class="col-6 col-md-3">
+          <article class="metric-card metric-card-success h-100">
+            <div class="metric-card__top">
+              <span class="metric-card__label">Calidad</span>
+            </div>
+            <strong class="metric-card__value">${data.calidad}%</strong>
+            <small class="metric-card__meta">Tasa de éxito en importaciones.</small>
+          </article>
+        </div>
+        <div class="col-6 col-md-3">
+          <article class="metric-card metric-card-warning h-100">
+            <div class="metric-card__top">
+              <span class="metric-card__label">Errores</span>
+            </div>
+            <strong class="metric-card__value">${data.importaciones.errores}</strong>
+          </article>
+        </div>
+        <div class="col-6 col-md-3">
+          <article class="metric-card metric-card-danger h-100">
+            <div class="metric-card__top">
+              <span class="metric-card__label">Duplicados</span>
+            </div>
+            <strong class="metric-card__value">${data.importaciones.duplicados}</strong>
+          </article>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-6">
+          <div class="panel-card h-100" style="background:var(--bg-surface-1)">
+            <header class="panel-card__header compact">
+              <div><span class="section-kicker">Actividad diaria</span><h3>Cargas por día</h3></div>
+            </header>
+            <div class="panel-card__body px-3 pb-3">
+              <div style="position:relative;height:260px"><canvas id="detailDayChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6">
+          <div class="panel-card h-100" style="background:var(--bg-surface-1)">
+            <header class="panel-card__header compact">
+              <div><span class="section-kicker">Distribución</span><h3>Tipo de carga</h3></div>
+            </header>
+            <div class="panel-card__body px-3 pb-3">
+              <div style="position:relative;height:260px"><canvas id="detailTypeChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-card" style="background:var(--bg-surface-1)">
+        <header class="panel-card__header compact">
+          <div><span class="section-kicker">Desglose</span><h3>Cargas por hotel (Top 15)</h3></div>
+        </header>
+        <div class="panel-card__body px-3 pb-3">
+          <div style="position:relative;height:300px"><canvas id="detailHotelChart"></canvas></div>
+        </div>
+      </div>
+    `;
+
+    // Render charts after DOM update
+    setTimeout(() => {
+      renderDetailCharts(data);
+    }, 100);
+  }
+
+  function renderDetailCharts(data) {
+    // Cargas por día
+    const dayCtx = document.getElementById('detailDayChart');
+    if (dayCtx) {
+      if (detailDayChart) detailDayChart.destroy();
+      detailDayChart = new Chart(dayCtx.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: data.por_dia.labels,
+          datasets: [{
+            label: 'Cargas',
+            data: data.por_dia.values,
+            backgroundColor: '#23c0ff66',
+            borderColor: '#23c0ff',
+            borderWidth: 1
+          }]
+        },
+        options: chartOpts()
+      });
+    }
+
+    // Tipo
+    const typeCtx = document.getElementById('detailTypeChart');
+    if (typeCtx) {
+      if (detailTypeChart) detailTypeChart.destroy();
+      const typeColors = ['#23c0ff', '#2bd67b', '#f3b63f'];
+      detailTypeChart = new Chart(typeCtx.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: data.por_tipo.labels,
+          datasets: [{
+            data: data.por_tipo.values,
+            backgroundColor: typeColors.slice(0, data.por_tipo.labels.length),
+            borderColor: 'transparent'
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { color: '#a8bed3' } } }
+        }
+      });
+    }
+
+    // Hotel
+    const hotelCtx = document.getElementById('detailHotelChart');
+    if (hotelCtx) {
+      if (detailHotelChart) detailHotelChart.destroy();
+      detailHotelChart = new Chart(hotelCtx.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: data.por_hotel.labels,
+          datasets: [{
+            label: 'Cargas',
+            data: data.por_hotel.values,
+            backgroundColor: palette.map(c => c + '99'),
+            borderColor: palette,
+            borderWidth: 1
+          }]
+        },
+        options: chartOpts()
+      });
+    }
+  }
+
+  function chartOpts() {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { color: '#a8bed3' }, grid: { color: '#1a2a3f' } },
+        x: { ticks: { color: '#a8bed3', maxRotation: 45 }, grid: { color: '#1a2a3f' } }
+      }
+    };
+  }
+
+  // --- Eventos ---
+
+  // Presets de rango
+  document.querySelectorAll('.range-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.range-btn').forEach(b => {
+        b.classList.remove('btn-primary', 'active');
+        b.classList.add('btn-ghost-primary');
+      });
+      this.classList.remove('btn-ghost-primary');
+      this.classList.add('btn-primary', 'active');
+      setDefaultRange(parseInt(this.dataset.dias));
+      loadAll();
+    });
+  });
+
+  // Filtro personalizado
+  document.getElementById('btnFiltrar').addEventListener('click', function () {
+    fechaDesde = document.getElementById('fechaDesde').value || null;
+    fechaHasta = document.getElementById('fechaHasta').value || null;
+    // Deselect presets
+    document.querySelectorAll('.range-btn').forEach(b => {
+      b.classList.remove('btn-primary', 'active');
+      b.classList.add('btn-ghost-primary');
+    });
+    loadAll();
+  });
+
+  // Switcher tendencia (por operador / por tipo)
+  document.querySelectorAll('[data-vista]').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('[data-vista]').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      currentVista = this.dataset.vista;
+      renderTrend();
+    });
+  });
+
+  // --- Init ---
+  setDefaultRange(30);
+  loadAll();
+});
+</script>
+{% endblock %}

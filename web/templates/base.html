@@ -253,6 +253,16 @@
             {% if current_user and current_user.rol == 'admin' %}
             <li class="nav-item">
               <a
+                class="nav-link {% if request.endpoint and request.endpoint.startswith('operator_stats.') %}active{% endif %}"
+                href="{{ url_for('operator_stats.index') }}"
+              >
+                <i class="bi bi-clipboard-data"></i>
+                <span>Control de Cargas</span>
+                <small>Actividad por operador</small>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a
                 class="nav-link {% if request.endpoint and request.endpoint.startswith('users.') %}active{% endif %}"
                 href="{{ url_for('users.index') }}"
               >

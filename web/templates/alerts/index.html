@@ -55,7 +55,10 @@
         </div>
       </header>
       <div class="panel-card__body px-3 pb-3">
-        <div class="offline-module-note mb-3">Ventana temporal activa: <strong>{{ configuracion_alertas.window_hours }} horas</strong>.</div>
+        <div class="offline-module-note mb-3">
+          Ventana temporal de cruces: <strong>{{ configuracion_alertas.window_hours }} horas</strong>.
+          Inactividad hotelera: <strong>{{ configuracion_alertas.hotel_inactivity_days }} días</strong>.
+        </div>
         <div class="d-grid gap-2">
           {% for tipo in configuracion_alertas.types %}
           <div class="alerts-config-item">
@@ -138,9 +141,14 @@
         <div class="system-alert-card__meta">
           <span><strong>Documento:</strong> {{ alerta.sujeto_documento or 'Sin dato' }}</span>
           <span><strong>Hotel origen:</strong> {{ alerta.hotel_origen or 'Sin hotel' }}</span>
+          {% if alerta.tipo == 'hotel_sin_cargas_inactivo' %}
+          <span><strong>Última carga:</strong> {{ alerta.fecha_ultima_carga|fecha if alerta.fecha_ultima_carga else 'Sin cargas previas' }}</span>
+          <span><strong>Días sin carga:</strong> {{ alerta.dias_sin_carga or 0 }}</span>
+          {% else %}
           <span><strong>Hotel relacionado:</strong> {{ alerta.hotel_relacionado or 'Sin referencia' }}</span>
           <span><strong>Entrada:</strong> {{ alerta.fecha_entrada|fecha }}</span>
           {% if alerta.horas_lapso %}<span><strong>Lapso:</strong> {{ alerta.horas_lapso }} h</span>{% endif %}
+          {% endif %}
         </div>
         <div class="system-alert-card__actions">
           <form method="POST" action="{{ url_for('alerts.cambiar_estado', alerta_id=alerta.id, estado=filtros.estado, severidad=filtros.severidad, tipo=filtros.tipo) }}">

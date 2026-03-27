@@ -313,6 +313,8 @@ def generar_pdf(datos: list, titulo: str = "Reporte", columnas_mostrar: list = N
         "ciudad_localidad": "Ciudad", "habitacion": "Hab.", "domicilio": "Domicilio",
         "destino": "Destino", "movilidad": "Movilidad", "telefono": "Teléfono",
         "categoria": "Categoría", "concepto": "Concepto", "total": "Total",
+        "nombre": "Nombre", "nro_orden": "Nro. Orden", "direccion": "Dirección",
+        "total_huespedes": "Total Huéspedes", "activo": "Estado",
         "archivo_nombre": "Archivo", "registros_importados": "Importados",
         "username": "Usuario", "accion": "Acción", "detalle": "Detalle", "fecha": "Fecha",
     }

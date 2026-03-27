@@ -45,6 +45,23 @@ def listar_hoteles(filtro: str = None) -> list:
         return []
 
 
+def obtener_hoteles_para_exportacion() -> list:
+    """Obtiene todos los hoteles con formato amigable para exportación."""
+    hoteles = listar_hoteles()
+    datos = []
+
+    for hotel in hoteles:
+        datos.append({
+            'nombre': hotel.get('nombre', ''),
+            'categoria': hotel.get('categoria', ''),
+            'direccion': hotel.get('direccion', ''),
+            'telefono': hotel.get('telefono', ''),
+            'ciudad_localidad': hotel.get('ciudad_localidad', ''),
+        })
+
+    return datos
+
+
 def obtener_hotel(hotel_id: int) -> dict | None:
     """Obtiene un hotel por su ID."""
     try:

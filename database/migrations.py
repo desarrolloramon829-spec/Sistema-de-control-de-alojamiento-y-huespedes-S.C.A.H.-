@@ -64,6 +64,7 @@ def ejecutar_migraciones():
         migrar_v1_2()
         migrar_v1_3()
         migrar_v1_4()
+        migrar_v1_5()
 
         return True
 
@@ -534,6 +535,47 @@ def migrar_v1_4():
     except Exception as e:
         conn.rollback()
         log_error("Error durante migración v1.4", e)
+        return False
+    finally:
+        db.liberar_conexion(conn)
+
+
+# ============================================================
+# MIGRACIÓN V1.5: Índices para control de cargas por operador
+# ============================================================
+SQL_MIGRACION_V1_5 = [
+    "CREATE INDEX IF NOT EXISTS idx_huespedes_usuario_carga ON huespedes(usuario_carga_id);",
+    "CREATE INDEX IF NOT EXISTS idx_huespedes_origen_carga ON huespedes(origen_carga);",
+    "CREATE INDEX IF NOT EXISTS idx_importaciones_usuario ON importaciones_log(usuario_id);",
+]
+
+
+def migrar_v1_5():
+    """Migración v1.5: crea índices para optimizar consultas de control de cargas por operador."""
+    log_info("Ejecutando migración v1.5 (índices control de cargas)...")
+
+    conn = db.obtener_conexion()
+    if not conn:
+        log_error("No se pudo obtener conexión para migración v1.5")
+        return False
+
+    try:
+        cursor = conn.cursor()
+
+        for sql in SQL_MIGRACION_V1_5:
+            try:
+                cursor.execute(sql)
+            except Exception as e:
+                log_info(f"Nota migración v1.5: {e}")
+
+        conn.commit()
+        cursor.close()
+        log_info("Migración v1.5 completada exitosamente")
+        return True
+
+    except Exception as e:
+        conn.rollback()
+        log_error("Error durante migración v1.5", e)
         return False
     finally:
         db.liberar_conexion(conn)

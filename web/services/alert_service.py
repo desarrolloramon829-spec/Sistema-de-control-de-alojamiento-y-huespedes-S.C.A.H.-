@@ -12,7 +12,12 @@ import psycopg2.extras
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from config import ALERT_ENABLED_TYPES, ALERT_TYPE_SETTINGS, ALERT_WINDOW_HOURS
+from config import (
+    ALERT_ENABLED_TYPES,
+    ALERT_HOTEL_INACTIVITY_DAYS,
+    ALERT_TYPE_SETTINGS,
+    ALERT_WINDOW_HOURS,
+)
 from database.connection import db
 from utils.validators import sanitizar_texto
 
@@ -20,6 +25,7 @@ ALERTA_DUPLICADO_EXACTO = "duplicado_exacto"
 ALERTA_DUPLICADO_LOTE = "duplicado_en_lote"
 ALERTA_MISMO_HOTEL = "mismo_sujeto_mismo_hotel"
 ALERTA_HOTELES_CERCANOS = "sujeto_en_hoteles_distintos_lapso_corto"
+ALERTA_HOTEL_SIN_CARGAS = "hotel_sin_cargas_inactivo"
 
 
 def normalizar_documento(valor: str) -> str:
@@ -42,8 +48,40 @@ def _serializar_payload(payload: dict) -> str:
     return json.dumps(payload, ensure_ascii=False, default=str)
 
 
+def _deserializar_payload(payload_json) -> dict:
+    if not payload_json:
+        return {}
+    if isinstance(payload_json, dict):
+        return payload_json
+    try:
+        return json.loads(payload_json)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {}
+
+
 def _dict_cursor(conn):
     return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+
+def _fecha_iso(valor) -> str:
+    if isinstance(valor, datetime):
+        valor = valor.date()
+    if isinstance(valor, date):
+        return valor.isoformat()
+    return ""
+
+
+def _fecha_desde_payload(valor):
+    if not valor:
+        return None
+    if isinstance(valor, datetime):
+        return valor.date()
+    if isinstance(valor, date):
+        return valor
+    try:
+        return datetime.fromisoformat(str(valor)).date()
+    except ValueError:
+        return None
 
 
 def _hours_between(fecha_a, fecha_b) -> int | None:
@@ -388,6 +426,173 @@ def _deduplicar_alertas(alertas: list) -> list:
     return resultado
 
 
+def _alertas_hoteles_inactivos_habilitadas() -> bool:
+    return (
+        ALERT_HOTEL_INACTIVITY_DAYS > 0
+        and ALERTA_HOTEL_SIN_CARGAS in ALERT_ENABLED_TYPES
+    )
+
+
+def sincronizar_alertas_hoteles_inactivos() -> dict:
+    resultado = {
+        "habilitada": _alertas_hoteles_inactivos_habilitadas(),
+        "vigentes": 0,
+        "creadas": 0,
+        "cerradas": 0,
+        "umbral_dias": ALERT_HOTEL_INACTIVITY_DAYS,
+    }
+
+    if not _alertas_hoteles_inactivos_habilitadas():
+        return resultado
+
+    conn = db.obtener_conexion()
+    if not conn:
+        return resultado
+
+    cursor = _dict_cursor(conn)
+    hoy = date.today()
+    alertas_vigentes = set()
+    alertas_creadas = 0
+    alertas_cerradas = 0
+
+    try:
+        cursor.execute(
+            """
+            SELECT
+                ht.id,
+                ht.nombre,
+                ht.fecha_registro::date AS fecha_registro_hotel,
+                MAX(h.fecha_registro)::date AS fecha_ultima_carga
+            FROM hoteles ht
+            LEFT JOIN huespedes h ON h.hotel_id = ht.id
+            WHERE ht.activo = TRUE
+            GROUP BY ht.id, ht.nombre, ht.fecha_registro
+            ORDER BY ht.nombre ASC
+            """
+        )
+
+        for hotel in cursor.fetchall() or []:
+            fecha_base = hotel.get("fecha_ultima_carga") or hotel.get("fecha_registro_hotel")
+            if isinstance(fecha_base, datetime):
+                fecha_base = fecha_base.date()
+            if not isinstance(fecha_base, date):
+                continue
+
+            dias_sin_carga = (hoy - fecha_base).days
+            if dias_sin_carga < ALERT_HOTEL_INACTIVITY_DAYS:
+                continue
+
+            hotel_id = hotel.get("id")
+            fecha_base_iso = _fecha_iso(fecha_base)
+            alertas_vigentes.add((str(hotel_id), fecha_base_iso))
+
+            if hotel.get("fecha_ultima_carga"):
+                resumen = (
+                    f"El hotel no registra cargas desde hace {dias_sin_carga} días. "
+                    f"Última carga detectada el {fecha_base.strftime('%d/%m/%Y')}."
+                )
+            else:
+                resumen = (
+                    f"El hotel no registra cargas desde su alta en el sistema y acumula "
+                    f"{dias_sin_carga} días sin movimientos."
+                )
+
+            payload = {
+                "hotel_id": hotel_id,
+                "dias_sin_carga": dias_sin_carga,
+                "fecha_ultima_carga": fecha_base_iso,
+                "sin_cargas_desde_alta": not bool(hotel.get("fecha_ultima_carga")),
+                "umbral_dias": ALERT_HOTEL_INACTIVITY_DAYS,
+            }
+
+            cursor.execute(
+                """
+                INSERT INTO alertas_sistema (
+                    tipo, severidad, estado, bloqueante, sujeto_nombre, sujeto_documento,
+                    hotel_origen, hotel_relacionado, huesped_id, huesped_relacionado_id,
+                    fecha_entrada, fecha_salida, horas_lapso, resumen, payload_json,
+                    importacion_tipo, usuario_creacion_id
+                )
+                SELECT
+                    %s, %s, 'pendiente', %s, %s, NULL,
+                    %s, NULL, NULL, NULL,
+                    %s, NULL, %s, %s, %s,
+                    %s, NULL
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM alertas_sistema
+                    WHERE tipo = %s
+                      AND COALESCE(payload_json, '') <> ''
+                      AND payload_json::jsonb ->> 'hotel_id' = %s
+                      AND payload_json::jsonb ->> 'fecha_ultima_carga' = %s
+                )
+                """,
+                (
+                    ALERTA_HOTEL_SIN_CARGAS,
+                    ALERT_TYPE_SETTINGS.get(ALERTA_HOTEL_SIN_CARGAS, {}).get("severidad", "warning"),
+                    ALERT_TYPE_SETTINGS.get(ALERTA_HOTEL_SIN_CARGAS, {}).get("bloqueante", False),
+                    hotel.get("nombre") or "Hotel sin nombre",
+                    hotel.get("nombre") or "Hotel sin nombre",
+                    fecha_base,
+                    dias_sin_carga * 24,
+                    resumen,
+                    _serializar_payload(payload),
+                    "monitoreo",
+                    ALERTA_HOTEL_SIN_CARGAS,
+                    str(hotel_id),
+                    fecha_base_iso,
+                ),
+            )
+            alertas_creadas += max(cursor.rowcount or 0, 0)
+
+        cursor.execute(
+            """
+            SELECT id, payload_json
+            FROM alertas_sistema
+            WHERE tipo = %s
+              AND estado IN ('pendiente', 'revisada')
+            """,
+            (ALERTA_HOTEL_SIN_CARGAS,),
+        )
+
+        for alerta in cursor.fetchall() or []:
+            payload = _deserializar_payload(alerta.get("payload_json"))
+            clave = (
+                str(payload.get("hotel_id") or ""),
+                str(payload.get("fecha_ultima_carga") or ""),
+            )
+            if clave in alertas_vigentes:
+                continue
+
+            cursor.execute(
+                """
+                UPDATE alertas_sistema
+                SET estado = 'confirmada',
+                    fecha_revision = CURRENT_TIMESTAMP,
+                    usuario_revision_id = NULL
+                WHERE id = %s
+                """,
+                (alerta.get("id"),),
+            )
+            alertas_cerradas += max(cursor.rowcount or 0, 0)
+
+        conn.commit()
+        resultado.update(
+            {
+                "vigentes": len(alertas_vigentes),
+                "creadas": alertas_creadas,
+                "cerradas": alertas_cerradas,
+            }
+        )
+    except Exception:
+        conn.rollback()
+    finally:
+        cursor.close()
+        db.liberar_conexion(conn)
+
+    return resultado
+
+
 def evaluar_huesped_importacion(
     conn,
     huesped: dict,
@@ -513,18 +718,30 @@ def crear_alertas_desde_evaluacion(
     return creadas
 
 
-def contar_alertas_pendientes() -> int:
+def contar_alertas_pendientes(sincronizar: bool = True) -> int:
+    if sincronizar:
+        sincronizar_alertas_hoteles_inactivos()
+
     fila = db.ejecutar_query_one(
         "SELECT COUNT(*) AS total FROM alertas_sistema WHERE estado = 'pendiente'"
     )
     return int(fila["total"]) if fila else 0
 
 
-def listar_alertas(limit: int = 100, estado: str = "", severidad: str = "", tipo: str = "") -> list:
+def listar_alertas(
+    limit: int = 100,
+    estado: str = "",
+    severidad: str = "",
+    tipo: str = "",
+    sincronizar: bool = True,
+) -> list:
+    if sincronizar:
+        sincronizar_alertas_hoteles_inactivos()
+
     query = """
         SELECT id, tipo, severidad, estado, bloqueante, sujeto_nombre, sujeto_documento,
                hotel_origen, hotel_relacionado, fecha_entrada, fecha_salida, horas_lapso,
-               resumen, importacion_tipo, fecha_creacion, fecha_revision
+               resumen, importacion_tipo, fecha_creacion, fecha_revision, payload_json
         FROM alertas_sistema
         WHERE 1 = 1
     """
@@ -541,13 +758,19 @@ def listar_alertas(limit: int = 100, estado: str = "", severidad: str = "", tipo
     query += " ORDER BY CASE estado WHEN 'pendiente' THEN 0 ELSE 1 END, fecha_creacion DESC LIMIT %s"
     params.append(limit)
     resultado = db.ejecutar_query(query, tuple(params), fetch=True) or []
-    return [
-        {
-            **dict(fila),
-            "tipo_label": ALERT_TYPE_SETTINGS.get(fila["tipo"], {}).get("label", fila["tipo"]),
-        }
-        for fila in resultado
-    ]
+    alertas = []
+    for fila in resultado:
+        alerta = dict(fila)
+        payload = _deserializar_payload(alerta.get("payload_json"))
+        alerta.update(
+            {
+                "tipo_label": ALERT_TYPE_SETTINGS.get(alerta["tipo"], {}).get("label", alerta["tipo"]),
+                "dias_sin_carga": payload.get("dias_sin_carga"),
+                "fecha_ultima_carga": _fecha_desde_payload(payload.get("fecha_ultima_carga")),
+            }
+        )
+        alertas.append(alerta)
+    return alertas
 
 
 def actualizar_estado_alerta(alerta_id: int, estado: str, usuario_id: int) -> bool:
@@ -582,11 +805,15 @@ def obtener_configuracion_alertas() -> dict:
 
     return {
         "window_hours": ALERT_WINDOW_HOURS,
+        "hotel_inactivity_days": ALERT_HOTEL_INACTIVITY_DAYS,
         "types": tipos,
     }
 
 
-def obtener_metricas_alertas() -> dict:
+def obtener_metricas_alertas(sincronizar: bool = True) -> dict:
+    if sincronizar:
+        sincronizar_alertas_hoteles_inactivos()
+
     resumen = db.ejecutar_query_one(
         """
         SELECT
@@ -594,14 +821,18 @@ def obtener_metricas_alertas() -> dict:
             COUNT(*) FILTER (WHERE estado = 'pendiente') AS pendientes,
             COUNT(*) FILTER (WHERE estado = 'pendiente' AND severidad IN ('danger', 'critical')) AS pendientes_prioritarios,
             COUNT(*) FILTER (WHERE bloqueante = TRUE AND estado = 'pendiente') AS bloqueantes_pendientes,
+            COUNT(*) FILTER (WHERE estado = 'pendiente' AND tipo = %s) AS hoteles_inactivos_pendientes,
             COUNT(*) FILTER (WHERE fecha_creacion >= CURRENT_TIMESTAMP - INTERVAL '24 hours') AS ultimas_24h
         FROM alertas_sistema
         """
+        ,
+        (ALERTA_HOTEL_SIN_CARGAS,),
     ) or {
         "total": 0,
         "pendientes": 0,
         "pendientes_prioritarios": 0,
         "bloqueantes_pendientes": 0,
+        "hoteles_inactivos_pendientes": 0,
         "ultimas_24h": 0,
     }
 
@@ -642,7 +873,10 @@ def obtener_metricas_alertas() -> dict:
 
     tipos_config = ALERT_TYPE_SETTINGS
     return {
-        "resumen": dict(resumen),
+        "resumen": {
+            **dict(resumen),
+            "hotel_inactivity_days": ALERT_HOTEL_INACTIVITY_DAYS,
+        },
         "por_tipo": [
             {
                 **dict(fila),

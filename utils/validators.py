@@ -88,12 +88,21 @@ def validar_texto_obligatorio(valor: str, nombre_campo: str, min_len: int = 1, m
 
 
 def validar_edad(valor) -> tuple[bool, str, int | None]:
-    """Valida que la edad sea un número razonable."""
+    """Valida la edad aceptando formatos comunes y la normaliza a entero."""
     if valor is None or str(valor).strip() == "":
         return True, "", None
 
+    valor_str = str(valor).strip()
+    match = re.fullmatch(
+        r'(?i)\s*(\d+(?:[\.,]\d+)?)\s*(años?|anos?|yrs?|years?|a)?\s*',
+        valor_str,
+    )
+
+    if not match:
+        return False, "La edad debe ser un número válido", None
+
     try:
-        edad = int(float(str(valor)))
+        edad = int(float(match.group(1).replace(',', '.')))
     except (ValueError, TypeError):
         return False, "La edad debe ser un número válido", None
 

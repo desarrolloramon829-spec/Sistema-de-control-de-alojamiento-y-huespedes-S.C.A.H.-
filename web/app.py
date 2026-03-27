@@ -94,6 +94,7 @@ def _register_blueprints(app: Flask):
     from web.routes.stats import stats_bp
     from web.routes.backups import backups_bp
     from web.routes.alerts import alerts_bp
+    from web.routes.operator_stats import operator_stats_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -105,6 +106,7 @@ def _register_blueprints(app: Flask):
     app.register_blueprint(stats_bp)
     app.register_blueprint(backups_bp)
     app.register_blueprint(alerts_bp)
+    app.register_blueprint(operator_stats_bp)
 
 
 def _register_pwa_routes(app: Flask):

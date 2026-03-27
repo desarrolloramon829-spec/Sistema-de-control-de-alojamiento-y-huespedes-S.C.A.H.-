@@ -23,6 +23,7 @@ APP_NAME = "S.C.A.H."
 APP_FULL_NAME = "Sistema de Control de Alojamiento y Huéspedes"
 APP_VERSION = "1.0.0"
 ALERT_WINDOW_HOURS = int(os.environ.get("SCAH_ALERT_WINDOW_HOURS", 48))
+ALERT_HOTEL_INACTIVITY_DAYS = int(os.environ.get("SCAH_ALERT_HOTEL_INACTIVITY_DAYS", 15))
 ALERT_NOTIFICATION_POLL_SECONDS = int(
     os.environ.get("SCAH_ALERT_NOTIFICATION_POLL_SECONDS", 60)
 )
@@ -30,7 +31,7 @@ ALERT_ENABLED_TYPES = tuple(
     item.strip()
     for item in os.environ.get(
         "SCAH_ALERT_ENABLED_TYPES",
-        "duplicado_exacto,duplicado_en_lote,mismo_sujeto_mismo_hotel,sujeto_en_hoteles_distintos_lapso_corto",
+        "duplicado_exacto,duplicado_en_lote,mismo_sujeto_mismo_hotel,sujeto_en_hoteles_distintos_lapso_corto,hotel_sin_cargas_inactivo",
     ).split(",")
     if item.strip()
 )
@@ -55,6 +56,11 @@ ALERT_TYPE_SETTINGS = {
         "severidad": "danger",
         "bloqueante": False,
     },
+    "hotel_sin_cargas_inactivo": {
+        "label": f"Hotel sin cargas por {ALERT_HOTEL_INACTIVITY_DAYS} días",
+        "severidad": "warning",
+        "bloqueante": False,
+    },
 }
 
 # Dimensiones de la ventana principal
@@ -74,7 +80,8 @@ ROLES = {
             "importar_excel", "carga_manual", "busqueda",
             "gestionar_hoteles", "gestionar_huespedes",
             "estadisticas", "reportes", "gestionar_usuarios",
-            "editar_registros", "eliminar_registros", "backup", "ver_alertas"
+            "editar_registros", "eliminar_registros", "backup", "ver_alertas",
+            "ver_cargas_operadores"
         ]
     },
     "operador": {

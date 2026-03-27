@@ -103,6 +103,20 @@ block content %}
       >
     </article>
   </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <article class="metric-card metric-card-warning h-100">
+      <div class="metric-card__top">
+        <span class="metric-card__label">Hoteles inactivos</span>
+        <span class="metric-card__icon"><i class="bi bi-building-exclamation"></i></span>
+      </div>
+      <strong class="metric-card__value"
+        >{{ alert_metrics.resumen.hoteles_inactivos_pendientes | default(0) }}</strong
+      >
+      <small class="metric-card__meta"
+        >Sin cargas en {{ alert_metrics.resumen.hotel_inactivity_days | default(15) }} días o más.</small
+      >
+    </article>
+  </div>
   {% endif %}
 </section>
 
@@ -319,6 +333,13 @@ block content %}
                 <span>Bloqueantes</span>
                 <strong
                   >{{ alert_metrics.resumen.bloqueantes_pendientes | default(0)
+                  }}</strong
+                >
+              </div>
+              <div class="backup-stat">
+                <span>Hoteles inactivos</span>
+                <strong
+                  >{{ alert_metrics.resumen.hoteles_inactivos_pendientes | default(0)
                   }}</strong
                 >
               </div>

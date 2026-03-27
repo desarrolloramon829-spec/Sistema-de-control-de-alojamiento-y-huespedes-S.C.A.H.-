@@ -11,6 +11,7 @@ from web.services.alert_service import (
     listar_alertas,
     obtener_configuracion_alertas,
     obtener_metricas_alertas,
+    sincronizar_alertas_hoteles_inactivos,
 )
 
 alerts_bp = Blueprint('alerts', __name__, url_prefix='/alertas')
@@ -31,18 +32,20 @@ def index():
     severidad = request.args.get('severidad', '').strip()
     tipo = request.args.get('tipo', '').strip()
 
+    sincronizar_alertas_hoteles_inactivos()
+
     try:
-        alertas = listar_alertas(limit=200, estado=estado, severidad=severidad, tipo=tipo)
+        alertas = listar_alertas(limit=200, estado=estado, severidad=severidad, tipo=tipo, sincronizar=False)
     except Exception:
         alertas = []
 
     try:
-        pendientes = contar_alertas_pendientes()
+        pendientes = contar_alertas_pendientes(sincronizar=False)
     except Exception:
         pendientes = 0
 
     try:
-        metricas = obtener_metricas_alertas()
+        metricas = obtener_metricas_alertas(sincronizar=False)
         if not metricas or not isinstance(metricas.get("resumen"), dict):
             metricas = _METRICAS_VACIO
     except Exception:

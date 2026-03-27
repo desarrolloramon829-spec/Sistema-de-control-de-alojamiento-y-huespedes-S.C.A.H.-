@@ -50,6 +50,12 @@ En Windows también puede iniciar directamente con los lanzadores del proyecto:
 - `SCAH_Launcher.bat` para la versión de escritorio
 - `INICIAR_WEB.bat` para la versión web en `http://localhost:5000`
 
+Para forzar manualmente la sincronización de alertas por hoteles sin cargas:
+
+```bash
+python scripts/sincronizar_alertas_hoteles.py
+```
+
 La aplicación creará automáticamente la base de datos y las tablas necesarias en el primer inicio.
 
 ## Credenciales por defecto
