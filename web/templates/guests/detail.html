@@ -15,31 +15,41 @@ S.C.A.H.{% endblock %} {% block content %}
       identidad, estadía y origen de carga.
     </p>
   </div>
-  <div class="module-hero__actions align-items-start">
-    <span
-      class="status-pill {% if huesped.origen_carga == 'manual' %}muted{% endif %}"
-    >
-      <i class="bi bi-journal-check"></i> {{ huesped.origen_carga or 'N/A' }}
-    </span>
-    {% if current_user and current_user.rol in ('admin', 'operador') %}
-    <a
-      href="{{ url_for('guests.editar', huesped_id=huesped.id) }}"
-      class="btn btn-ghost-secondary btn-sm"
-    >
-      <i class="bi bi-pencil"></i> Editar
-    </a>
-    {% endif %} {% if current_user and current_user.rol == 'admin' %}
-    <form
-      method="POST"
-      action="{{ url_for('guests.eliminar', huesped_id=huesped.id) }}"
-      class="d-inline"
-      onsubmit="return confirm('¿Eliminar este huésped?')"
-    >
-      <button type="submit" class="btn btn-ghost-danger btn-sm">
-        <i class="bi bi-trash"></i> Eliminar
-      </button>
-    </form>
-    {% endif %}
+  <div class="module-hero__actions detail-hero__actions">
+    <div class="detail-hero__meta">
+      <span
+        class="status-pill detail-hero__status {% if huesped.origen_carga == 'manual' %}muted{% endif %}"
+      >
+        <i class="bi bi-journal-check"></i> {{ huesped.origen_carga or 'N/A' }}
+      </span>
+    </div>
+    <div class="detail-hero__action-group">
+      {% if current_user and current_user.rol in ('admin', 'operador') %}
+      <a
+        href="{{ url_for('guests.editar', huesped_id=huesped.id) }}"
+        class="btn btn-ghost-secondary hero-action-btn detail-hero__action-btn"
+      >
+        <i class="bi bi-pencil"></i> Editar
+      </a>
+      <a
+        href="{{ url_for('guests.nueva_estadia', huesped_id=huesped.id) }}"
+        class="btn btn-primary hero-action-btn detail-hero__action-btn"
+      >
+        <i class="bi bi-calendar-plus"></i> Agregar nueva estadía
+      </a>
+      {% endif %} {% if current_user and current_user.rol == 'admin' %}
+      <form
+        method="POST"
+        action="{{ url_for('guests.eliminar', huesped_id=huesped.id) }}"
+        class="detail-hero__form"
+        onsubmit="return confirm('¿Eliminar este huésped?')"
+      >
+        <button type="submit" class="btn btn-ghost-danger hero-action-btn detail-hero__action-btn">
+          <i class="bi bi-trash"></i> Eliminar
+        </button>
+      </form>
+      {% endif %}
+    </div>
   </div>
 </section>
 
@@ -52,15 +62,29 @@ S.C.A.H.{% endblock %} {% block content %}
     </div>
   </header>
   <div class="panel-card__body px-3 pb-3">
-    <div class="duplicate-alert-list">
+    <p class="text-muted small mb-3">
+      Jerarquía visual: rojo intenso para mismo hotel con superposición total, ámbar para conflictos altos y azul para coincidencias menos críticas.
+    </p>
+    <div class="duplicate-legend mb-3" data-alert-filter-controls>
+      <button type="button" class="status-pill small-pill duplicate-legend__item duplicate-legend__item--critica" data-alert-filter="critica" aria-pressed="false">Crítica</button>
+      <button type="button" class="status-pill small-pill duplicate-legend__item duplicate-legend__item--alta" data-alert-filter="alta" aria-pressed="false">Alta</button>
+      <button type="button" class="status-pill small-pill duplicate-legend__item duplicate-legend__item--media" data-alert-filter="media" aria-pressed="false">Media</button>
+    </div>
+    <div class="duplicate-alert-list" data-alert-filter-list>
       {% for duplicado in duplicados %}
-      <div class="duplicate-alert-item">
+      <div class="duplicate-alert-item duplicate-alert-item--{{ duplicado.alerta_visual }}" data-alert-visual="{{ duplicado.alerta_visual }}">
         <div>
           <strong>{{ duplicado.apellido_nombre }}</strong>
           <span>{{ duplicado.hotel or 'Sin hotel' }}</span>
         </div>
         <span>DNI: {{ duplicado.dni_pasaporte or 'S/D' }}</span>
         <span>Coincide por: {{ duplicado.coincidencias | join(', ') }}</span>
+        <span class="status-pill duplicate-conflict-pill duplicate-conflict-pill--{{ duplicado.tipo_conflicto }}">
+          {{ duplicado.tipo_conflicto_label }}
+        </span>
+        <span class="status-pill duplicate-hotel-pill duplicate-hotel-pill--{{ duplicado.contexto_hotel }}">
+          {{ duplicado.contexto_hotel_label }}
+        </span>
         <a href="{{ url_for('guests.detalle', huesped_id=duplicado.id) }}" class="ops-link">Abrir expediente</a>
       </div>
       {% endfor %}
@@ -173,4 +197,177 @@ S.C.A.H.{% endblock %} {% block content %}
     </section>
   </div>
 </div>
+
+{% if historial_estadias %}
+<section class="panel-card mt-3">
+  <header class="panel-card__header compact">
+    <div>
+      <span class="section-kicker">Historial</span>
+      <h3>Otras estadías del mismo documento</h3>
+    </div>
+  </header>
+  <div class="panel-card__body px-3 pb-3">
+    <p class="text-muted small mb-3">
+      Las superposiciones totales se muestran primero en rojo y las parciales después en ámbar.
+    </p>
+    <div class="history-filter-stack mb-3" data-history-filter-controls>
+      <div class="history-filter-group">
+        <span class="history-filter-group__label">Estado</span>
+        <div class="history-filter-bar">
+          <button type="button" class="status-pill small-pill history-filter-btn is-active" data-filter-key="estado" data-filter-value="todos" data-filter-label="Todos">Todos <span class="history-filter-count">0</span></button>
+          <button type="button" class="status-pill small-pill history-filter-btn" data-filter-key="estado" data-filter-value="superpuestas" data-filter-label="Superpuestas">Superpuestas <span class="history-filter-count">0</span></button>
+          <button type="button" class="status-pill small-pill history-filter-btn" data-filter-key="estado" data-filter-value="normales" data-filter-label="Normales">Normales <span class="history-filter-count">0</span></button>
+        </div>
+      </div>
+      <div class="history-filter-group">
+        <span class="history-filter-group__label">Hotel</span>
+        <div class="history-filter-bar">
+          <button type="button" class="status-pill small-pill history-filter-btn is-active" data-filter-key="hotel" data-filter-value="todos" data-filter-label="Todos">Todos <span class="history-filter-count">0</span></button>
+          <button type="button" class="status-pill small-pill history-filter-btn" data-filter-key="hotel" data-filter-value="mismo_hotel" data-filter-label="Mismo hotel">Mismo hotel <span class="history-filter-count">0</span></button>
+          <button type="button" class="status-pill small-pill history-filter-btn" data-filter-key="hotel" data-filter-value="entre_hoteles" data-filter-label="Entre hoteles">Entre hoteles <span class="history-filter-count">0</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="duplicate-alert-list" data-history-filter-list>
+      {% for item in historial_estadias %}
+      <div class="duplicate-alert-item {% if item.tipo_superposicion == 'total' %}duplicate-alert-item--overlap-total{% elif item.tipo_superposicion == 'parcial' %}duplicate-alert-item--overlap-partial{% endif %}" data-history-item data-history-estado="{{ 'superpuestas' if item.tipo_superposicion != 'ninguna' else 'normales' }}" data-history-hotel="{{ item.contexto_hotel }}">
+        <div>
+          <strong>{{ item.hotel or 'Sin hotel' }}</strong>
+          <span>Habitación {{ item.habitacion or 'S/D' }}</span>
+        </div>
+        <div class="history-timeline {% if item.tipo_superposicion == 'total' %}history-timeline--total{% elif item.tipo_superposicion == 'parcial' %}history-timeline--partial{% endif %}">
+          <span class="history-timeline__date">{{ item.fecha_entrada or '-' }}</span>
+          <div class="history-timeline__track">
+            <span class="history-timeline__dot"></span>
+            <span class="history-timeline__line"></span>
+            <span class="history-timeline__dot history-timeline__dot--end"></span>
+          </div>
+          <span class="history-timeline__date">{{ item.fecha_salida or item.fecha_entrada or '-' }}</span>
+        </div>
+        <span>Entrada: {{ item.fecha_entrada or '-' }}</span>
+        <span>Salida: {{ item.fecha_salida or '-' }}</span>
+        <span>Origen: {{ item.origen_carga or 'N/A' }}</span>
+        <span class="status-pill duplicate-hotel-pill duplicate-hotel-pill--{{ item.contexto_hotel }}">
+          {{ item.contexto_hotel_label }}
+        </span>
+        {% if item.tipo_superposicion == 'total' %}
+        <span class="status-pill history-overlap-pill history-overlap-pill--total">
+          <i class="bi bi-exclamation-triangle"></i> Superposición total
+        </span>
+        {% elif item.tipo_superposicion == 'parcial' %}
+        <span class="status-pill history-overlap-pill history-overlap-pill--partial">
+          <i class="bi bi-exclamation-triangle"></i> Superposición parcial
+        </span>
+        {% endif %}
+        <a href="{{ url_for('guests.detalle', huesped_id=item.id) }}" class="ops-link">Abrir expediente</a>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="history-empty-state d-none" data-history-empty-state>
+      No hay estadías que coincidan con los filtros seleccionados.
+    </div>
+  </div>
+</section>
+{% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-alert-filter-controls]').forEach(function (controls) {
+    const container = controls.parentElement;
+    const list = container ? container.querySelector('[data-alert-filter-list]') : null;
+    if (!list) return;
+
+    const buttons = Array.from(controls.querySelectorAll('[data-alert-filter]'));
+    const items = Array.from(list.querySelectorAll('[data-alert-visual]'));
+    let activeFilter = '';
+
+    function aplicarFiltroAlerta() {
+      items.forEach(function (item) {
+        const visible = !activeFilter || item.dataset.alertVisual === activeFilter;
+        item.classList.toggle('d-none', !visible);
+      });
+
+      buttons.forEach(function (button) {
+        const isActive = button.dataset.alertFilter === activeFilter;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      });
+    }
+
+    buttons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        activeFilter = activeFilter === button.dataset.alertFilter ? '' : (button.dataset.alertFilter || '');
+        aplicarFiltroAlerta();
+      });
+    });
+  });
+
+  const controls = document.querySelector('[data-history-filter-controls]');
+  const list = document.querySelector('[data-history-filter-list]');
+  const emptyState = document.querySelector('[data-history-empty-state]');
+  if (!controls || !list) return;
+
+  const buttons = Array.from(controls.querySelectorAll('[data-filter-key][data-filter-value]'));
+  const items = Array.from(list.querySelectorAll('[data-history-item]'));
+  const filterState = {};
+
+  buttons.forEach(function (button) {
+    const key = button.dataset.filterKey;
+    if (key && !(key in filterState)) {
+      filterState[key] = 'todos';
+    }
+  });
+
+  function itemCumpleFiltros(item, overrideKey, overrideValue) {
+    return Object.keys(filterState).every(function (key) {
+      const expected = key === overrideKey ? overrideValue : (filterState[key] || 'todos');
+      if (expected === 'todos') return true;
+      const datasetKey = 'history' + key.charAt(0).toUpperCase() + key.slice(1);
+      return (item.dataset[datasetKey] || 'sin_contexto') === expected;
+    });
+  }
+
+  function actualizarContadores() {
+    buttons.forEach(function (button) {
+      const key = button.dataset.filterKey || '';
+      const value = button.dataset.filterValue || 'todos';
+      const label = button.dataset.filterLabel || value;
+      const count = items.filter(function (item) {
+        return itemCumpleFiltros(item, key, value);
+      }).length;
+      button.innerHTML = `${label} <span class="history-filter-count">${count}</span>`;
+    });
+  }
+
+  function aplicarFiltros() {
+    let visibles = 0;
+    items.forEach(function (item) {
+      const visible = itemCumpleFiltros(item);
+      item.classList.toggle('d-none', !visible);
+      if (visible) visibles += 1;
+    });
+
+    buttons.forEach(function (button) {
+      const key = button.dataset.filterKey || '';
+      button.classList.toggle('is-active', button.dataset.filterValue === filterState[key]);
+    });
+
+    if (emptyState) {
+      emptyState.classList.toggle('d-none', visibles > 0);
+    }
+
+    actualizarContadores();
+  }
+
+  buttons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      const key = button.dataset.filterKey || '';
+      if (!key) return;
+      filterState[key] = button.dataset.filterValue || 'todos';
+      aplicarFiltros();
+    });
+  });
+
+  aplicarFiltros();
+});
+</script>
 {% endblock %}
