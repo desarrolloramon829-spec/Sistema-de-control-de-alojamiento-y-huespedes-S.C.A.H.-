@@ -4,6 +4,98 @@
 {% block title %}{{ 'Nueva estadía' if modo_nueva_estadia else ('Editar' if es_edicion else 'Nuevo') }} Huésped - S.C.A.H.{% endblock %}
 
 {% block content %}
+<style>
+    .duplicate-conflict-pill,
+    .duplicate-hotel-pill {
+        width: fit-content;
+    }
+
+    .duplicate-conflict-pill--total,
+    .duplicate-conflict-pill--parcial {
+        background: rgba(226, 85, 85, 0.16);
+        border-color: rgba(226, 85, 85, 0.32);
+        color: #ffd7d7;
+    }
+
+    .duplicate-conflict-pill--parcial {
+        background: rgba(243, 182, 63, 0.16);
+        border-color: rgba(243, 182, 63, 0.32);
+        color: #ffe3ad;
+    }
+
+    .duplicate-conflict-pill--ninguna,
+    .duplicate-hotel-pill--sin_contexto {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.1);
+        color: var(--text-secondary);
+    }
+
+    .duplicate-hotel-pill--mismo_hotel {
+        background: rgba(35, 192, 255, 0.16);
+        border-color: rgba(35, 192, 255, 0.3);
+        color: #c8efff;
+    }
+
+    .duplicate-hotel-pill--entre_hoteles {
+        background: rgba(103, 183, 255, 0.14);
+        border-color: rgba(103, 183, 255, 0.28);
+        color: #d6e9ff;
+    }
+
+    .duplicate-alert-item--critica {
+        background: rgba(226, 85, 85, 0.18);
+        border-color: rgba(226, 85, 85, 0.42);
+        box-shadow: inset 0 0 0 1px rgba(255, 215, 215, 0.05);
+    }
+
+    .duplicate-alert-item--alta {
+        background: rgba(243, 182, 63, 0.14);
+        border-color: rgba(243, 182, 63, 0.34);
+    }
+
+    .duplicate-alert-item--media {
+        background: rgba(35, 192, 255, 0.12);
+        border-color: rgba(35, 192, 255, 0.24);
+    }
+
+    .duplicate-alert-item--normal {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .duplicate-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .duplicate-legend__item {
+        min-height: 32px;
+        cursor: pointer;
+    }
+
+    .duplicate-legend__item.is-active {
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 0 0 2px rgba(255, 255, 255, 0.06);
+    }
+
+    .duplicate-legend__item--critica {
+        background: rgba(226, 85, 85, 0.18);
+        border-color: rgba(226, 85, 85, 0.42);
+        color: #ffd7d7;
+    }
+
+    .duplicate-legend__item--alta {
+        background: rgba(243, 182, 63, 0.16);
+        border-color: rgba(243, 182, 63, 0.32);
+        color: #ffe3ad;
+    }
+
+    .duplicate-legend__item--media {
+        background: rgba(35, 192, 255, 0.14);
+        border-color: rgba(35, 192, 255, 0.28);
+        color: #d6f2ff;
+    }
+</style>
 <section class="module-hero mb-4">
     <div>
         <span class="section-kicker">Formulario operativo</span>
