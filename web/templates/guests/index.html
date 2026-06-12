@@ -159,6 +159,14 @@
                         <i class="bi bi-pencil"></i> Editar
                     </a>
                     {% endif %}
+                    {% if current_user and current_user.rol == 'admin' %}
+                    <form method="POST" action="{{ url_for('guests.eliminar', huesped_id=h.id) }}"
+                          class="flex-fill" onsubmit="return confirm('¿Eliminar al huésped {{ h.apellido_nombre }}? Esta acción no se puede deshacer.')">
+                        <button type="submit" class="btn btn-ghost-danger btn-sm w-100">
+                            <i class="bi bi-trash"></i> Eliminar
+                        </button>
+                    </form>
+                    {% endif %}
                 </div>
             </article>
             {% else %}
@@ -216,6 +224,14 @@
                                title="Editar huésped">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            {% endif %}
+                            {% if current_user and current_user.rol == 'admin' %}
+                            <form method="POST" action="{{ url_for('guests.eliminar', huesped_id=h.id) }}"
+                                  class="d-inline" onsubmit="return confirm('¿Eliminar al huésped {{ h.apellido_nombre }}? Esta acción no se puede deshacer.')">
+                                <button type="submit" class="btn btn-ghost-danger btn-sm" title="Eliminar huésped">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
                             {% endif %}
                         </div>
                     </td>

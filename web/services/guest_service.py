@@ -32,20 +32,114 @@ def _normalizar_telefono(valor: str) -> str:
     return "".join(char for char in str(valor) if char.isdigit())
 
 
-def _registrar_duplicado(duplicados: dict, fila: dict, motivo: str):
+def _clasificar_superposicion_fechas(
+    fecha_entrada_actual,
+    fecha_salida_actual,
+    fecha_entrada_rel,
+    fecha_salida_rel,
+) -> tuple[bool, str, str, int]:
+    """Clasifica si dos rangos de estadía se superponen total o parcialmente."""
+    if not fecha_entrada_actual or not fecha_entrada_rel:
+        return False, "ninguna", "Sin superposición", 2
+
+    fin_actual = fecha_salida_actual or fecha_entrada_actual
+    fin_rel = fecha_salida_rel or fecha_entrada_rel
+
+    superpuesta = fecha_entrada_actual <= fin_rel and fecha_entrada_rel <= fin_actual
+    if not superpuesta:
+        return False, "ninguna", "Sin superposición", 2
+
+    contiene_actual = fecha_entrada_rel <= fecha_entrada_actual and fin_rel >= fin_actual
+    contiene_relacionada = fecha_entrada_actual <= fecha_entrada_rel and fin_actual >= fin_rel
+    tipo = "total" if (contiene_actual or contiene_relacionada) else "parcial"
+    etiqueta = "Superposición total" if tipo == "total" else "Superposición parcial"
+    prioridad = 0 if tipo == "total" else 1
+    return True, tipo, etiqueta, prioridad
+
+
+def _clasificar_contexto_hotel(hotel_id_actual, hotel_id_relacionado) -> tuple[str, str, int]:
+    """Clasifica si el conflicto ocurre en el mismo hotel o entre hoteles."""
+    if not hotel_id_actual or not hotel_id_relacionado:
+        return "sin_contexto", "Hotel no comparable", 2
+    if int(hotel_id_actual) == int(hotel_id_relacionado):
+        return "mismo_hotel", "Mismo hotel", 0
+    return "entre_hoteles", "Entre hoteles", 1
+
+
+def _clasificar_prioridad_visual_duplicado(tipo_conflicto: str, contexto_hotel: str) -> tuple[str, int]:
+    """Define prioridad visual para resaltar duplicados operativamente más sensibles."""
+    if tipo_conflicto == "total" and contexto_hotel == "mismo_hotel":
+        return "critica", 0
+    if tipo_conflicto == "total":
+        return "alta", 1
+    if tipo_conflicto == "parcial" and contexto_hotel == "mismo_hotel":
+        return "alta", 1
+    if tipo_conflicto == "parcial":
+        return "media", 2
+    if contexto_hotel == "mismo_hotel":
+        return "media", 2
+    return "normal", 3
+
+
+def _registrar_duplicado(
+    duplicados: dict,
+    fila: dict,
+    motivo: str,
+    hotel_id_actual=None,
+    fecha_entrada_actual=None,
+    fecha_salida_actual=None,
+):
     """Acumula coincidencias de duplicidad sin repetir registros."""
     registro_id = fila["id"]
+    _, tipo_conflicto, tipo_conflicto_label, conflict_priority = _clasificar_superposicion_fechas(
+        fecha_entrada_actual,
+        fecha_salida_actual,
+        fila.get("fecha_entrada"),
+        fila.get("fecha_salida"),
+    )
+    contexto_hotel, contexto_hotel_label, hotel_priority = _clasificar_contexto_hotel(
+        hotel_id_actual,
+        fila.get("hotel_id"),
+    )
+    alerta_visual, visual_priority = _clasificar_prioridad_visual_duplicado(
+        tipo_conflicto,
+        contexto_hotel,
+    )
+
     if registro_id not in duplicados:
         duplicados[registro_id] = {
             "id": registro_id,
             "apellido_nombre": fila.get("apellido_nombre") or "",
             "hotel": fila.get("hotel") or "",
+            "hotel_id": fila.get("hotel_id"),
             "dni_pasaporte": formato_dni(str(fila.get("dni_pasaporte") or "")),
             "telefono": fila.get("telefono") or "",
             "fecha_entrada": formato_fecha(fila.get("fecha_entrada")),
             "fecha_salida": formato_fecha(fila.get("fecha_salida")),
             "coincidencias": [],
+            "tipo_conflicto": tipo_conflicto,
+            "tipo_conflicto_label": tipo_conflicto_label,
+            "conflict_priority": conflict_priority,
+            "contexto_hotel": contexto_hotel,
+            "contexto_hotel_label": contexto_hotel_label,
+            "hotel_priority": hotel_priority,
+            "alerta_visual": alerta_visual,
+            "visual_priority": visual_priority,
         }
+
+    if conflict_priority < duplicados[registro_id]["conflict_priority"]:
+        duplicados[registro_id]["tipo_conflicto"] = tipo_conflicto
+        duplicados[registro_id]["tipo_conflicto_label"] = tipo_conflicto_label
+        duplicados[registro_id]["conflict_priority"] = conflict_priority
+
+    if hotel_priority < duplicados[registro_id]["hotel_priority"]:
+        duplicados[registro_id]["contexto_hotel"] = contexto_hotel
+        duplicados[registro_id]["contexto_hotel_label"] = contexto_hotel_label
+        duplicados[registro_id]["hotel_priority"] = hotel_priority
+
+    if visual_priority < duplicados[registro_id]["visual_priority"]:
+        duplicados[registro_id]["alerta_visual"] = alerta_visual
+        duplicados[registro_id]["visual_priority"] = visual_priority
 
     if motivo not in duplicados[registro_id]["coincidencias"]:
         duplicados[registro_id]["coincidencias"].append(motivo)
@@ -57,6 +151,7 @@ def buscar_posibles_duplicados(
     telefono: str = "",
     hotel_id: int | None = None,
     fecha_entrada=None,
+    fecha_salida=None,
     exclude_id: int | None = None,
     limit: int = 5,
 ) -> list:
@@ -65,9 +160,11 @@ def buscar_posibles_duplicados(
     dni_normalizado = _normalizar_documento(dni_pasaporte)
     telefono_normalizado = _normalizar_telefono(telefono)
     nombre_limpio = sanitizar_texto(apellido_nombre)
+    _, _, fecha_entrada_actual = validar_fecha(fecha_entrada, permite_vacio=True)
+    _, _, fecha_salida_actual = validar_fecha(fecha_salida, permite_vacio=True)
 
     base_query = """
-        SELECT h.id, h.apellido_nombre, h.dni_pasaporte, h.telefono,
+        SELECT h.id, h.hotel_id, h.apellido_nombre, h.dni_pasaporte, h.telefono,
                h.fecha_entrada, h.fecha_salida, ht.nombre AS hotel
         FROM huespedes h
         JOIN hoteles ht ON ht.id = h.hotel_id
@@ -92,7 +189,14 @@ def buscar_posibles_duplicados(
             )
             resultado = db.ejecutar_query(query, tuple(params), fetch=True) or []
             for fila in resultado:
-                _registrar_duplicado(duplicados, fila, "Mismo DNI/Pasaporte")
+                _registrar_duplicado(
+                    duplicados,
+                    fila,
+                    "Mismo DNI/Pasaporte",
+                    hotel_id,
+                    fecha_entrada_actual,
+                    fecha_salida_actual,
+                )
 
         if nombre_limpio and hotel_id and fecha_entrada:
             ok, _, fecha_entrada_valida = validar_fecha(fecha_entrada, permite_vacio=True)
@@ -110,7 +214,14 @@ def buscar_posibles_duplicados(
                 )
                 resultado = db.ejecutar_query(query, tuple(params), fetch=True) or []
                 for fila in resultado:
-                    _registrar_duplicado(duplicados, fila, "Mismo nombre, hotel y fecha de entrada")
+                    _registrar_duplicado(
+                        duplicados,
+                        fila,
+                        "Mismo nombre, hotel y fecha de entrada",
+                        hotel_id,
+                        fecha_entrada_actual,
+                        fecha_salida_actual,
+                    )
 
         if telefono_normalizado and hotel_id:
             params = [telefono_normalizado, hotel_id]
@@ -126,11 +237,24 @@ def buscar_posibles_duplicados(
             )
             resultado = db.ejecutar_query(query, tuple(params), fetch=True) or []
             for fila in resultado:
-                _registrar_duplicado(duplicados, fila, "Mismo teléfono en el hotel")
+                _registrar_duplicado(
+                    duplicados,
+                    fila,
+                    "Mismo teléfono en el hotel",
+                    hotel_id,
+                    fecha_entrada_actual,
+                    fecha_salida_actual,
+                )
 
         return sorted(
             duplicados.values(),
-            key=lambda item: (-len(item["coincidencias"]), item["apellido_nombre"]),
+            key=lambda item: (
+                item["visual_priority"],
+                item["conflict_priority"],
+                item["hotel_priority"],
+                -len(item["coincidencias"]),
+                item["apellido_nombre"],
+            ),
         )
 
     except Exception as e:
@@ -355,6 +479,133 @@ def obtener_huesped(huesped_id: int) -> dict | None:
     except Exception as e:
         log_error(f"Error al obtener huésped {huesped_id}", e)
         return None
+
+
+def obtener_historial_estadias_relacionadas(
+    dni_pasaporte: str,
+    exclude_id: int | None = None,
+    hotel_id_actual: int | None = None,
+    fecha_entrada_actual=None,
+    fecha_salida_actual=None,
+) -> list:
+    """Lista otras estadías asociadas al mismo documento."""
+    dni_normalizado = _normalizar_documento(dni_pasaporte)
+    if not dni_normalizado:
+        return []
+
+    exclusion = "AND h.id <> %s" if exclude_id else ""
+    params = [dni_normalizado]
+    if exclude_id:
+        params.append(exclude_id)
+
+    query = f"""
+         SELECT h.id, h.hotel_id, ht.nombre AS hotel, h.habitacion,
+               h.fecha_entrada, h.fecha_salida, h.origen_carga
+        FROM huespedes h
+        JOIN hoteles ht ON ht.id = h.hotel_id
+        WHERE regexp_replace(upper(COALESCE(h.dni_pasaporte, '')), '[^A-Z0-9]', '', 'g') = %s
+        {exclusion}
+        ORDER BY h.fecha_entrada DESC NULLS LAST, h.fecha_registro DESC
+    """
+
+    try:
+        resultado = db.ejecutar_query(query, tuple(params), fetch=True) or []
+        historial = []
+        for fila in resultado:
+            fecha_entrada_rel = fila.get("fecha_entrada")
+            fecha_salida_rel = fila.get("fecha_salida")
+            superpuesta, tipo_superposicion, _, prioridad = _clasificar_superposicion_fechas(
+                fecha_entrada_actual,
+                fecha_salida_actual,
+                fecha_entrada_rel,
+                fecha_salida_rel,
+            )
+            contexto_hotel, contexto_hotel_label, _ = _clasificar_contexto_hotel(
+                hotel_id_actual,
+                fila.get("hotel_id"),
+            )
+
+            historial.append({
+                "id": fila["id"],
+                "hotel_id": fila.get("hotel_id"),
+                "hotel": fila.get("hotel") or "",
+                "habitacion": fila.get("habitacion") or "",
+                "fecha_entrada": formato_fecha(fecha_entrada_rel),
+                "fecha_salida": formato_fecha(fecha_salida_rel),
+                "origen_carga": fila.get("origen_carga") or "",
+                "superpuesta": superpuesta,
+                "tipo_superposicion": tipo_superposicion,
+                "contexto_hotel": contexto_hotel,
+                "contexto_hotel_label": contexto_hotel_label,
+                "sort_priority": prioridad,
+                "sort_fecha_entrada": fecha_entrada_rel,
+            })
+
+        historial.sort(
+            key=lambda item: (
+                item["sort_priority"],
+                item["sort_fecha_entrada"] is None,
+                item["sort_fecha_entrada"] or "",
+            ),
+            reverse=False,
+        )
+        historial.sort(
+            key=lambda item: item["sort_fecha_entrada"] or "",
+            reverse=True,
+        )
+        historial.sort(key=lambda item: item["sort_priority"])
+
+        for item in historial:
+            item.pop("sort_priority", None)
+            item.pop("sort_fecha_entrada", None)
+
+        return historial
+    except Exception as e:
+        log_error("Error obteniendo historial de estadías relacionadas", e)
+        return []
+
+
+def _combinar_huesped_base_con_estadia(huesped_base: dict, datos_estadia: dict) -> dict:
+    """Arma los datos del nuevo registro reutilizando identidad y perfil."""
+    return {
+        "hotel_id": datos_estadia.get("hotel_id") or huesped_base.get("hotel_id"),
+        "apellido_nombre": huesped_base.get("apellido_nombre", ""),
+        "dni_pasaporte": huesped_base.get("dni_raw") or huesped_base.get("dni_pasaporte", ""),
+        "nacionalidad": huesped_base.get("nacionalidad", ""),
+        "procedencia": huesped_base.get("procedencia", ""),
+        "profesion": huesped_base.get("profesion", ""),
+        "edad": huesped_base.get("edad", ""),
+        "fecha_nacimiento": huesped_base.get("fecha_nacimiento", ""),
+        "fecha_entrada": datos_estadia.get("fecha_entrada", ""),
+        "fecha_salida": datos_estadia.get("fecha_salida", ""),
+        "habitacion": datos_estadia.get("habitacion", ""),
+        "domicilio": huesped_base.get("domicilio", ""),
+        "destino": datos_estadia.get("destino", ""),
+        "movilidad": datos_estadia.get("movilidad", ""),
+        "telefono": datos_estadia.get("telefono", ""),
+    }
+
+
+def crear_estadia_desde_huesped(
+    huesped_base_id: int,
+    datos_estadia: dict,
+    usuario_id: int,
+) -> tuple[bool, str, int | None]:
+    """Crea una nueva estadía reutilizando los datos personales de un huésped existente."""
+    huesped_base = obtener_huesped(huesped_base_id)
+    if not huesped_base:
+        return False, "Huésped base no encontrado.", None
+
+    datos_nuevo_registro = _combinar_huesped_base_con_estadia(huesped_base, datos_estadia)
+    ok, msg, huesped_id = crear_huesped(datos_nuevo_registro, usuario_id)
+    if not ok:
+        return False, msg, None
+
+    log_info(
+        f"Nueva estadía creada desde huésped base {huesped_base_id} "
+        f"hacia registro {huesped_id}"
+    )
+    return True, "Nueva estadía registrada correctamente", huesped_id
 
 
 def eliminar_huesped(huesped_id: int, usuario_id: int) -> tuple[bool, str]:

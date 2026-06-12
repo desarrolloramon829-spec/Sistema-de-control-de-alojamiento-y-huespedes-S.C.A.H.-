@@ -7,9 +7,9 @@ from flask import (Blueprint, render_template, request, redirect,
 from web.routes.decorators import login_required, permission_required
 from web.services.guest_service import (
     busqueda_rapida, busqueda_avanzada, crear_huesped, actualizar_huesped,
-    buscar_posibles_duplicados,
+    buscar_posibles_duplicados, crear_estadia_desde_huesped,
     obtener_huesped, eliminar_huesped, obtener_hoteles_lista,
-    obtener_ciudades_lista
+    obtener_ciudades_lista, obtener_historial_estadias_relacionadas
 )
 from utils.geography import obtener_sugerencias_nacionalidad, obtener_sugerencias_procedencia
 from utils.validators import validar_fecha
@@ -44,6 +44,7 @@ def _obtener_alertas_duplicados(datos: dict, exclude_id: int | None = None) -> l
         telefono=datos.get('telefono', ''),
         hotel_id=datos.get('hotel_id'),
         fecha_entrada=datos.get('fecha_entrada', ''),
+        fecha_salida=datos.get('fecha_salida', ''),
         exclude_id=exclude_id,
     )
 
@@ -53,6 +54,27 @@ def _contexto_geo_formulario() -> dict:
         'nacionalidades_sugeridas': obtener_sugerencias_nacionalidad()[1:],
         'procedencias_sugeridas': obtener_sugerencias_procedencia()[1:],
     }
+
+
+def _obtener_datos_estadia_formulario() -> dict:
+    """Obtiene únicamente los campos editables en el flujo de nueva estadía."""
+    return {
+        'hotel_id': request.form.get('hotel_id', type=int),
+        'fecha_entrada': request.form.get('fecha_entrada', ''),
+        'fecha_salida': request.form.get('fecha_salida', ''),
+        'habitacion': request.form.get('habitacion', ''),
+        'destino': request.form.get('destino', ''),
+        'movilidad': request.form.get('movilidad', ''),
+        'telefono': request.form.get('telefono', ''),
+    }
+
+
+def _preparar_datos_nueva_estadia(huesped: dict) -> dict:
+    """Prepara el formulario derivado para registrar una nueva estadía."""
+    datos = _preparar_datos_formulario(huesped)
+    datos['fecha_entrada'] = ''
+    datos['fecha_salida'] = ''
+    return datos
 
 
 @guests_bp.route('/')
@@ -183,6 +205,57 @@ def editar(huesped_id):
                            **_contexto_geo_formulario())
 
 
+@guests_bp.route('/<int:huesped_id>/nueva-estadia', methods=['GET', 'POST'])
+@login_required
+@permission_required('carga_manual')
+def nueva_estadia(huesped_id):
+    """Crea una nueva estadía reutilizando los datos de un expediente existente."""
+    huesped_base = obtener_huesped(huesped_id)
+    if not huesped_base:
+        flash('Huésped no encontrado.', 'warning')
+        return redirect(url_for('guests.index'))
+
+    hoteles = obtener_hoteles_lista()
+    datos_base = _preparar_datos_nueva_estadia(huesped_base)
+
+    if request.method == 'POST':
+        datos_estadia = _obtener_datos_estadia_formulario()
+        datos_formulario = dict(datos_base)
+        datos_formulario.update(datos_estadia)
+
+        usuario_id = session['user']['id']
+        ok, msg, nuevo_huesped_id = crear_estadia_desde_huesped(huesped_id, datos_estadia, usuario_id)
+
+        if ok:
+            flash(msg, 'success')
+            return redirect(url_for('guests.detalle', huesped_id=nuevo_huesped_id))
+
+        flash(msg, 'danger')
+        return render_template(
+            'guests/form.html',
+            datos=datos_formulario,
+            hoteles=hoteles,
+            es_edicion=False,
+            modo_nueva_estadia=True,
+            huesped_base=huesped_base,
+            huesped_base_id=huesped_id,
+            duplicados=_obtener_alertas_duplicados(datos_formulario, huesped_id),
+            **_contexto_geo_formulario(),
+        )
+
+    return render_template(
+        'guests/form.html',
+        datos=datos_base,
+        hoteles=hoteles,
+        es_edicion=False,
+        modo_nueva_estadia=True,
+        huesped_base=huesped_base,
+        huesped_base_id=huesped_id,
+        duplicados=[],
+        **_contexto_geo_formulario(),
+    )
+
+
 @guests_bp.route('/<int:huesped_id>')
 @login_required
 def detalle(huesped_id):
@@ -192,7 +265,21 @@ def detalle(huesped_id):
         flash('Huésped no encontrado.', 'warning')
         return redirect(url_for('guests.index'))
     duplicados = _obtener_alertas_duplicados(huesped, huesped_id)
-    return render_template('guests/detail.html', huesped=huesped, duplicados=duplicados)
+    _, _, fecha_entrada_actual = validar_fecha(huesped.get('fecha_entrada'), permite_vacio=True)
+    _, _, fecha_salida_actual = validar_fecha(huesped.get('fecha_salida'), permite_vacio=True)
+    historial_estadias = obtener_historial_estadias_relacionadas(
+        huesped.get('dni_raw', ''),
+        huesped_id,
+        hotel_id_actual=huesped.get('hotel_id'),
+        fecha_entrada_actual=fecha_entrada_actual,
+        fecha_salida_actual=fecha_salida_actual,
+    )
+    return render_template(
+        'guests/detail.html',
+        huesped=huesped,
+        duplicados=duplicados,
+        historial_estadias=historial_estadias,
+    )
 
 
 @guests_bp.route('/<int:huesped_id>/eliminar', methods=['POST'])
@@ -227,6 +314,7 @@ def api_duplicados():
         telefono=request.args.get('telefono', ''),
         hotel_id=request.args.get('hotel_id', type=int),
         fecha_entrada=request.args.get('fecha_entrada', ''),
+        fecha_salida=request.args.get('fecha_salida', ''),
         exclude_id=request.args.get('exclude_id', type=int),
     )
     return jsonify({

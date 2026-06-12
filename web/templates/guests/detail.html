@@ -1,5 +1,275 @@
 {% extends "base.html" %} {% block title %}{{ huesped.apellido_nombre }} -
 S.C.A.H.{% endblock %} {% block content %}
+<style>
+  .detail-hero__actions {
+    align-items: center;
+    gap: 0.9rem 1rem;
+  }
+
+  .detail-hero__meta {
+    display: flex;
+    align-items: center;
+  }
+
+  .detail-hero__status {
+    min-height: 50px;
+    padding-inline: 1rem;
+  }
+
+  .detail-hero__action-group {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
+
+  .detail-hero__action-btn {
+    min-height: 50px;
+    padding: 0.72rem 1.05rem;
+  }
+
+  .detail-hero__form {
+    margin: 0;
+  }
+
+  .detail-hero__form .detail-hero__action-btn {
+    width: 100%;
+  }
+
+  .duplicate-conflict-pill,
+  .duplicate-hotel-pill,
+  .history-overlap-pill {
+    width: fit-content;
+  }
+
+  .duplicate-conflict-pill--total,
+  .duplicate-conflict-pill--parcial,
+  .history-overlap-pill--total {
+    background: rgba(226, 85, 85, 0.16);
+    border-color: rgba(226, 85, 85, 0.32);
+    color: #ffd7d7;
+  }
+
+  .duplicate-conflict-pill--parcial,
+  .history-overlap-pill--partial {
+    background: rgba(243, 182, 63, 0.16);
+    border-color: rgba(243, 182, 63, 0.32);
+    color: #ffe3ad;
+  }
+
+  .duplicate-conflict-pill--ninguna,
+  .duplicate-hotel-pill--sin_contexto {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+  }
+
+  .duplicate-hotel-pill--mismo_hotel {
+    background: rgba(35, 192, 255, 0.16);
+    border-color: rgba(35, 192, 255, 0.3);
+    color: #c8efff;
+  }
+
+  .duplicate-hotel-pill--entre_hoteles {
+    background: rgba(103, 183, 255, 0.14);
+    border-color: rgba(103, 183, 255, 0.28);
+    color: #d6e9ff;
+  }
+
+  .duplicate-alert-item--overlap-total {
+    background: rgba(226, 85, 85, 0.12);
+    border-color: rgba(226, 85, 85, 0.3);
+  }
+
+  .duplicate-alert-item--overlap-partial {
+    background: rgba(243, 182, 63, 0.12);
+    border-color: rgba(243, 182, 63, 0.28);
+  }
+
+  .duplicate-alert-item--critica {
+    background: rgba(226, 85, 85, 0.18);
+    border-color: rgba(226, 85, 85, 0.42);
+    box-shadow: inset 0 0 0 1px rgba(255, 215, 215, 0.05);
+  }
+
+  .duplicate-alert-item--alta {
+    background: rgba(243, 182, 63, 0.14);
+    border-color: rgba(243, 182, 63, 0.34);
+  }
+
+  .duplicate-alert-item--media {
+    background: rgba(35, 192, 255, 0.12);
+    border-color: rgba(35, 192, 255, 0.24);
+  }
+
+  .duplicate-alert-item--normal {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .duplicate-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .duplicate-legend__item {
+    min-height: 32px;
+    cursor: pointer;
+  }
+
+  .duplicate-legend__item.is-active {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 0 0 2px rgba(255, 255, 255, 0.06);
+  }
+
+  .duplicate-legend__item--critica {
+    background: rgba(226, 85, 85, 0.18);
+    border-color: rgba(226, 85, 85, 0.42);
+    color: #ffd7d7;
+  }
+
+  .duplicate-legend__item--alta {
+    background: rgba(243, 182, 63, 0.16);
+    border-color: rgba(243, 182, 63, 0.32);
+    color: #ffe3ad;
+  }
+
+  .duplicate-legend__item--media {
+    background: rgba(35, 192, 255, 0.14);
+    border-color: rgba(35, 192, 255, 0.28);
+    color: #d6f2ff;
+  }
+
+  .history-timeline {
+    display: grid;
+    grid-template-columns: minmax(72px, auto) 1fr minmax(72px, auto);
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+  }
+
+  .history-timeline__date {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .history-timeline__date:last-child {
+    text-align: right;
+  }
+
+  .history-timeline__track {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .history-timeline__line {
+    width: 100%;
+    height: 2px;
+    border-radius: 999px;
+    background: rgba(35, 192, 255, 0.35);
+  }
+
+  .history-timeline__dot {
+    position: absolute;
+    left: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(35, 192, 255, 0.95);
+    box-shadow: 0 0 0 3px rgba(35, 192, 255, 0.16);
+  }
+
+  .history-timeline__dot--end {
+    left: auto;
+    right: 0;
+  }
+
+  .history-timeline--total .history-timeline__line,
+  .history-timeline--total .history-timeline__dot {
+    background: rgba(226, 85, 85, 0.92);
+  }
+
+  .history-timeline--total .history-timeline__dot {
+    box-shadow: 0 0 0 3px rgba(226, 85, 85, 0.18);
+  }
+
+  .history-timeline--partial .history-timeline__line,
+  .history-timeline--partial .history-timeline__dot {
+    background: rgba(243, 182, 63, 0.92);
+  }
+
+  .history-timeline--partial .history-timeline__dot {
+    box-shadow: 0 0 0 3px rgba(243, 182, 63, 0.18);
+  }
+
+  .history-filter-stack {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .history-filter-group {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .history-filter-group__label {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .history-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .history-filter-btn {
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: var(--text-secondary);
+  }
+
+  .history-filter-btn.is-active {
+    background: rgba(35, 192, 255, 0.18);
+    border-color: rgba(35, 192, 255, 0.34);
+    color: var(--text-primary);
+  }
+
+  .history-filter-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: rgba(10, 18, 32, 0.48);
+    color: inherit;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .history-empty-state {
+    margin-top: 0.85rem;
+    padding: 0.95rem 1rem;
+    border-radius: var(--radius-md);
+    border: 1px dashed rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 991.98px) {
+    .detail-hero__action-group {
+      justify-content: flex-start;
+    }
+  }
+</style>
 <section class="module-hero mb-4">
   <div>
     <a
@@ -15,31 +285,41 @@ S.C.A.H.{% endblock %} {% block content %}
       identidad, estadía y origen de carga.
     </p>
   </div>
-  <div class="module-hero__actions align-items-start">
-    <span
-      class="status-pill {% if huesped.origen_carga == 'manual' %}muted{% endif %}"
-    >
-      <i class="bi bi-journal-check"></i> {{ huesped.origen_carga or 'N/A' }}
-    </span>
-    {% if current_user and current_user.rol in ('admin', 'operador') %}
-    <a
-      href="{{ url_for('guests.editar', huesped_id=huesped.id) }}"
-      class="btn btn-ghost-secondary btn-sm"
-    >
-      <i class="bi bi-pencil"></i> Editar
-    </a>
-    {% endif %} {% if current_user and current_user.rol == 'admin' %}
-    <form
-      method="POST"
-      action="{{ url_for('guests.eliminar', huesped_id=huesped.id) }}"
-      class="d-inline"
-      onsubmit="return confirm('¿Eliminar este huésped?')"
-    >
-      <button type="submit" class="btn btn-ghost-danger btn-sm">
-        <i class="bi bi-trash"></i> Eliminar
-      </button>
-    </form>
-    {% endif %}
+  <div class="module-hero__actions detail-hero__actions">
+    <div class="detail-hero__meta">
+      <span
+        class="status-pill detail-hero__status {% if huesped.origen_carga == 'manual' %}muted{% endif %}"
+      >
+        <i class="bi bi-journal-check"></i> {{ huesped.origen_carga or 'N/A' }}
+      </span>
+    </div>
+    <div class="detail-hero__action-group">
+      {% if current_user and current_user.rol in ('admin', 'operador') %}
+      <a
+        href="{{ url_for('guests.editar', huesped_id=huesped.id) }}"
+        class="btn btn-ghost-secondary hero-action-btn detail-hero__action-btn"
+      >
+        <i class="bi bi-pencil"></i> Editar
+      </a>
+      <a
+        href="{{ url_for('guests.nueva_estadia', huesped_id=huesped.id) }}"
+        class="btn btn-primary hero-action-btn detail-hero__action-btn"
+      >
+        <i class="bi bi-calendar-plus"></i> Agregar nueva estadía
+      </a>
+      {% endif %} {% if current_user and current_user.rol == 'admin' %}
+      <form
+        method="POST"
+        action="{{ url_for('guests.eliminar', huesped_id=huesped.id) }}"
+        class="detail-hero__form"
+        onsubmit="return confirm('¿Eliminar este huésped?')"
+      >
+        <button type="submit" class="btn btn-ghost-danger hero-action-btn detail-hero__action-btn">
+          <i class="bi bi-trash"></i> Eliminar
+        </button>
+      </form>
+      {% endif %}
+    </div>
   </div>
 </section>
 
@@ -52,15 +332,29 @@ S.C.A.H.{% endblock %} {% block content %}
     </div>
   </header>
   <div class="panel-card__body px-3 pb-3">
-    <div class="duplicate-alert-list">
+    <p class="text-muted small mb-3">
+      Jerarquía visual: rojo intenso para mismo hotel con superposición total, ámbar para conflictos altos y azul para coincidencias menos críticas.
+    </p>
+    <div class="duplicate-legend mb-3" data-alert-filter-controls>
+      <button type="button" class="status-pill small-pill duplicate-legend__item duplicate-legend__item--critica" data-alert-filter="critica" aria-pressed="false">Crítica</button>
+      <button type="button" class="status-pill small-pill duplicate-legend__item duplicate-legend__item--alta" data-alert-filter="alta" aria-pressed="false">Alta</button>
+      <button type="button" class="status-pill small-pill duplicate-legend__item duplicate-legend__item--media" data-alert-filter="media" aria-pressed="false">Media</button>
+    </div>
+    <div class="duplicate-alert-list" data-alert-filter-list>
       {% for duplicado in duplicados %}
-      <div class="duplicate-alert-item">
+      <div class="duplicate-alert-item duplicate-alert-item--{{ duplicado.alerta_visual }}" data-alert-visual="{{ duplicado.alerta_visual }}">
         <div>
           <strong>{{ duplicado.apellido_nombre }}</strong>
           <span>{{ duplicado.hotel or 'Sin hotel' }}</span>
         </div>
         <span>DNI: {{ duplicado.dni_pasaporte or 'S/D' }}</span>
         <span>Coincide por: {{ duplicado.coincidencias | join(', ') }}</span>
+        <span class="status-pill duplicate-conflict-pill duplicate-conflict-pill--{{ duplicado.tipo_conflicto }}">
+          {{ duplicado.tipo_conflicto_label }}
+        </span>
+        <span class="status-pill duplicate-hotel-pill duplicate-hotel-pill--{{ duplicado.contexto_hotel }}">
+          {{ duplicado.contexto_hotel_label }}
+        </span>
         <a href="{{ url_for('guests.detalle', huesped_id=duplicado.id) }}" class="ops-link">Abrir expediente</a>
       </div>
       {% endfor %}
@@ -173,4 +467,177 @@ S.C.A.H.{% endblock %} {% block content %}
     </section>
   </div>
 </div>
+
+{% if historial_estadias %}
+<section class="panel-card mt-3">
+  <header class="panel-card__header compact">
+    <div>
+      <span class="section-kicker">Historial</span>
+      <h3>Otras estadías del mismo documento</h3>
+    </div>
+  </header>
+  <div class="panel-card__body px-3 pb-3">
+    <p class="text-muted small mb-3">
+      Las superposiciones totales se muestran primero en rojo y las parciales después en ámbar.
+    </p>
+    <div class="history-filter-stack mb-3" data-history-filter-controls>
+      <div class="history-filter-group">
+        <span class="history-filter-group__label">Estado</span>
+        <div class="history-filter-bar">
+          <button type="button" class="status-pill small-pill history-filter-btn is-active" data-filter-key="estado" data-filter-value="todos" data-filter-label="Todos">Todos <span class="history-filter-count">0</span></button>
+          <button type="button" class="status-pill small-pill history-filter-btn" data-filter-key="estado" data-filter-value="superpuestas" data-filter-label="Superpuestas">Superpuestas <span class="history-filter-count">0</span></button>
+          <button type="button" class="status-pill small-pill history-filter-btn" data-filter-key="estado" data-filter-value="normales" data-filter-label="Normales">Normales <span class="history-filter-count">0</span></button>
+        </div>
+      </div>
+      <div class="history-filter-group">
+        <span class="history-filter-group__label">Hotel</span>
+        <div class="history-filter-bar">
+          <button type="button" class="status-pill small-pill history-filter-btn is-active" data-filter-key="hotel" data-filter-value="todos" data-filter-label="Todos">Todos <span class="history-filter-count">0</span></button>
+          <button type="button" class="status-pill small-pill history-filter-btn" data-filter-key="hotel" data-filter-value="mismo_hotel" data-filter-label="Mismo hotel">Mismo hotel <span class="history-filter-count">0</span></button>
+          <button type="button" class="status-pill small-pill history-filter-btn" data-filter-key="hotel" data-filter-value="entre_hoteles" data-filter-label="Entre hoteles">Entre hoteles <span class="history-filter-count">0</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="duplicate-alert-list" data-history-filter-list>
+      {% for item in historial_estadias %}
+      <div class="duplicate-alert-item {% if item.tipo_superposicion == 'total' %}duplicate-alert-item--overlap-total{% elif item.tipo_superposicion == 'parcial' %}duplicate-alert-item--overlap-partial{% endif %}" data-history-item data-history-estado="{{ 'superpuestas' if item.tipo_superposicion != 'ninguna' else 'normales' }}" data-history-hotel="{{ item.contexto_hotel }}">
+        <div>
+          <strong>{{ item.hotel or 'Sin hotel' }}</strong>
+          <span>Habitación {{ item.habitacion or 'S/D' }}</span>
+        </div>
+        <div class="history-timeline {% if item.tipo_superposicion == 'total' %}history-timeline--total{% elif item.tipo_superposicion == 'parcial' %}history-timeline--partial{% endif %}">
+          <span class="history-timeline__date">{{ item.fecha_entrada or '-' }}</span>
+          <div class="history-timeline__track">
+            <span class="history-timeline__dot"></span>
+            <span class="history-timeline__line"></span>
+            <span class="history-timeline__dot history-timeline__dot--end"></span>
+          </div>
+          <span class="history-timeline__date">{{ item.fecha_salida or item.fecha_entrada or '-' }}</span>
+        </div>
+        <span>Entrada: {{ item.fecha_entrada or '-' }}</span>
+        <span>Salida: {{ item.fecha_salida or '-' }}</span>
+        <span>Origen: {{ item.origen_carga or 'N/A' }}</span>
+        <span class="status-pill duplicate-hotel-pill duplicate-hotel-pill--{{ item.contexto_hotel }}">
+          {{ item.contexto_hotel_label }}
+        </span>
+        {% if item.tipo_superposicion == 'total' %}
+        <span class="status-pill history-overlap-pill history-overlap-pill--total">
+          <i class="bi bi-exclamation-triangle"></i> Superposición total
+        </span>
+        {% elif item.tipo_superposicion == 'parcial' %}
+        <span class="status-pill history-overlap-pill history-overlap-pill--partial">
+          <i class="bi bi-exclamation-triangle"></i> Superposición parcial
+        </span>
+        {% endif %}
+        <a href="{{ url_for('guests.detalle', huesped_id=item.id) }}" class="ops-link">Abrir expediente</a>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="history-empty-state d-none" data-history-empty-state>
+      No hay estadías que coincidan con los filtros seleccionados.
+    </div>
+  </div>
+</section>
+{% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-alert-filter-controls]').forEach(function (controls) {
+    const container = controls.parentElement;
+    const list = container ? container.querySelector('[data-alert-filter-list]') : null;
+    if (!list) return;
+
+    const buttons = Array.from(controls.querySelectorAll('[data-alert-filter]'));
+    const items = Array.from(list.querySelectorAll('[data-alert-visual]'));
+    let activeFilter = '';
+
+    function aplicarFiltroAlerta() {
+      items.forEach(function (item) {
+        const visible = !activeFilter || item.dataset.alertVisual === activeFilter;
+        item.classList.toggle('d-none', !visible);
+      });
+
+      buttons.forEach(function (button) {
+        const isActive = button.dataset.alertFilter === activeFilter;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      });
+    }
+
+    buttons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        activeFilter = activeFilter === button.dataset.alertFilter ? '' : (button.dataset.alertFilter || '');
+        aplicarFiltroAlerta();
+      });
+    });
+  });
+
+  const controls = document.querySelector('[data-history-filter-controls]');
+  const list = document.querySelector('[data-history-filter-list]');
+  const emptyState = document.querySelector('[data-history-empty-state]');
+  if (!controls || !list) return;
+
+  const buttons = Array.from(controls.querySelectorAll('[data-filter-key][data-filter-value]'));
+  const items = Array.from(list.querySelectorAll('[data-history-item]'));
+  const filterState = {};
+
+  buttons.forEach(function (button) {
+    const key = button.dataset.filterKey;
+    if (key && !(key in filterState)) {
+      filterState[key] = 'todos';
+    }
+  });
+
+  function itemCumpleFiltros(item, overrideKey, overrideValue) {
+    return Object.keys(filterState).every(function (key) {
+      const expected = key === overrideKey ? overrideValue : (filterState[key] || 'todos');
+      if (expected === 'todos') return true;
+      const datasetKey = 'history' + key.charAt(0).toUpperCase() + key.slice(1);
+      return (item.dataset[datasetKey] || 'sin_contexto') === expected;
+    });
+  }
+
+  function actualizarContadores() {
+    buttons.forEach(function (button) {
+      const key = button.dataset.filterKey || '';
+      const value = button.dataset.filterValue || 'todos';
+      const label = button.dataset.filterLabel || value;
+      const count = items.filter(function (item) {
+        return itemCumpleFiltros(item, key, value);
+      }).length;
+      button.innerHTML = `${label} <span class="history-filter-count">${count}</span>`;
+    });
+  }
+
+  function aplicarFiltros() {
+    let visibles = 0;
+    items.forEach(function (item) {
+      const visible = itemCumpleFiltros(item);
+      item.classList.toggle('d-none', !visible);
+      if (visible) visibles += 1;
+    });
+
+    buttons.forEach(function (button) {
+      const key = button.dataset.filterKey || '';
+      button.classList.toggle('is-active', button.dataset.filterValue === filterState[key]);
+    });
+
+    if (emptyState) {
+      emptyState.classList.toggle('d-none', visibles > 0);
+    }
+
+    actualizarContadores();
+  }
+
+  buttons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      const key = button.dataset.filterKey || '';
+      if (!key) return;
+      filterState[key] = button.dataset.filterValue || 'todos';
+      aplicarFiltros();
+    });
+  });
+
+  aplicarFiltros();
+});
+</script>
 {% endblock %}
