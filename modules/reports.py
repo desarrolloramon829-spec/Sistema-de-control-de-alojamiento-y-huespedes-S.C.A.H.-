@@ -4,6 +4,7 @@ Generación de reportes en Excel y PDF, exportación de datos
 """
 
 import customtkinter as ctk
+import threading
 from datetime import datetime
 from tkinter import filedialog
 
@@ -389,7 +390,7 @@ class ReportsModule(ctk.CTkFrame):
 
     def _exportar(self, datos: list, formato: str, nombre: str, titulo: str,
                    columnas: list = None):
-        """Exporta datos según el formato seleccionado."""
+        """Exporta datos según el formato seleccionado en un hilo secundario."""
         if not datos:
             mostrar_advertencia(self, "Sin datos", "No hay datos para exportar")
             return
@@ -398,74 +399,86 @@ class ReportsModule(ctk.CTkFrame):
         if not archivo:
             return
 
-        try:
-            if formato == "excel":
-                exportar_a_excel(datos, archivo, titulo)
-            else:
-                generar_pdf(datos, archivo, titulo, columnas)
+        def tarea():
+            try:
+                if formato == "excel":
+                    exportar_a_excel(datos, archivo, titulo)
+                else:
+                    generar_pdf(datos, archivo, titulo, columnas)
 
-            mostrar_exito(self, "Exportado",
-                         f"Reporte generado correctamente:\n{archivo}")
+                self.after(0, lambda: mostrar_exito(self, "Exportado",
+                             f"Reporte generado correctamente:\n{archivo}"))
 
-            Auditoria.registrar(
-                self.usuario["id"], "reporte_generado",
-                f"Reporte '{titulo}' en {formato.upper()}: {len(datos)} registros"
-            )
+                Auditoria.registrar(
+                    self.usuario["id"], "reporte_generado",
+                    f"Reporte '{titulo}' en {formato.upper()}: {len(datos)} registros"
+                )
 
-        except Exception as e:
-            log_error(f"Error al generar reporte {formato}", e)
-            mostrar_error(self, "Error", f"Error al generar reporte: {str(e)}")
+            except Exception as e:
+                log_error(f"Error al generar reporte {formato}", e)
+                self.after(0, lambda: mostrar_error(self, "Error",
+                             f"Error al generar reporte: {str(e)}"))
+
+        threading.Thread(target=tarea, daemon=True).start()
 
     def _reporte_general(self, formato: str):
         """Genera reporte general de todos los huéspedes."""
-        try:
-            datos = db.ejecutar_query("""
-                SELECT hu.apellido_nombre, hu.dni_pasaporte, hu.nacionalidad,
-                       hu.procedencia, hu.profesion_ocupacion, hu.edad,
-                       hu.fecha_entrada, hu.fecha_salida, h.nombre as hotel,
-                       h.ciudad_localidad, hu.habitacion, hu.domicilio,
-                       hu.destino, hu.movilidad, hu.telefono
-                FROM huespedes hu
-                LEFT JOIN hoteles h ON hu.hotel_id = h.id
-                ORDER BY hu.apellido_nombre
-            """, fetch=True)
+        def tarea():
+            try:
+                datos = db.ejecutar_query("""
+                    SELECT hu.apellido_nombre, hu.dni_pasaporte, hu.nacionalidad,
+                           hu.procedencia, hu.profesion_ocupacion, hu.edad,
+                           hu.fecha_entrada, hu.fecha_salida, h.nombre as hotel,
+                           h.ciudad_localidad, hu.habitacion, hu.domicilio,
+                           hu.destino, hu.movilidad, hu.telefono
+                    FROM huespedes hu
+                    LEFT JOIN hoteles h ON hu.hotel_id = h.id
+                    ORDER BY hu.apellido_nombre
+                """, fetch=True)
 
-            self._exportar(
-                [dict(d) for d in datos] if datos else [],
-                formato, "listado_general", "Listado General de Huéspedes",
-                ["apellido_nombre", "dni_pasaporte", "nacionalidad",
-                 "procedencia", "profesion_ocupacion", "edad",
-                 "fecha_entrada", "fecha_salida", "hotel", "ciudad_localidad",
-                 "habitacion", "domicilio", "destino", "movilidad", "telefono"]
-            )
-        except Exception as e:
-            log_error("Error en reporte general", e)
-            mostrar_error(self, "Error", str(e))
+                datos_lista = [dict(d) for d in datos] if datos else []
+                self.after(0, lambda: self._exportar(
+                    datos_lista,
+                    formato, "listado_general", "Listado General de Huéspedes",
+                    ["apellido_nombre", "dni_pasaporte", "nacionalidad",
+                     "procedencia", "profesion_ocupacion", "edad",
+                     "fecha_entrada", "fecha_salida", "hotel", "ciudad_localidad",
+                     "habitacion", "domicilio", "destino", "movilidad", "telefono"]
+                ))
+            except Exception as e:
+                log_error("Error en reporte general", e)
+                self.after(0, lambda: mostrar_error(self, "Error", str(e)))
+
+        threading.Thread(target=tarea, daemon=True).start()
 
     def _reporte_por_hotel(self, formato: str):
         """Genera reporte de huéspedes agrupado por hotel."""
-        try:
-            datos = db.ejecutar_query("""
-                SELECT h.nombre as hotel, h.ciudad_localidad,
-                       hu.apellido_nombre, hu.dni_pasaporte, hu.nacionalidad,
-                       hu.profesion_ocupacion, hu.edad,
-                       hu.fecha_entrada, hu.fecha_salida,
-                       hu.habitacion, hu.telefono
-                FROM huespedes hu
-                JOIN hoteles h ON hu.hotel_id = h.id
-                ORDER BY h.nombre, hu.apellido_nombre
-            """, fetch=True)
+        def tarea():
+            try:
+                datos = db.ejecutar_query("""
+                    SELECT h.nombre as hotel, h.ciudad_localidad,
+                           hu.apellido_nombre, hu.dni_pasaporte, hu.nacionalidad,
+                           hu.profesion_ocupacion, hu.edad,
+                           hu.fecha_entrada, hu.fecha_salida,
+                           hu.habitacion, hu.telefono
+                    FROM huespedes hu
+                    JOIN hoteles h ON hu.hotel_id = h.id
+                    ORDER BY h.nombre, hu.apellido_nombre
+                """, fetch=True)
 
-            self._exportar(
-                [dict(d) for d in datos] if datos else [],
-                formato, "huespedes_por_hotel", "Huéspedes por Hotel",
-                ["hotel", "ciudad_localidad", "apellido_nombre",
-                 "dni_pasaporte", "nacionalidad", "fecha_entrada", "fecha_salida",
-                 "habitacion", "telefono"]
-            )
-        except Exception as e:
-            log_error("Error en reporte por hotel", e)
-            mostrar_error(self, "Error", str(e))
+                datos_lista = [dict(d) for d in datos] if datos else []
+                self.after(0, lambda: self._exportar(
+                    datos_lista,
+                    formato, "huespedes_por_hotel", "Huéspedes por Hotel",
+                    ["hotel", "ciudad_localidad", "apellido_nombre",
+                     "dni_pasaporte", "nacionalidad", "fecha_entrada", "fecha_salida",
+                     "habitacion", "telefono"]
+                ))
+            except Exception as e:
+                log_error("Error en reporte por hotel", e)
+                self.after(0, lambda: mostrar_error(self, "Error", str(e)))
+
+        threading.Thread(target=tarea, daemon=True).start()
 
     def _reporte_por_fechas(self, formato: str):
         """Genera reporte filtrado por rango de fechas."""
@@ -563,77 +576,94 @@ class ReportsModule(ctk.CTkFrame):
         ).pack(side="right", padx=5)
 
     def _reporte_estadistico(self, formato: str):
-        """Genera reporte estadístico con resúmenes."""
+        """Genera reporte estadístico con resúmenes en un hilo secundario."""
+        def tarea():
+            try:
+                nac_datos = db.ejecutar_query("""
+                    SELECT nacionalidad as concepto, COUNT(*) as total
+                    FROM huespedes
+                    WHERE nacionalidad IS NOT NULL AND nacionalidad != ''
+                    GROUP BY nacionalidad ORDER BY total DESC
+                """, fetch=True)
+
+                prof_datos = db.ejecutar_query("""
+                    SELECT profesion_ocupacion as concepto, COUNT(*) as total
+                    FROM huespedes
+                    WHERE profesion_ocupacion IS NOT NULL AND profesion_ocupacion != ''
+                    GROUP BY profesion_ocupacion ORDER BY total DESC
+                """, fetch=True)
+
+                proc_datos = db.ejecutar_query("""
+                    SELECT procedencia as concepto, COUNT(*) as total
+                    FROM huespedes
+                    WHERE procedencia IS NOT NULL AND procedencia != ''
+                    GROUP BY procedencia ORDER BY total DESC
+                """, fetch=True)
+
+                self.after(0, lambda: self._exportar_estadistico(
+                    formato, nac_datos, prof_datos, proc_datos
+                ))
+
+            except Exception as e:
+                log_error("Error en reporte estadístico", e)
+                self.after(0, lambda: mostrar_error(self, "Error", str(e)))
+
+        threading.Thread(target=tarea, daemon=True).start()
+
+    def _exportar_estadistico(self, formato, nac_datos, prof_datos, proc_datos):
+        """Callback en el hilo principal para exportar reporte estadístico."""
         try:
-            # Nacionalidades
-            nac_datos = db.ejecutar_query("""
-                SELECT nacionalidad as concepto, COUNT(*) as total
-                FROM huespedes
-                WHERE nacionalidad IS NOT NULL AND nacionalidad != ''
-                GROUP BY nacionalidad ORDER BY total DESC
-            """, fetch=True)
-
-            # Profesiones
-            prof_datos = db.ejecutar_query("""
-                SELECT profesion_ocupacion as concepto, COUNT(*) as total
-                FROM huespedes
-                WHERE profesion_ocupacion IS NOT NULL AND profesion_ocupacion != ''
-                GROUP BY profesion_ocupacion ORDER BY total DESC
-            """, fetch=True)
-
-            # Procedencia
-            proc_datos = db.ejecutar_query("""
-                SELECT procedencia as concepto, COUNT(*) as total
-                FROM huespedes
-                WHERE procedencia IS NOT NULL AND procedencia != ''
-                GROUP BY procedencia ORDER BY total DESC
-            """, fetch=True)
-
-            # Combinar en Excel con hojas separadas
             if formato == "excel":
                 archivo = self._obtener_ruta_guardado("excel", "reporte_estadistico")
                 if not archivo:
                     return
 
-                import openpyxl
-                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+                def tarea_excel():
+                    try:
+                        import openpyxl
+                        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
-                wb = openpyxl.Workbook()
+                        wb = openpyxl.Workbook()
 
-                def crear_hoja(wb, nombre, datos_hoja, titulo_hoja):
-                    ws = wb.create_sheet(title=nombre[:31])
+                        def crear_hoja(wb, nombre, datos_hoja, titulo_hoja):
+                            ws = wb.create_sheet(title=nombre[:31])
 
-                    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
-                    header_fill = PatternFill(start_color="1565C0", end_color="1565C0",
-                                              fill_type="solid")
+                            header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+                            header_fill = PatternFill(start_color="1565C0", end_color="1565C0",
+                                                      fill_type="solid")
 
-                    ws.cell(row=1, column=1, value=titulo_hoja).font = Font(
-                        name="Calibri", size=14, bold=True, color="1565C0")
+                            ws.cell(row=1, column=1, value=titulo_hoja).font = Font(
+                                name="Calibri", size=14, bold=True, color="1565C0")
 
-                    ws.cell(row=3, column=1, value="Concepto").font = header_font
-                    ws.cell(row=3, column=1).fill = header_fill
-                    ws.cell(row=3, column=2, value="Cantidad").font = header_font
-                    ws.cell(row=3, column=2).fill = header_fill
+                            ws.cell(row=3, column=1, value="Concepto").font = header_font
+                            ws.cell(row=3, column=1).fill = header_fill
+                            ws.cell(row=3, column=2, value="Cantidad").font = header_font
+                            ws.cell(row=3, column=2).fill = header_fill
 
-                    if datos_hoja:
-                        for i, d in enumerate(datos_hoja, 4):
-                            ws.cell(row=i, column=1, value=d.get("concepto", ""))
-                            ws.cell(row=i, column=2, value=d.get("total", 0))
+                            if datos_hoja:
+                                for i, d in enumerate(datos_hoja, 4):
+                                    ws.cell(row=i, column=1, value=d.get("concepto", ""))
+                                    ws.cell(row=i, column=2, value=d.get("total", 0))
 
-                    ws.column_dimensions["A"].width = 35
-                    ws.column_dimensions["B"].width = 15
+                            ws.column_dimensions["A"].width = 35
+                            ws.column_dimensions["B"].width = 15
 
-                crear_hoja(wb, "Nacionalidades", nac_datos or [], "Distribución por Nacionalidad")
-                crear_hoja(wb, "Profesiones", prof_datos or [], "Distribución por Profesión")
-                crear_hoja(wb, "Procedencias", proc_datos or [], "Distribución por Procedencia")
+                        crear_hoja(wb, "Nacionalidades", nac_datos or [], "Distribución por Nacionalidad")
+                        crear_hoja(wb, "Profesiones", prof_datos or [], "Distribución por Profesión")
+                        crear_hoja(wb, "Procedencias", proc_datos or [], "Distribución por Procedencia")
 
-                # Eliminar hoja default
-                if "Sheet" in wb.sheetnames:
-                    del wb["Sheet"]
+                        if "Sheet" in wb.sheetnames:
+                            del wb["Sheet"]
 
-                wb.save(archivo)
-                mostrar_exito(self, "Exportado",
-                             f"Reporte estadístico generado:\n{archivo}")
+                        wb.save(archivo)
+                        self.after(0, lambda: mostrar_exito(self, "Exportado",
+                                     f"Reporte estadístico generado:\n{archivo}"))
+                    except Exception as e:
+                        log_error("Error al generar reporte estadístico Excel", e)
+                        self.after(0, lambda: mostrar_error(self, "Error",
+                                     f"Error al generar reporte: {str(e)}"))
+
+                threading.Thread(target=tarea_excel, daemon=True).start()
             else:
                 # Para PDF, combinar todo en una tabla
                 datos_combinados = []
@@ -671,42 +701,50 @@ class ReportsModule(ctk.CTkFrame):
 
     def _reporte_importaciones(self, formato: str):
         """Genera reporte del historial de importaciones."""
-        try:
-            datos = db.ejecutar_query("""
-                SELECT il.nombre_archivo, il.registros_importados,
-                       il.registros_duplicados, il.registros_error,
-                       il.fecha_importacion,
-                       u.username as usuario
-                FROM importaciones_log il
-                LEFT JOIN usuarios u ON il.usuario_id = u.id
-                ORDER BY il.fecha_importacion DESC
-            """, fetch=True)
+        def tarea():
+            try:
+                datos = db.ejecutar_query("""
+                    SELECT il.nombre_archivo, il.registros_importados,
+                           il.registros_duplicados, il.registros_error,
+                           il.fecha_importacion,
+                           u.username as usuario
+                    FROM importaciones_log il
+                    LEFT JOIN usuarios u ON il.usuario_id = u.id
+                    ORDER BY il.fecha_importacion DESC
+                """, fetch=True)
 
-            self._exportar(
-                [dict(d) for d in datos] if datos else [],
-                formato, "historial_importaciones",
-                "Historial de Importaciones"
-            )
-        except Exception as e:
-            log_error("Error en reporte importaciones", e)
-            mostrar_error(self, "Error", str(e))
+                datos_lista = [dict(d) for d in datos] if datos else []
+                self.after(0, lambda: self._exportar(
+                    datos_lista,
+                    formato, "historial_importaciones",
+                    "Historial de Importaciones"
+                ))
+            except Exception as e:
+                log_error("Error en reporte importaciones", e)
+                self.after(0, lambda: mostrar_error(self, "Error", str(e)))
+
+        threading.Thread(target=tarea, daemon=True).start()
 
     def _reporte_auditoria(self, formato: str):
         """Genera reporte de auditoría del sistema."""
-        try:
-            datos = db.ejecutar_query("""
-                SELECT a.fecha, u.username, a.accion, a.detalle
-                FROM auditoria a
-                LEFT JOIN usuarios u ON a.usuario_id = u.id
-                ORDER BY a.fecha DESC
-                LIMIT 500
-            """, fetch=True)
+        def tarea():
+            try:
+                datos = db.ejecutar_query("""
+                    SELECT a.fecha, u.username, a.accion, a.detalle
+                    FROM auditoria a
+                    LEFT JOIN usuarios u ON a.usuario_id = u.id
+                    ORDER BY a.fecha DESC
+                    LIMIT 500
+                """, fetch=True)
 
-            self._exportar(
-                [dict(d) for d in datos] if datos else [],
-                formato, "auditoria_sistema",
-                "Auditoría del Sistema"
-            )
-        except Exception as e:
-            log_error("Error en reporte auditoría", e)
-            mostrar_error(self, "Error", str(e))
+                datos_lista = [dict(d) for d in datos] if datos else []
+                self.after(0, lambda: self._exportar(
+                    datos_lista,
+                    formato, "auditoria_sistema",
+                    "Auditoría del Sistema"
+                ))
+            except Exception as e:
+                log_error("Error en reporte auditoría", e)
+                self.after(0, lambda: mostrar_error(self, "Error", str(e)))
+
+        threading.Thread(target=tarea, daemon=True).start()

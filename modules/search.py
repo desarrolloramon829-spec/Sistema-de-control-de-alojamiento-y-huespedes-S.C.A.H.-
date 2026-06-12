@@ -4,6 +4,7 @@ Búsqueda general y avanzada con filtros combinables
 """
 
 import customtkinter as ctk
+import threading
 from datetime import datetime
 
 from database.connection import db
@@ -376,54 +377,60 @@ class SearchModule(ctk.CTkFrame):
         self._ejecutar_busqueda(query, params)
 
     def _ejecutar_busqueda(self, query: str, params: list, offset: int = 0):
-        """Ejecuta la búsqueda y muestra resultados."""
-        try:
-            # Contar total
-            count_query = f"SELECT COUNT(*) as total FROM ({query}) sub"
-            count_result = db.ejecutar_query_one(count_query, tuple(params))
-            total = count_result["total"] if count_result else 0
+        """Ejecuta la búsqueda en un hilo secundario."""
+        self.label_resultados.configure(text="⏳ Buscando...")
 
-            # Paginar
-            query_paginada = query + f" LIMIT {DEFAULT_PAGE_SIZE} OFFSET {offset}"
-            resultados = db.ejecutar_query(query_paginada, tuple(params), fetch=True)
+        def tarea():
+            try:
+                count_query = f"SELECT COUNT(*) as total FROM ({query}) sub"
+                count_result = db.ejecutar_query_one(count_query, tuple(params))
+                total = count_result["total"] if count_result else 0
 
-            self.resultados = resultados if resultados else []
+                query_paginada = query + f" LIMIT {DEFAULT_PAGE_SIZE} OFFSET {offset}"
+                resultados = db.ejecutar_query(query_paginada, tuple(params), fetch=True)
 
-            # Cargar en tabla
-            datos_tabla = []
-            for r in self.resultados:
-                datos_tabla.append({
-                    "id": str(r["id"]),
-                    "hotel": r["hotel"],
-                    "apellido_nombre": r["apellido_nombre"],
-                    "dni_pasaporte": formato_dni(str(r["dni_pasaporte"])) if r["dni_pasaporte"] else "",
-                    "nacionalidad": r["nacionalidad"] or "",
-                    "procedencia": r["procedencia"] or "",
-                    "edad": str(r["edad"]) if r["edad"] else "",
-                    "profesion": r["profesion"] or "",
-                    "fecha_entrada": formato_fecha(r["fecha_entrada"]),
-                    "fecha_salida": formato_fecha(r["fecha_salida"]),
-                    "habitacion": r.get("habitacion", "") or "",
-                    "telefono": r.get("telefono", "") or "",
-                    "origen": r["origen_carga"] or "",
-                })
-            self.tabla.cargar_datos(datos_tabla)
+                self.after(0, lambda: self._busqueda_completada(resultados, total))
 
-            # Actualizar paginador
-            self.paginador.configurar(total)
+            except Exception as e:
+                from utils.logger import log_error
+                log_error("Error en búsqueda", e)
+                self.after(0, lambda: mostrar_error(self, "Error de búsqueda",
+                              f"Error al ejecutar la búsqueda:\n{str(e)}"))
+                self.after(0, lambda: self.label_resultados.configure(
+                    text="Resultados de búsqueda"))
 
-            # Actualizar label
-            self.label_resultados.configure(
-                text=f"Resultados: {total} registro(s) encontrado(s)"
-            )
+        threading.Thread(target=tarea, daemon=True).start()
 
-            log_info(f"Búsqueda ejecutada: {total} resultados")
+    def _busqueda_completada(self, resultados, total):
+        """Callback en el hilo principal con los resultados de la búsqueda."""
+        self.resultados = resultados if resultados else []
 
-        except Exception as e:
-            from utils.logger import log_error
-            log_error("Error en búsqueda", e)
-            mostrar_error(self, "Error de búsqueda",
-                          f"Error al ejecutar la búsqueda:\n{str(e)}")
+        datos_tabla = []
+        for r in self.resultados:
+            datos_tabla.append({
+                "id": str(r["id"]),
+                "hotel": r["hotel"],
+                "apellido_nombre": r["apellido_nombre"],
+                "dni_pasaporte": formato_dni(str(r["dni_pasaporte"])) if r["dni_pasaporte"] else "",
+                "nacionalidad": r["nacionalidad"] or "",
+                "procedencia": r["procedencia"] or "",
+                "edad": str(r["edad"]) if r["edad"] else "",
+                "profesion": r["profesion"] or "",
+                "fecha_entrada": formato_fecha(r["fecha_entrada"]),
+                "fecha_salida": formato_fecha(r["fecha_salida"]),
+                "habitacion": r.get("habitacion", "") or "",
+                "telefono": r.get("telefono", "") or "",
+                "origen": r["origen_carga"] or "",
+            })
+        self.tabla.cargar_datos(datos_tabla)
+
+        self.paginador.configurar(total)
+
+        self.label_resultados.configure(
+            text=f"Resultados: {total} registro(s) encontrado(s)"
+        )
+
+        log_info(f"Búsqueda ejecutada: {total} resultados")
 
     def _cambiar_pagina(self, offset: int, limit: int):
         """Callback del paginador para cambiar de página."""

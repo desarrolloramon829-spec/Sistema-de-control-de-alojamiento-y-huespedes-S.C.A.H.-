@@ -4,6 +4,7 @@ Formulario con validación en tiempo real para registrar huéspedes manualmente
 """
 
 import customtkinter as ctk
+import threading
 from datetime import date, datetime
 
 from database.connection import db
@@ -320,35 +321,38 @@ class ManualEntryModule(ctk.CTkFrame):
                     self.input_edad.set(str(edad))
 
     def _verificar_duplicado(self, event=None):
-        """Verifica si ya existe un huésped con el mismo DNI."""
+        """Verifica si ya existe un huésped con el mismo DNI en un hilo secundario."""
         dni = self.input_dni.get()
         if not dni:
             self.label_alerta.configure(text="")
             return
 
-        try:
-            dni_normalizado = "".join(
-                char for char in normalizar_documento_guardado(dni).upper() if char.isalnum()
-            )
-            resultado = db.ejecutar_query(
-                "SELECT h.apellido_nombre, ht.nombre as hotel "
-                "FROM huespedes h JOIN hoteles ht ON h.hotel_id = ht.id "
-                "WHERE regexp_replace(upper(COALESCE(h.dni_pasaporte, '')), '[^A-Z0-9]', '', 'g') = %s "
-                "ORDER BY h.fecha_entrada DESC LIMIT 3",
-                (dni_normalizado,),
-                fetch=True
-            )
-            if resultado:
-                registros = ", ".join(
-                    [f"{r['apellido_nombre']} ({r['hotel']})" for r in resultado]
+        def tarea():
+            try:
+                dni_normalizado = "".join(
+                    char for char in normalizar_documento_guardado(dni).upper() if char.isalnum()
                 )
-                self.label_alerta.configure(
-                    text=f"⚠️ DNI ya registrado: {registros}"
+                resultado = db.ejecutar_query(
+                    "SELECT h.apellido_nombre, ht.nombre as hotel "
+                    "FROM huespedes h JOIN hoteles ht ON h.hotel_id = ht.id "
+                    "WHERE regexp_replace(upper(COALESCE(h.dni_pasaporte, '')), '[^A-Z0-9]', '', 'g') = %s "
+                    "ORDER BY h.fecha_entrada DESC LIMIT 3",
+                    (dni_normalizado,),
+                    fetch=True
                 )
-            else:
-                self.label_alerta.configure(text="")
-        except Exception:
-            pass
+                if resultado:
+                    registros = ", ".join(
+                        [f"{r['apellido_nombre']} ({r['hotel']})" for r in resultado]
+                    )
+                    self.after(0, lambda: self.label_alerta.configure(
+                        text=f"⚠️ DNI ya registrado: {registros}"
+                    ))
+                else:
+                    self.after(0, lambda: self.label_alerta.configure(text=""))
+            except Exception:
+                pass
+
+        threading.Thread(target=tarea, daemon=True).start()
 
     def _validar_formulario(self) -> tuple[bool, list]:
         """Valida todos los campos del formulario. Retorna (ok, errores)."""
@@ -438,123 +442,150 @@ class ManualEntryModule(ctk.CTkFrame):
 
         return len(errores) == 0, errores
 
-    def _guardar(self):
-        """Valida y guarda los datos en la base de datos."""
+    def _guardar(self, callback_exito=None):
+        """Valida y guarda los datos en la base de datos en un hilo secundario."""
         ok, errores = self._validar_formulario()
         if not ok:
             mostrar_advertencia(self, "Errores de validación",
                                 "Corrija los siguientes errores:\n\n• " + "\n• ".join(errores))
             return
 
-        try:
-            conn = db.obtener_conexion()
-            if not conn:
-                mostrar_error(self, "Error", "No se pudo conectar a la base de datos")
-                return
+        # Capturar todos los valores del formulario ANTES de lanzar el hilo
+        hotel_nombre = self.input_hotel.get()
+        es_nuevo = self.check_nuevo.get()
+        nro_orden = sanitizar_texto(self.input_nro_orden.get()) if es_nuevo else ""
+        direccion_val = sanitizar_texto(self.input_direccion.get()) if es_nuevo else ""
+        ciudad_val = sanitizar_texto(self.input_ciudad.get()) if es_nuevo else ""
+        nombre_val = sanitizar_texto(self.input_nombre.get())
+        dni_val = normalizar_documento_guardado(self.input_dni.get())
+        _, _, fecha_nac = validar_fecha(self.input_fecha_nac.get(), permite_vacio=True)
+        _, _, fecha_entrada = validar_fecha(self.input_entrada.get(), permite_vacio=True)
+        _, _, fecha_salida = validar_fecha(self.input_salida.get(), permite_vacio=True)
+        _, _, edad = validar_edad(self.input_edad.get())
+        nacionalidad, procedencia = normalizar_campos_geograficos(
+            sanitizar_texto(self.input_nacionalidad.get()),
+            sanitizar_texto(self.input_procedencia.get()),
+        )
+        profesion_val = sanitizar_texto(self.input_profesion.get())
+        habitacion_val = sanitizar_texto(self.input_habitacion.get())
+        domicilio_val = sanitizar_texto(self.input_domicilio.get())
+        destino_val = sanitizar_texto(self.input_destino.get())
+        movilidad_val = sanitizar_texto(self.input_movilidad.get())
+        telefono_val = sanitizar_texto(self.input_telefono.get())
+        usuario_id = self.usuario["id"]
 
-            cursor = conn.cursor()
-
-            # Obtener o crear hotel
-            hotel_nombre = self.input_hotel.get()
-            if self.check_nuevo.get():
-                cursor.execute("""
-                    INSERT INTO hoteles (nombre, nro_orden, direccion, ciudad_localidad, usuario_registro_id)
-                    VALUES (%s, %s, %s, %s, %s) RETURNING id
-                """, (
-                    sanitizar_texto(hotel_nombre),
-                    sanitizar_texto(self.input_nro_orden.get()),
-                    sanitizar_texto(self.input_direccion.get()),
-                    sanitizar_texto(self.input_ciudad.get()),
-                    self.usuario["id"]
-                ))
-                hotel_id = cursor.fetchone()[0]
-            else:
-                cursor.execute("SELECT id FROM hoteles WHERE nombre = %s", (hotel_nombre,))
-                result = cursor.fetchone()
-                if not result:
-                    mostrar_error(self, "Error", "Hotel no encontrado. Marque 'Registrar nuevo hotel'.")
-                    db.liberar_conexion(conn)
-                    return
-                hotel_id = result[0]
-
-            # Procesar fechas
-            _, _, fecha_nac = validar_fecha(self.input_fecha_nac.get(), permite_vacio=True)
-            _, _, fecha_entrada = validar_fecha(self.input_entrada.get(), permite_vacio=True)
-            _, _, fecha_salida = validar_fecha(self.input_salida.get(), permite_vacio=True)
-            _, _, edad = validar_edad(self.input_edad.get())
-            nacionalidad, procedencia = normalizar_campos_geograficos(
-                sanitizar_texto(self.input_nacionalidad.get()),
-                sanitizar_texto(self.input_procedencia.get()),
-            )
-
-            # Insertar huésped
-            cursor.execute("""
-                INSERT INTO huespedes (
-                    hotel_id, nacionalidad, procedencia, apellido_nombre,
-                    dni_pasaporte, fecha_nacimiento, edad, profesion,
-                    fecha_entrada, fecha_salida,
-                    habitacion, domicilio, destino, movilidad, telefono,
-                    origen_carga, usuario_carga_id
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'manual', %s)
-                RETURNING id
-            """, (
-                hotel_id,
-                nacionalidad,
-                procedencia,
-                sanitizar_texto(self.input_nombre.get()),
-                normalizar_documento_guardado(self.input_dni.get()),
-                fecha_nac,
-                edad,
-                sanitizar_texto(self.input_profesion.get()),
-                fecha_entrada,
-                fecha_salida,
-                sanitizar_texto(self.input_habitacion.get()),
-                sanitizar_texto(self.input_domicilio.get()),
-                sanitizar_texto(self.input_destino.get()),
-                sanitizar_texto(self.input_movilidad.get()),
-                sanitizar_texto(self.input_telefono.get()),
-                self.usuario["id"]
-            ))
-            huesped_id = cursor.fetchone()[0]
-
-            conn.commit()
-            cursor.close()
-            db.liberar_conexion(conn)
-
-            # Auditoría
+        def tarea():
+            exito = False
+            error_msg = None
             try:
-                conn_aud = db.obtener_conexion()
-                if conn_aud:
-                    Auditoria(conn_aud).registrar(
-                        self.usuario["id"], "carga_manual", "huespedes",
-                        registro_id=huesped_id,
-                        detalle=f"Huésped: {self.input_nombre.get()}"
-                    )
-                    db.liberar_conexion(conn_aud)
-            except Exception:
-                pass
+                conn = db.obtener_conexion()
+                if not conn:
+                    self.after(0, lambda: mostrar_error(self, "Error", "No se pudo conectar a la base de datos"))
+                    return
 
-            log_info(f"Huésped registrado manualmente: {self.input_nombre.get()} (ID: {huesped_id})")
+                cursor = conn.cursor()
+
+                # Obtener o crear hotel
+                if es_nuevo:
+                    cursor.execute("""
+                        INSERT INTO hoteles (nombre, nro_orden, direccion, ciudad_localidad, usuario_registro_id)
+                        VALUES (%s, %s, %s, %s, %s) RETURNING id
+                    """, (
+                        sanitizar_texto(hotel_nombre),
+                        nro_orden,
+                        direccion_val,
+                        ciudad_val,
+                        usuario_id
+                    ))
+                    hotel_id = cursor.fetchone()[0]
+                else:
+                    cursor.execute("SELECT id FROM hoteles WHERE nombre = %s", (hotel_nombre,))
+                    result = cursor.fetchone()
+                    if not result:
+                        self.after(0, lambda: mostrar_error(self, "Error", "Hotel no encontrado. Marque 'Registrar nuevo hotel'."))
+                        db.liberar_conexion(conn)
+                        return
+                    hotel_id = result[0]
+
+                # Insertar huésped
+                cursor.execute("""
+                    INSERT INTO huespedes (
+                        hotel_id, nacionalidad, procedencia, apellido_nombre,
+                        dni_pasaporte, fecha_nacimiento, edad, profesion,
+                        fecha_entrada, fecha_salida,
+                        habitacion, domicilio, destino, movilidad, telefono,
+                        origen_carga, usuario_carga_id
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'manual', %s)
+                    RETURNING id
+                """, (
+                    hotel_id,
+                    nacionalidad,
+                    procedencia,
+                    nombre_val,
+                    dni_val,
+                    fecha_nac,
+                    edad,
+                    profesion_val,
+                    fecha_entrada,
+                    fecha_salida,
+                    habitacion_val,
+                    domicilio_val,
+                    destino_val,
+                    movilidad_val,
+                    telefono_val,
+                    usuario_id
+                ))
+                huesped_id = cursor.fetchone()[0]
+
+                conn.commit()
+                cursor.close()
+                db.liberar_conexion(conn)
+
+                # Auditoría
+                try:
+                    conn_aud = db.obtener_conexion()
+                    if conn_aud:
+                        Auditoria(conn_aud).registrar(
+                            usuario_id, "carga_manual", "huespedes",
+                            registro_id=huesped_id,
+                            detalle=f"Huésped: {nombre_val}"
+                        )
+                        db.liberar_conexion(conn_aud)
+                except Exception:
+                    pass
+
+                log_info(f"Huésped registrado manualmente: {nombre_val} (ID: {huesped_id})")
+                exito = True
+
+            except Exception as e:
+                log_error("Error al guardar huésped manual", e)
+                error_msg = str(e)
+
+            self.after(0, lambda: self._guardar_completado(
+                exito, error_msg, nombre_val, es_nuevo, callback_exito
+            ))
+
+        threading.Thread(target=tarea, daemon=True).start()
+
+    def _guardar_completado(self, exito, error_msg, nombre_val, es_nuevo, callback_exito):
+        """Callback en el hilo principal con el resultado del guardado."""
+        if exito:
             mostrar_exito(self, "Registro exitoso",
-                          f"Huésped '{self.input_nombre.get()}' registrado correctamente.")
+                          f"Huésped '{nombre_val}' registrado correctamente.")
 
-            # Refrescar lista de hoteles si se creó uno nuevo
-            if self.check_nuevo.get():
+            if es_nuevo:
                 self._cargar_hoteles()
                 nombres_hoteles = [h["nombre"] for h in self.hoteles] if self.hoteles else []
                 self.input_hotel.entry.configure(values=[""] + nombres_hoteles)
 
-            return True
-
-        except Exception as e:
-            log_error("Error al guardar huésped manual", e)
-            mostrar_error(self, "Error", f"Error al guardar: {str(e)}")
-            return False
+            if callback_exito:
+                callback_exito()
+        else:
+            mostrar_error(self, "Error", f"Error al guardar: {error_msg}")
 
     def _guardar_y_nuevo(self):
         """Guarda y limpia para un nuevo registro."""
-        if self._guardar():
-            self._limpiar_formulario(mantener_hotel=True)
+        self._guardar(callback_exito=lambda: self._limpiar_formulario(mantener_hotel=True))
 
     def _limpiar_formulario(self, mantener_hotel: bool = False):
         """Limpia todos los campos del formulario."""

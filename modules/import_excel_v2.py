@@ -6,6 +6,7 @@ PROFESION | PROCEDE | DOMICILIO | DESTINO | DOC | SALIDA | MOVILIDAD | TELEFONO
 """
 
 import os
+import threading
 import customtkinter as ctk
 from tkinter import filedialog
 from datetime import datetime
@@ -325,53 +326,84 @@ class ImportExcelV2Module(ctk.CTkFrame):
         return mapeo
 
     def _procesar_archivos(self):
-        """Procesa los archivos Excel seleccionados y muestra vista previa."""
+        """Procesa los archivos Excel seleccionados en un hilo secundario."""
         self.datos_preview = []
-        errores = []
-        total_hojas = 0
 
         self.barra_progreso.actualizar(0, "Procesando archivos...")
+        self._set_botones_estado("disabled")
 
-        for idx, archivo in enumerate(self.archivos_seleccionados):
-            try:
-                wb = _abrir_workbook(archivo)
-                nombre_archivo = os.path.basename(archivo)
+        archivos = list(self.archivos_seleccionados)
 
-                for hoja_nombre in wb.sheetnames:
-                    hoja = wb[hoja_nombre]
-                    total_hojas += 1
+        def tarea():
+            datos_preview = []
+            errores = []
+            total_hojas = 0
+            mapeo_columnas = {}
 
-                    # Detectar encabezados automáticamente
-                    mapeo_detectado = self._detectar_encabezados(hoja)
+            for idx, archivo in enumerate(archivos):
+                try:
+                    wb = _abrir_workbook(archivo)
+                    nombre_archivo = os.path.basename(archivo)
 
-                    # Si no se detectaron encabezados, usar mapeo por defecto
-                    if not mapeo_detectado or len(mapeo_detectado) < 3:
-                        mapeo_detectado = dict(EXCEL_V2_HUESPED_COLS)
-                        log_info(f"Usando mapeo por defecto para {nombre_archivo}/{hoja_nombre}")
-                    else:
-                        log_info(f"Encabezados detectados en {nombre_archivo}/{hoja_nombre}: "
-                                 f"{list(mapeo_detectado.keys())}")
+                    for hoja_nombre in wb.sheetnames:
+                        hoja = wb[hoja_nombre]
+                        total_hojas += 1
 
-                    self.mapeo_columnas = mapeo_detectado
+                        mapeo_detectado = self._detectar_encabezados(hoja)
 
-                    # Leer huéspedes
-                    huespedes = self._leer_huespedes(hoja, mapeo_detectado, nombre_archivo, hoja_nombre)
-                    self.datos_preview.extend(huespedes)
+                        if not mapeo_detectado or len(mapeo_detectado) < 3:
+                            mapeo_detectado = dict(EXCEL_V2_HUESPED_COLS)
+                            log_info(f"Usando mapeo por defecto para {nombre_archivo}/{hoja_nombre}")
+                        else:
+                            log_info(f"Encabezados detectados en {nombre_archivo}/{hoja_nombre}: "
+                                     f"{list(mapeo_detectado.keys())}")
 
-                wb.close()
+                        mapeo_columnas = mapeo_detectado
 
-            except Exception as e:
-                error_msg = f"Error en '{nombre_archivo}': {str(e)}"
-                errores.append(error_msg)
-                log_error(error_msg, e)
+                        huespedes = self._leer_huespedes(hoja, mapeo_detectado, nombre_archivo, hoja_nombre)
+                        datos_preview.extend(huespedes)
 
-            progreso = (idx + 1) / len(self.archivos_seleccionados)
-            self.barra_progreso.actualizar(
-                progreso,
-                f"Procesando {idx + 1}/{len(self.archivos_seleccionados)} archivos..."
-            )
+                    wb.close()
 
-        # Mostrar columnas detectadas
+                except Exception as e:
+                    error_msg = f"Error en '{nombre_archivo}': {str(e)}"
+                    errores.append(error_msg)
+                    log_error(error_msg, e)
+
+                progreso = (idx + 1) / len(archivos)
+                self.after(0, lambda p=progreso, i=idx: self.barra_progreso.actualizar(
+                    p, f"Procesando {i + 1}/{len(archivos)} archivos..."
+                ))
+
+            self.after(0, lambda: self._procesar_archivos_completado(
+                datos_preview, errores, total_hojas, mapeo_columnas
+            ))
+
+        threading.Thread(target=tarea, daemon=True).start()
+
+    def _set_botones_estado(self, estado: str):
+        """Habilita o deshabilita los botones de acción."""
+        try:
+            for widget in self.winfo_children():
+                self._set_botones_recursivo(widget, estado)
+        except Exception:
+            pass
+
+    def _set_botones_recursivo(self, widget, estado: str):
+        """Recursivamente establece el estado de botones CTkButton."""
+        try:
+            if isinstance(widget, ctk.CTkButton):
+                widget.configure(state=estado)
+            for child in widget.winfo_children():
+                self._set_botones_recursivo(child, estado)
+        except Exception:
+            pass
+
+    def _procesar_archivos_completado(self, datos_preview, errores, total_hojas, mapeo_columnas):
+        """Callback en el hilo principal con los resultados del procesamiento."""
+        self.datos_preview = datos_preview
+        self.mapeo_columnas = mapeo_columnas
+
         if self.mapeo_columnas:
             cols_detectadas = [f"{k}={v}" for k, v in sorted(self.mapeo_columnas.items(),
                                                               key=lambda x: x[1])]
@@ -379,13 +411,11 @@ class ImportExcelV2Module(ctk.CTkFrame):
                 text=f"🔍 Columnas detectadas: {', '.join(cols_detectadas)}"
             )
 
-        # Actualizar UI
         self.barra_progreso.completar(
             f"Procesado: {len(self.archivos_seleccionados)} archivos, "
             f"{total_hojas} hojas, {len(self.datos_preview)} huéspedes encontrados"
         )
 
-        # Cargar datos en tabla
         self.tabla_huesped.cargar_datos([
             (formato_fecha(h.get("fecha_entrada")),
              str(h.get("habitacion", "")),
@@ -412,8 +442,11 @@ class ImportExcelV2Module(ctk.CTkFrame):
         else:
             self.label_errores.configure(text="")
 
+        self._set_botones_estado("normal")
         if self.datos_preview:
             self.btn_importar.configure(state="normal")
+        else:
+            self.btn_importar.configure(state="disabled")
 
     def _valor_celda(self, hoja, columna: str, fila: int):
         """Obtiene el valor de una celda específica."""
@@ -563,12 +596,11 @@ class ImportExcelV2Module(ctk.CTkFrame):
         return huespedes
 
     def _importar_datos(self):
-        """Importa los datos procesados a la base de datos."""
+        """Importa los datos procesados a la base de datos en un hilo secundario."""
         if not self.datos_preview:
             mostrar_advertencia(self, "Sin datos", "No hay datos para importar.")
             return
 
-        # Validar que se seleccionó hotel
         hotel_nombre = self.input_hotel.get()
         if not hotel_nombre:
             mostrar_advertencia(self, "Hotel requerido",
@@ -581,141 +613,179 @@ class ImportExcelV2Module(ctk.CTkFrame):
             return
 
         self.btn_importar.configure(state="disabled", text="Importando...")
+        self.btn_limpiar.configure(state="disabled")
         self.barra_progreso.actualizar(0, "Importando datos a la base de datos...")
-        self.update()
 
-        importados = 0
-        errores = 0
-        duplicados = 0
+        datos = list(self.datos_preview)
+        archivos = list(self.archivos_seleccionados)
+        usuario_id = self.usuario["id"]
+        es_nuevo = self.check_nuevo.get()
+        nro_orden = sanitizar_texto(self.input_nro_orden.get()) if es_nuevo else ""
+        direccion = sanitizar_texto(self.input_direccion.get()) if es_nuevo else ""
+        ciudad = sanitizar_texto(self.input_ciudad.get()) if es_nuevo else ""
 
-        try:
-            conn = db.obtener_conexion()
-            if not conn:
-                mostrar_error(self, "Error de conexión",
-                              "No se pudo conectar a la base de datos.")
-                return
+        def tarea():
+            importados = 0
+            errores = 0
+            duplicados = 0
+            error_general = None
 
-            cursor = conn.cursor()
-
-            # Obtener o crear hotel
-            hotel_id = self._obtener_o_crear_hotel(cursor, hotel_nombre)
-
-            for i, huesped in enumerate(self.datos_preview):
-                try:
-                    # Verificar duplicado
-                    if self._es_duplicado(cursor, hotel_id, huesped):
-                        duplicados += 1
-                        continue
-
-                    # Insertar huésped
-                    cursor.execute("""
-                        INSERT INTO huespedes (
-                            hotel_id, nacionalidad, procedencia, apellido_nombre,
-                            dni_pasaporte, edad, profesion,
-                            fecha_entrada, fecha_salida,
-                            habitacion, domicilio, destino, movilidad, telefono,
-                            origen_carga, usuario_carga_id
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'excel_v2', %s)
-                    """, (
-                        hotel_id,
-                        huesped.get("nacionalidad", ""),
-                        huesped.get("procedencia", ""),
-                        huesped.get("apellido_nombre", ""),
-                        huesped.get("dni_pasaporte", ""),
-                        huesped.get("edad"),
-                        huesped.get("profesion", ""),
-                        huesped.get("fecha_entrada"),
-                        huesped.get("fecha_salida"),
-                        huesped.get("habitacion", ""),
-                        huesped.get("domicilio", ""),
-                        huesped.get("destino", ""),
-                        huesped.get("movilidad", ""),
-                        huesped.get("telefono", ""),
-                        self.usuario["id"]
-                    ))
-                    importados += 1
-
-                except Exception as e:
-                    errores += 1
-                    log_error(f"Error importando: {huesped.get('apellido_nombre', '?')}", e)
-
-                # Actualizar progreso
-                if (i + 1) % 10 == 0 or i == len(self.datos_preview) - 1:
-                    progreso = (i + 1) / len(self.datos_preview)
-                    self.barra_progreso.actualizar(
-                        progreso,
-                        f"Importando {i + 1}/{len(self.datos_preview)}..."
-                    )
-
-            # Registrar importación en log
-            for archivo in self.archivos_seleccionados:
-                cursor.execute("""
-                    INSERT INTO importaciones_log (
-                        archivo_nombre, fecha_importacion, usuario_id,
-                        registros_importados, registros_error, registros_duplicados,
-                        estado, detalle
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    os.path.basename(archivo),
-                    datetime.now(),
-                    self.usuario["id"],
-                    importados,
-                    errores,
-                    duplicados,
-                    "completado" if errores == 0 else "parcial",
-                    "Formato tabular V2"
-                ))
-
-            conn.commit()
-            cursor.close()
-            db.liberar_conexion(conn)
-
-            # Auditoría
             try:
-                conn_aud = db.obtener_conexion()
-                if conn_aud:
-                    auditoria = Auditoria(conn_aud)
-                    auditoria.registrar(
-                        self.usuario["id"],
-                        "importar_excel_v2",
-                        "huespedes",
-                        detalle=f"Formato tabular - Importados: {importados}, "
-                                f"Errores: {errores}, Duplicados: {duplicados}"
+                conn = db.obtener_conexion()
+                if not conn:
+                    self.after(0, lambda: mostrar_error(self, "Error de conexión",
+                                  "No se pudo conectar a la base de datos."))
+                    return
+
+                cursor = conn.cursor()
+
+                # Obtener o crear hotel
+                if es_nuevo:
+                    cursor.execute("""
+                        INSERT INTO hoteles (nombre, nro_orden, direccion, ciudad_localidad, usuario_registro_id)
+                        VALUES (%s, %s, %s, %s, %s) RETURNING id
+                    """, (
+                        sanitizar_texto(hotel_nombre),
+                        nro_orden,
+                        direccion,
+                        ciudad,
+                        usuario_id
+                    ))
+                    hotel_id = cursor.fetchone()[0]
+                else:
+                    cursor.execute(
+                        "SELECT id FROM hoteles WHERE LOWER(nombre) = LOWER(%s)", (hotel_nombre,)
                     )
-                    db.liberar_conexion(conn_aud)
-            except Exception:
-                pass
+                    resultado = cursor.fetchone()
+                    if resultado:
+                        hotel_id = resultado[0]
+                    else:
+                        cursor.execute("""
+                            INSERT INTO hoteles (nombre, usuario_registro_id)
+                            VALUES (%s, %s) RETURNING id
+                        """, (sanitizar_texto(hotel_nombre), usuario_id))
+                        hotel_id = cursor.fetchone()[0]
 
-            # Resultado
-            self.barra_progreso.completar(
-                f"Importación completada: {importados} importados, "
-                f"{duplicados} duplicados, {errores} errores"
-            )
+                for i, huesped in enumerate(datos):
+                    try:
+                        if self._es_duplicado(cursor, hotel_id, huesped):
+                            duplicados += 1
+                            continue
 
-            mensaje = (f"Importación completada:\n\n"
-                       f"✅ Importados: {importados}\n"
-                       f"⚠️ Duplicados omitidos: {duplicados}\n"
-                       f"❌ Errores: {errores}")
+                        cursor.execute("""
+                            INSERT INTO huespedes (
+                                hotel_id, nacionalidad, procedencia, apellido_nombre,
+                                dni_pasaporte, edad, profesion,
+                                fecha_entrada, fecha_salida,
+                                habitacion, domicilio, destino, movilidad, telefono,
+                                origen_carga, usuario_carga_id
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'excel_v2', %s)
+                        """, (
+                            hotel_id,
+                            huesped.get("nacionalidad", ""),
+                            huesped.get("procedencia", ""),
+                            huesped.get("apellido_nombre", ""),
+                            huesped.get("dni_pasaporte", ""),
+                            huesped.get("edad"),
+                            huesped.get("profesion", ""),
+                            huesped.get("fecha_entrada"),
+                            huesped.get("fecha_salida"),
+                            huesped.get("habitacion", ""),
+                            huesped.get("domicilio", ""),
+                            huesped.get("destino", ""),
+                            huesped.get("movilidad", ""),
+                            huesped.get("telefono", ""),
+                            usuario_id
+                        ))
+                        importados += 1
 
-            if errores == 0:
-                mostrar_exito(self, "Importación exitosa", mensaje)
-            else:
-                mostrar_advertencia(self, "Importación parcial", mensaje)
+                    except Exception as e:
+                        errores += 1
+                        log_error(f"Error importando: {huesped.get('apellido_nombre', '?')}", e)
 
-            log_info(f"Importación Excel V2: {importados} importados, "
-                     f"{duplicados} duplicados, {errores} errores")
+                    if (i + 1) % 10 == 0 or i == len(datos) - 1:
+                        progreso = (i + 1) / len(datos)
+                        self.after(0, lambda p=progreso, n=i+1: self.barra_progreso.actualizar(
+                            p, f"Importando {n}/{len(datos)}..."
+                        ))
 
-            # Refrescar lista de hoteles para el combo
-            self._cargar_hoteles()
-            nombres_hoteles = [h["nombre"] for h in self.hoteles] if self.hoteles else []
-            self.input_hotel.entry.configure(values=[""] + nombres_hoteles)
+                for archivo in archivos:
+                    cursor.execute("""
+                        INSERT INTO importaciones_log (
+                            archivo_nombre, fecha_importacion, usuario_id,
+                            registros_importados, registros_error, registros_duplicados,
+                            estado, detalle
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        os.path.basename(archivo),
+                        datetime.now(),
+                        usuario_id,
+                        importados,
+                        errores,
+                        duplicados,
+                        "completado" if errores == 0 else "parcial",
+                        "Formato tabular V2"
+                    ))
 
-        except Exception as e:
-            log_error("Error general en importación V2", e)
+                conn.commit()
+                cursor.close()
+                db.liberar_conexion(conn)
+
+                try:
+                    conn_aud = db.obtener_conexion()
+                    if conn_aud:
+                        auditoria = Auditoria(conn_aud)
+                        auditoria.registrar(
+                            usuario_id,
+                            "importar_excel_v2",
+                            "huespedes",
+                            detalle=f"Formato tabular - Importados: {importados}, "
+                                    f"Errores: {errores}, Duplicados: {duplicados}"
+                        )
+                        db.liberar_conexion(conn_aud)
+                except Exception:
+                    pass
+
+            except Exception as e:
+                log_error("Error general en importación V2", e)
+                error_general = str(e)
+
+            self.after(0, lambda: self._importar_completado(importados, errores, duplicados, error_general))
+
+        threading.Thread(target=tarea, daemon=True).start()
+
+    def _importar_completado(self, importados, errores, duplicados, error_general):
+        """Callback en el hilo principal con los resultados de la importación."""
+        self.btn_importar.configure(state="normal", text="✅ Importar datos")
+        self.btn_limpiar.configure(state="normal")
+
+        if error_general:
             mostrar_error(self, "Error de importación",
-                          f"Ocurrió un error durante la importación:\n{str(e)}")
-        finally:
-            self.btn_importar.configure(state="normal", text="✅ Importar datos")
+                          f"Ocurrió un error durante la importación:\n{error_general}")
+            return
+
+        self.barra_progreso.completar(
+            f"Importación completada: {importados} importados, "
+            f"{duplicados} duplicados, {errores} errores"
+        )
+
+        mensaje = (f"Importación completada:\n\n"
+                   f"✅ Importados: {importados}\n"
+                   f"⚠️ Duplicados omitidos: {duplicados}\n"
+                   f"❌ Errores: {errores}")
+
+        if errores == 0:
+            mostrar_exito(self, "Importación exitosa", mensaje)
+        else:
+            mostrar_advertencia(self, "Importación parcial", mensaje)
+
+        log_info(f"Importación Excel V2: {importados} importados, "
+                 f"{duplicados} duplicados, {errores} errores")
+
+        # Refrescar lista de hoteles para el combo
+        self._cargar_hoteles()
+        nombres_hoteles = [h["nombre"] for h in self.hoteles] if self.hoteles else []
+        self.input_hotel.entry.configure(values=[""] + nombres_hoteles)
 
     def _obtener_o_crear_hotel(self, cursor, hotel_nombre: str) -> int:
         """Obtiene el ID de un hotel existente o lo crea si es nuevo."""

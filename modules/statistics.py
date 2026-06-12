@@ -4,6 +4,7 @@ Dashboard con resumen general y estadísticas detalladas con gráficos
 """
 
 import customtkinter as ctk
+import threading
 from datetime import datetime, timedelta
 
 from database.connection import db
@@ -94,51 +95,72 @@ class DashboardModule(ctk.CTkFrame):
         self.frame_ciudades.pack(fill="both", expand=True, padx=15, pady=(0, 15))
 
     def _cargar_datos(self):
-        """Carga todos los datos del dashboard."""
+        """Carga todos los datos del dashboard en un hilo secundario."""
+        def tarea():
+            datos = {}
+            try:
+                res = db.ejecutar_query_one("SELECT COUNT(*) as total FROM huespedes")
+                datos["huespedes"] = str(res["total"]) if res else "0"
+
+                res = db.ejecutar_query_one("SELECT COUNT(*) as total FROM hoteles WHERE activo = TRUE")
+                datos["hoteles"] = str(res["total"]) if res else "0"
+
+                hoy = datetime.now().date()
+                res = db.ejecutar_query_one("""
+                    SELECT COUNT(*) as total FROM huespedes
+                    WHERE fecha_entrada <= %s AND (fecha_salida IS NULL OR fecha_salida >= %s)
+                """, (hoy, hoy))
+                datos["alojados"] = str(res["total"]) if res else "0"
+
+                res = db.ejecutar_query_one("SELECT COUNT(*) as total FROM importaciones_log")
+                datos["importaciones"] = str(res["total"]) if res else "0"
+
+                # Últimos huéspedes
+                datos["ultimos"] = db.ejecutar_query("""
+                    SELECT hu.apellido_nombre, hu.dni_pasaporte, h.nombre as hotel,
+                           hu.fecha_entrada, hu.nacionalidad
+                    FROM huespedes hu
+                    LEFT JOIN hoteles h ON hu.hotel_id = h.id
+                    ORDER BY hu.id DESC LIMIT 10
+                """, fetch=True)
+
+                # Top ciudades
+                datos["ciudades"] = db.ejecutar_query("""
+                    SELECT h.ciudad_localidad, COUNT(hu.id) as total
+                    FROM hoteles h
+                    JOIN huespedes hu ON h.id = hu.hotel_id
+                    WHERE h.ciudad_localidad IS NOT NULL AND h.ciudad_localidad != ''
+                    GROUP BY h.ciudad_localidad
+                    ORDER BY total DESC
+                    LIMIT 10
+                """, fetch=True)
+
+            except Exception as e:
+                log_error("Error al cargar dashboard", e)
+
+            self.after(0, lambda: self._cargar_datos_completado(datos))
+
+        threading.Thread(target=tarea, daemon=True).start()
+
+    def _cargar_datos_completado(self, datos: dict):
+        """Callback en el hilo principal con los datos del dashboard."""
         try:
-            # Total huéspedes
-            res = db.ejecutar_query_one("SELECT COUNT(*) as total FROM huespedes")
-            self.card_huespedes.actualizar(str(res["total"]) if res else "0")
+            self.card_huespedes.actualizar(datos.get("huespedes", "0"))
+            self.card_hoteles.actualizar(datos.get("hoteles", "0"))
+            self.card_alojados.actualizar(datos.get("alojados", "0"))
+            self.card_importaciones.actualizar(datos.get("importaciones", "0"))
 
-            # Hoteles activos
-            res = db.ejecutar_query_one("SELECT COUNT(*) as total FROM hoteles WHERE activo = TRUE")
-            self.card_hoteles.actualizar(str(res["total"]) if res else "0")
-
-            # Alojados hoy
-            hoy = datetime.now().date()
-            res = db.ejecutar_query_one("""
-                SELECT COUNT(*) as total FROM huespedes
-                WHERE fecha_entrada <= %s AND (fecha_salida IS NULL OR fecha_salida >= %s)
-            """, (hoy, hoy))
-            self.card_alojados.actualizar(str(res["total"]) if res else "0")
-
-            # Importaciones
-            res = db.ejecutar_query_one("SELECT COUNT(*) as total FROM importaciones_log")
-            self.card_importaciones.actualizar(str(res["total"]) if res else "0")
-
-            # Últimos huéspedes
-            self._cargar_ultimos_huespedes()
-
-            # Top ciudades
-            self._cargar_top_ciudades()
-
+            self._renderizar_ultimos_huespedes(datos.get("ultimos"))
+            self._renderizar_top_ciudades(datos.get("ciudades"))
         except Exception as e:
-            log_error("Error al cargar dashboard", e)
+            log_error("Error al renderizar dashboard", e)
 
-    def _cargar_ultimos_huespedes(self):
-        """Carga los últimos 10 huéspedes registrados."""
+    def _renderizar_ultimos_huespedes(self, resultados):
+        """Renderiza los últimos huéspedes en el panel."""
         for w in self.frame_ultimos.winfo_children():
             w.destroy()
 
         try:
-            resultados = db.ejecutar_query("""
-                SELECT hu.apellido_nombre, hu.dni_pasaporte, h.nombre as hotel,
-                       hu.fecha_entrada, hu.nacionalidad
-                FROM huespedes hu
-                LEFT JOIN hoteles h ON hu.hotel_id = h.id
-                ORDER BY hu.id DESC LIMIT 10
-            """, fetch=True)
-
             if resultados:
                 for r in resultados:
                     item = ctk.CTkFrame(self.frame_ultimos, fg_color="gray20", corner_radius=6)
@@ -169,24 +191,14 @@ class DashboardModule(ctk.CTkFrame):
                 ).pack(pady=20)
 
         except Exception as e:
-            log_error("Error al cargar últimos huéspedes", e)
+            log_error("Error al renderizar últimos huéspedes", e)
 
-    def _cargar_top_ciudades(self):
-        """Carga las ciudades con más huéspedes."""
+    def _renderizar_top_ciudades(self, resultados):
+        """Renderiza el top de ciudades en el panel."""
         for w in self.frame_ciudades.winfo_children():
             w.destroy()
 
         try:
-            resultados = db.ejecutar_query("""
-                SELECT h.ciudad_localidad, COUNT(hu.id) as total
-                FROM hoteles h
-                JOIN huespedes hu ON h.id = hu.hotel_id
-                WHERE h.ciudad_localidad IS NOT NULL AND h.ciudad_localidad != ''
-                GROUP BY h.ciudad_localidad
-                ORDER BY total DESC
-                LIMIT 10
-            """, fetch=True)
-
             if resultados:
                 max_total = resultados[0]["total"] if resultados else 1
                 for r in resultados:
@@ -222,7 +234,7 @@ class DashboardModule(ctk.CTkFrame):
                 ).pack(pady=20)
 
         except Exception as e:
-            log_error("Error al cargar top ciudades", e)
+            log_error("Error al renderizar top ciudades", e)
 
 
 class StatisticsModule(ctk.CTkFrame):
@@ -296,37 +308,131 @@ class StatisticsModule(ctk.CTkFrame):
         ).pack(expand=True)
 
     def _generar_estadisticas(self):
-        """Genera las estadísticas seleccionadas."""
+        """Genera las estadísticas seleccionadas en un hilo secundario."""
         tipo = self.tipo_stat.get()
 
         # Limpiar
         for w in self.chart_container.winfo_children():
             w.destroy()
 
-        try:
-            if tipo == "Nacionalidades":
-                self._stat_nacionalidades()
-            elif tipo == "Profesiones":
-                self._stat_profesiones()
-            elif tipo == "Procedencia":
-                self._stat_procedencia()
-            elif tipo == "Destinos":
-                self._stat_destinos()
-            elif tipo == "Huéspedes por Hotel":
-                self._stat_por_hotel()
-            elif tipo == "Rango de Edades":
-                self._stat_edades()
-            elif tipo == "Tendencia Mensual":
-                self._stat_tendencia_mensual()
+        # Mostrar indicador de carga
+        ctk.CTkLabel(
+            self.chart_container,
+            text="⏳ Generando estadísticas...",
+            font=obtener_fuente("body"),
+            text_color=COLORS["text_secondary"]
+        ).pack(expand=True)
 
-        except Exception as e:
-            log_error(f"Error al generar estadística '{tipo}'", e)
-            ctk.CTkLabel(
-                self.chart_container,
-                text=f"Error al generar: {str(e)}",
-                font=obtener_fuente("body"),
-                text_color=COLORS["error"]
-            ).pack(expand=True)
+        def tarea():
+            try:
+                resultado = None
+                if tipo == "Nacionalidades":
+                    datos = db.ejecutar_query("""
+                        SELECT nacionalidad, COUNT(*) as total FROM huespedes
+                        WHERE nacionalidad IS NOT NULL AND nacionalidad != ''
+                        GROUP BY nacionalidad ORDER BY total DESC LIMIT 15
+                    """, fetch=True)
+                    resultado = ("barras", [(d["nacionalidad"], d["total"]) for d in datos] if datos else [],
+                                 "Distribución por Nacionalidad")
+                elif tipo == "Profesiones":
+                    datos = db.ejecutar_query("""
+                        SELECT profesion_ocupacion, COUNT(*) as total FROM huespedes
+                        WHERE profesion_ocupacion IS NOT NULL AND profesion_ocupacion != ''
+                        GROUP BY profesion_ocupacion ORDER BY total DESC LIMIT 15
+                    """, fetch=True)
+                    resultado = ("barras", [(d["profesion_ocupacion"], d["total"]) for d in datos] if datos else [],
+                                 "Top 15 Profesiones/Ocupaciones")
+                elif tipo == "Procedencia":
+                    datos = db.ejecutar_query("""
+                        SELECT procedencia, COUNT(*) as total FROM huespedes
+                        WHERE procedencia IS NOT NULL AND procedencia != ''
+                        GROUP BY procedencia ORDER BY total DESC LIMIT 15
+                    """, fetch=True)
+                    resultado = ("barras", [(d["procedencia"], d["total"]) for d in datos] if datos else [],
+                                 "Principales Procedencias")
+                elif tipo == "Destinos":
+                    datos = db.ejecutar_query("""
+                        SELECT destino, COUNT(*) as total FROM huespedes
+                        WHERE destino IS NOT NULL AND destino != ''
+                        GROUP BY destino ORDER BY total DESC LIMIT 15
+                    """, fetch=True)
+                    resultado = ("barras", [(d["destino"], d["total"]) for d in datos] if datos else [],
+                                 "Principales Destinos")
+                elif tipo == "Huéspedes por Hotel":
+                    datos = db.ejecutar_query("""
+                        SELECT h.nombre, COUNT(hu.id) as total
+                        FROM hoteles h
+                        LEFT JOIN huespedes hu ON h.id = hu.hotel_id
+                        WHERE h.activo = TRUE
+                        GROUP BY h.nombre ORDER BY total DESC
+                    """, fetch=True)
+                    resultado = ("barras", [(d["nombre"], d["total"]) for d in datos] if datos else [],
+                                 "Huéspedes por Hotel")
+                elif tipo == "Rango de Edades":
+                    datos = db.ejecutar_query("""
+                        SELECT
+                            CASE
+                                WHEN edad < 18 THEN '0-17'
+                                WHEN edad BETWEEN 18 AND 25 THEN '18-25'
+                                WHEN edad BETWEEN 26 AND 35 THEN '26-35'
+                                WHEN edad BETWEEN 36 AND 45 THEN '36-45'
+                                WHEN edad BETWEEN 46 AND 55 THEN '46-55'
+                                WHEN edad BETWEEN 56 AND 65 THEN '56-65'
+                                WHEN edad > 65 THEN '65+'
+                                ELSE 'S/D'
+                            END as rango,
+                            COUNT(*) as total
+                        FROM huespedes
+                        WHERE edad IS NOT NULL
+                        GROUP BY rango
+                        ORDER BY rango
+                    """, fetch=True)
+                    resultado = ("barras", [(d["rango"], d["total"]) for d in datos] if datos else [],
+                                 "Distribución por Rango de Edad")
+                elif tipo == "Tendencia Mensual":
+                    datos = db.ejecutar_query("""
+                        SELECT TO_CHAR(fecha_entrada, 'YYYY-MM') as mes, COUNT(*) as total
+                        FROM huespedes
+                        WHERE fecha_entrada IS NOT NULL
+                          AND fecha_entrada >= CURRENT_DATE - INTERVAL '12 months'
+                        GROUP BY mes ORDER BY mes
+                    """, fetch=True)
+                    resultado = ("lineas", [(d["mes"], d["total"]) for d in datos] if datos else [],
+                                 "Tendencia Mensual de Ingresos (último año)")
+
+                self.after(0, lambda: self._renderizar_estadistica(resultado))
+
+            except Exception as e:
+                log_error(f"Error al generar estadística '{tipo}'", e)
+                self.after(0, lambda: self._renderizar_error_estadistica(str(e)))
+
+        threading.Thread(target=tarea, daemon=True).start()
+
+    def _renderizar_estadistica(self, resultado):
+        """Renderiza la estadística en el hilo principal."""
+        for w in self.chart_container.winfo_children():
+            w.destroy()
+
+        if resultado is None:
+            return
+
+        tipo_grafico, datos, titulo = resultado
+        if tipo_grafico == "barras":
+            self._mostrar_grafico_barras(datos, titulo)
+        elif tipo_grafico == "lineas":
+            self._mostrar_grafico_lineas(datos, titulo)
+
+    def _renderizar_error_estadistica(self, error_msg):
+        """Muestra un error de estadística."""
+        for w in self.chart_container.winfo_children():
+            w.destroy()
+
+        ctk.CTkLabel(
+            self.chart_container,
+            text=f"Error al generar: {error_msg}",
+            font=obtener_fuente("body"),
+            text_color=COLORS["error"]
+        ).pack(expand=True)
 
     def _mostrar_grafico_barras(self, datos: list, titulo: str,
                                  xlabel: str = "", ylabel: str = "Cantidad"):
