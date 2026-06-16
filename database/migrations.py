@@ -5,9 +5,33 @@ Creación inicial de tablas, índices y datos semilla
 
 import bcrypt
 from database.connection import db
-from database.models import ALL_TABLES, SQL_CREATE_INDICES
+from database.models import ALL_TABLES, SQL_CREATE_INDICES, SQL_CREATE_PERFORMANCE_INDICES
 from config import DEFAULT_ADMIN
 from utils.logger import log_info, log_error
+
+
+def _migracion_ya_aplicada(cursor, version: str) -> bool:
+    """Verifica si una migración ya fue aplicada."""
+    try:
+        cursor.execute(
+            "SELECT 1 FROM schema_migrations WHERE version = %s",
+            (version,),
+        )
+        return cursor.fetchone() is not None
+    except Exception:
+        # La tabla puede no existir aún en la primera ejecución
+        return False
+
+
+def _registrar_migracion(cursor, version: str):
+    """Registra una migración como aplicada."""
+    try:
+        cursor.execute(
+            "INSERT INTO schema_migrations (version) VALUES (%s) ON CONFLICT DO NOTHING",
+            (version,),
+        )
+    except Exception:
+        pass
 
 
 def ejecutar_migraciones():
@@ -22,12 +46,12 @@ def ejecutar_migraciones():
     try:
         cursor = conn.cursor()
 
-        # 1. Crear tablas
+        # 1. Crear tablas (incluye schema_migrations)
         for sql in ALL_TABLES:
             cursor.execute(sql)
             log_info(f"Tabla verificada/creada correctamente")
 
-        # 2. Crear índices
+        # 2. Crear índices básicos
         for idx_sql in SQL_CREATE_INDICES:
             cursor.execute(idx_sql)
 
@@ -56,12 +80,15 @@ def ejecutar_migraciones():
 
         conn.commit()
         cursor.close()
-        log_info("Migraciones completadas exitosamente")
+        log_info("Migraciones base completadas exitosamente")
 
-        # Ejecutar migraciones incrementales
+        # Ejecutar migraciones incrementales (con control de ya-aplicadas)
         migrar_v1_1()
         migrar_v1_2()
-
+        migrar_v1_3()
+        migrar_v1_4()
+        migrar_v1_5()
+        migrar_v1_6()
         return True
 
     except Exception as e:
@@ -122,8 +149,6 @@ SQL_MIGRACION_V1_1 = [
 def migrar_v1_1():
     """Migración v1.1: Agrega columnas de habitación, domicilio, destino, movilidad y teléfono.
     También actualiza el constraint de origen_carga para incluir 'excel_v2'."""
-    log_info("Ejecutando migración v1.1 (columnas formato tabular)...")
-
     conn = db.obtener_conexion()
     if not conn:
         log_error("No se pudo obtener conexión para migración v1.1")
@@ -131,6 +156,10 @@ def migrar_v1_1():
 
     try:
         cursor = conn.cursor()
+        if _migracion_ya_aplicada(cursor, 'v1.1'):
+            db.liberar_conexion(conn)
+            return True
+        log_info("Ejecutando migración v1.1 (columnas formato tabular)...")
 
         for sql in SQL_MIGRACION_V1_1:
             try:
@@ -148,6 +177,7 @@ def migrar_v1_1():
         except Exception as e:
             log_info(f"Nota constraint: {e}")
 
+        _registrar_migracion(cursor, 'v1.1')
         conn.commit()
         cursor.close()
         log_info("Migración v1.1 completada exitosamente")
@@ -388,8 +418,6 @@ HOTELES_SEMILLA = [
 
 def migrar_v1_2():
     """Migración v1.2: Agrega columnas categoria y telefono a hoteles + carga datos semilla de alojamientos."""
-    log_info("Ejecutando migración v1.2 (categoría, teléfono y datos de alojamientos)...")
-
     conn = db.obtener_conexion()
     if not conn:
         log_error("No se pudo obtener conexión para migración v1.2")
@@ -397,6 +425,10 @@ def migrar_v1_2():
 
     try:
         cursor = conn.cursor()
+        if _migracion_ya_aplicada(cursor, 'v1.2'):
+            db.liberar_conexion(conn)
+            return True
+        log_info("Ejecutando migración v1.2 (categoría, teléfono y datos de alojamientos)...")
 
         # 1. Agregar columnas nuevas
         for sql in SQL_MIGRACION_V1_2:
@@ -430,6 +462,7 @@ def migrar_v1_2():
                 )
                 insertados += 1
 
+        _registrar_migracion(cursor, 'v1.2')
         conn.commit()
         cursor.close()
         log_info(f"Migración v1.2 completada: {insertados} hoteles insertados, {existentes} ya existían")
@@ -441,3 +474,214 @@ def migrar_v1_2():
         return False
     finally:
         db.liberar_conexion(conn)
+<<<<<<< Updated upstream
+=======
+
+
+# ============================================================
+# MIGRACIÓN V1.3: Alertas operativas y trazabilidad avanzada
+# ============================================================
+SQL_MIGRACION_V1_3 = [
+    """
+    CREATE TABLE IF NOT EXISTS alertas_sistema (
+        id SERIAL PRIMARY KEY,
+        tipo VARCHAR(50) NOT NULL,
+        severidad VARCHAR(20) NOT NULL DEFAULT 'warning',
+        estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+        bloqueante BOOLEAN NOT NULL DEFAULT FALSE,
+        sujeto_nombre VARCHAR(300) NOT NULL,
+        sujeto_documento VARCHAR(50),
+        hotel_origen VARCHAR(300),
+        hotel_relacionado VARCHAR(300),
+        huesped_id INTEGER REFERENCES huespedes(id) ON DELETE SET NULL,
+        huesped_relacionado_id INTEGER REFERENCES huespedes(id) ON DELETE SET NULL,
+        fecha_entrada DATE,
+        fecha_salida DATE,
+        horas_lapso INTEGER,
+        resumen TEXT NOT NULL,
+        payload_json TEXT,
+        importacion_tipo VARCHAR(20),
+        usuario_creacion_id INTEGER REFERENCES usuarios(id),
+        usuario_revision_id INTEGER REFERENCES usuarios(id),
+        fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        fecha_revision TIMESTAMP,
+        CONSTRAINT chk_alerta_severidad CHECK (severidad IN ('info', 'warning', 'danger', 'critical')),
+        CONSTRAINT chk_alerta_estado CHECK (estado IN ('pendiente', 'revisada', 'descartada', 'confirmada'))
+    );
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_alertas_estado ON alertas_sistema(estado);",
+    "CREATE INDEX IF NOT EXISTS idx_alertas_tipo ON alertas_sistema(tipo);",
+    "CREATE INDEX IF NOT EXISTS idx_alertas_fecha ON alertas_sistema(fecha_creacion DESC);",
+    "CREATE INDEX IF NOT EXISTS idx_alertas_documento ON alertas_sistema(sujeto_documento);",
+]
+
+
+def migrar_v1_3():
+    """Migración v1.3: crea tabla de alertas del sistema."""
+    conn = db.obtener_conexion()
+    if not conn:
+        log_error("No se pudo obtener conexión para migración v1.3")
+        return False
+
+    try:
+        cursor = conn.cursor()
+        if _migracion_ya_aplicada(cursor, 'v1.3'):
+            db.liberar_conexion(conn)
+            return True
+        log_info("Ejecutando migración v1.3 (alertas operativas)...")
+
+        for sql in SQL_MIGRACION_V1_3:
+            try:
+                cursor.execute(sql)
+            except Exception as e:
+                log_info(f"Nota migración v1.3: {e}")
+
+        _registrar_migracion(cursor, 'v1.3')
+        conn.commit()
+        cursor.close()
+        log_info("Migración v1.3 completada exitosamente")
+        return True
+
+    except Exception as e:
+        conn.rollback()
+        log_error("Error durante migración v1.3", e)
+        return False
+    finally:
+        db.liberar_conexion(conn)
+
+
+def migrar_v1_4():
+    """Migración v1.4: normaliza nacionalidad y procedencia históricas."""
+    conn = db.obtener_conexion()
+    if not conn:
+        log_error("No se pudo obtener conexión para migración v1.4")
+        return False
+
+    try:
+        cursor_check = conn.cursor()
+        if _migracion_ya_aplicada(cursor_check, 'v1.4'):
+            cursor_check.close()
+            db.liberar_conexion(conn)
+            return True
+        cursor_check.close()
+        log_info("Ejecutando migración v1.4 (normalización geográfica)...")
+        resultado = normalizar_historico_huespedes(conn)
+        cursor_reg = conn.cursor()
+        _registrar_migracion(cursor_reg, 'v1.4')
+        cursor_reg.close()
+        conn.commit()
+        log_info(
+            f"Migración v1.4 completada: {resultado['actualizados']} huéspedes normalizados de {resultado['total']}"
+        )
+        return True
+    except Exception as e:
+        conn.rollback()
+        log_error("Error durante migración v1.4", e)
+        return False
+    finally:
+        db.liberar_conexion(conn)
+
+
+# ============================================================
+# MIGRACIÓN V1.5: Índices para control de cargas por operador
+# ============================================================
+SQL_MIGRACION_V1_5 = [
+    "CREATE INDEX IF NOT EXISTS idx_huespedes_usuario_carga ON huespedes(usuario_carga_id);",
+    "CREATE INDEX IF NOT EXISTS idx_huespedes_origen_carga ON huespedes(origen_carga);",
+    "CREATE INDEX IF NOT EXISTS idx_importaciones_usuario ON importaciones_log(usuario_id);",
+]
+
+
+def migrar_v1_5():
+    """Migración v1.5: crea índices para optimizar consultas de control de cargas por operador."""
+    conn = db.obtener_conexion()
+    if not conn:
+        log_error("No se pudo obtener conexión para migración v1.5")
+        return False
+
+    try:
+        cursor = conn.cursor()
+        if _migracion_ya_aplicada(cursor, 'v1.5'):
+            db.liberar_conexion(conn)
+            return True
+        log_info("Ejecutando migración v1.5 (índices control de cargas)...")
+
+        for sql in SQL_MIGRACION_V1_5:
+            try:
+                cursor.execute(sql)
+            except Exception as e:
+                log_info(f"Nota migración v1.5: {e}")
+
+        _registrar_migracion(cursor, 'v1.5')
+        conn.commit()
+        cursor.close()
+        log_info("Migración v1.5 completada exitosamente")
+        return True
+
+    except Exception as e:
+        conn.rollback()
+        log_error("Error durante migración v1.5", e)
+        return False
+    finally:
+        db.liberar_conexion(conn)
+
+
+# ============================================================
+# MIGRACIÓN V1.6: Índices funcionales de rendimiento
+# ============================================================
+def migrar_v1_6():
+    """Migración v1.6: crea índices funcionales para queries con regexp_replace/LOWER.
+    Estos índices permiten index scan en vez de sequential scan para:
+    - Detección de duplicados por DNI normalizado
+    - Búsqueda por teléfono normalizado
+    - Detección de duplicados por nombre normalizado
+    - Duplicados exactos (hotel + fecha + dni)
+    """
+    conn = db.obtener_conexion()
+    if not conn:
+        log_error("No se pudo obtener conexión para migración v1.6")
+        return False
+
+    try:
+        cursor = conn.cursor()
+        if _migracion_ya_aplicada(cursor, 'v1.6'):
+            db.liberar_conexion(conn)
+            return True
+        log_info("Ejecutando migración v1.6 (índices funcionales de rendimiento)...")
+
+        # Crear extensión pg_trgm si está disponible (para futuras búsquedas trigram)
+        try:
+            cursor.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
+            log_info("Extensión pg_trgm habilitada")
+        except Exception as e:
+            log_info(f"Nota pg_trgm: {e} (no crítico, búsquedas ILIKE seguirán funcionando)")
+            # Rollback parcial para continuar con los demás índices
+            conn.rollback()
+
+        for idx_sql in SQL_CREATE_PERFORMANCE_INDICES:
+            try:
+                cursor.execute(idx_sql)
+            except Exception as e:
+                log_info(f"Nota índice v1.6: {e}")
+
+        # Actualizar estadísticas del query planner
+        try:
+            cursor.execute("ANALYZE huespedes;")
+            cursor.execute("ANALYZE hoteles;")
+            log_info("Estadísticas de tablas actualizadas (ANALYZE)")
+        except Exception as e:
+            log_info(f"Nota ANALYZE: {e}")
+
+        _registrar_migracion(cursor, 'v1.6')
+        conn.commit()
+        cursor.close()
+        log_info("Migración v1.6 completada exitosamente")
+        return True
+
+    except Exception as e:
+        conn.rollback()
+        log_error("Error durante migración v1.6", e)
+        return False
+    finally:
+        db.liberar_conexion(conn)
+>>>>>>> Stashed changes

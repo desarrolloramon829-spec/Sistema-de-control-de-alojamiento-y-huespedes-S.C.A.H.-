@@ -119,6 +119,44 @@ SQL_CREATE_INDICES = [
     "CREATE INDEX IF NOT EXISTS idx_usuarios_username ON usuarios(username);",
 ]
 
+# ============================================================
+# ÍNDICES FUNCIONALES DE RENDIMIENTO (v1.6)
+# Permiten index scan en queries que usan regexp_replace/LOWER
+# ============================================================
+SQL_CREATE_PERFORMANCE_INDICES = [
+    # DNI normalizado — usado en detección de duplicados y alertas
+    "CREATE INDEX IF NOT EXISTS idx_huespedes_dni_normalizado "
+    "ON huespedes (regexp_replace(upper(COALESCE(dni_pasaporte, '')), '[^A-Z0-9]', '', 'g'));",
+    # Teléfono normalizado — usado en búsqueda de duplicados por teléfono
+    "CREATE INDEX IF NOT EXISTS idx_huespedes_tel_normalizado "
+    "ON huespedes (regexp_replace(COALESCE(telefono, ''), '[^0-9]', '', 'g'));",
+    # Nombre normalizado — usado en detección de duplicados por nombre
+    "CREATE INDEX IF NOT EXISTS idx_huespedes_nombre_lower "
+    "ON huespedes (LOWER(TRIM(COALESCE(apellido_nombre, ''))));",
+    # Compuesto para duplicados exactos (hotel + fecha + dni)
+    "CREATE INDEX IF NOT EXISTS idx_huespedes_hotel_fecha_dni "
+    "ON huespedes (hotel_id, fecha_entrada, dni_pasaporte);",
+    # fecha_registro DESC — ORDER BY más frecuente
+    "CREATE INDEX IF NOT EXISTS idx_huespedes_fecha_registro_desc "
+    "ON huespedes (fecha_registro DESC);",
+    # Compuesto para conteo de alojados hoy
+    "CREATE INDEX IF NOT EXISTS idx_huespedes_estadia_activa "
+    "ON huespedes (fecha_entrada, fecha_salida);",
+    # Hoteles: nombre lowercase para búsqueda case-insensitive
+    "CREATE INDEX IF NOT EXISTS idx_hoteles_nombre_lower "
+    "ON hoteles (LOWER(nombre));",
+]
+
+# ============================================================
+# TABLA: CONTROL DE MIGRACIONES
+# ============================================================
+SQL_CREATE_SCHEMA_MIGRATIONS = """
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    version VARCHAR(20) PRIMARY KEY,
+    applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
 # Lista de todas las sentencias de creación en orden
 ALL_TABLES = [
     SQL_CREATE_USUARIOS,
@@ -126,4 +164,5 @@ ALL_TABLES = [
     SQL_CREATE_HUESPEDES,
     SQL_CREATE_IMPORTACIONES_LOG,
     SQL_CREATE_AUDITORIA,
+    SQL_CREATE_SCHEMA_MIGRATIONS,
 ]

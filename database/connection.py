@@ -11,6 +11,11 @@ from config import DB_CONFIG
 from utils.logger import log_info, log_error
 
 
+def _is_cloud_environment() -> bool:
+    """Detecta si estamos en un entorno cloud (Render/Neon/Railway)."""
+    return bool(os.environ.get("DATABASE_URL") or os.environ.get("RENDER"))
+
+
 def _get_connection_params() -> dict:
     """
     Obtiene los parámetros de conexión.
@@ -28,12 +33,8 @@ def _get_connection_params() -> dict:
             "dbname": parsed.path.lstrip("/"),
             "user": parsed.username,
             "password": parsed.password,
+            "sslmode": "require",  # Siempre SSL para URLs de nube
         }
-        # Agregar sslmode para conexiones en la nube
-        if parsed.query:
-            params["sslmode"] = "require"
-        else:
-            params["sslmode"] = "require"  # Siempre SSL para URLs de nube
         return params
 
     # Fallback: parámetros individuales (uso local)
@@ -43,6 +44,31 @@ def _get_connection_params() -> dict:
         "dbname": DB_CONFIG["dbname"],
         "user": DB_CONFIG["user"],
         "password": DB_CONFIG["password"],
+    }
+
+
+def _get_pool_limits() -> tuple[int, int]:
+    """Retorna (minconn, maxconn) según el entorno."""
+    if _is_cloud_environment():
+        # Render Free Tier + Neon Free: límite de ~20 conexiones compartidas
+        # Con 2 workers Gunicorn, 5 por worker es seguro
+        return 1, 5
+    # Local: más generoso
+    return 2, 10
+
+
+def _get_keepalive_params() -> dict:
+    """Retorna parámetros TCP keepalive para conexiones serverless (Neon.tech)."""
+    if _is_cloud_environment():
+        return {
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 5,
+            "options": "-c statement_timeout=30000",  # 30s max por query
+        }
+    return {
+        "options": "-c statement_timeout=60000",  # 60s max local
     }
 
 
@@ -62,12 +88,18 @@ class DatabaseConnection:
         try:
             conn_params = _get_connection_params()
             self._conn_params = conn_params
+            minconn, maxconn = _get_pool_limits()
+            keepalive = _get_keepalive_params()
             self._pool = psycopg2.pool.ThreadedConnectionPool(
-                minconn=1,
-                maxconn=10,
-                **conn_params
+                minconn=minconn,
+                maxconn=maxconn,
+                **conn_params,
+                **keepalive,
             )
-            log_info("Pool de conexiones a PostgreSQL inicializado correctamente")
+            log_info(
+                f"Pool de conexiones inicializado "
+                f"(min={minconn}, max={maxconn}, cloud={_is_cloud_environment()})"
+            )
             return True
         except UnicodeDecodeError:
             # Windows con locale en español puede generar errores de encoding
@@ -173,6 +205,37 @@ class DatabaseConnection:
             conn.rollback()
             log_error(f"Error ejecutando query masiva: {query[:100]}", e)
             return False
+        finally:
+            self.liberar_conexion(conn)
+
+    def ejecutar_batch_insert(self, query_template: str, values_list: list,
+                              page_size: int = 500) -> int:
+        """
+        Inserta registros en lote usando execute_values (mucho más rápido que executemany).
+        query_template: 'INSERT INTO tabla (col1, col2) VALUES %s'
+        values_list: lista de tuplas con los valores
+        Retorna la cantidad de filas insertadas o -1 en caso de error.
+        """
+        if not values_list:
+            return 0
+        conn = self.obtener_conexion()
+        if not conn:
+            return -1
+
+        try:
+            cursor = conn.cursor()
+            psycopg2.extras.execute_values(
+                cursor, query_template, values_list,
+                page_size=page_size,
+            )
+            rowcount = cursor.rowcount
+            conn.commit()
+            cursor.close()
+            return rowcount
+        except Exception as e:
+            conn.rollback()
+            log_error(f"Error en batch insert: {query_template[:100]}", e)
+            return -1
         finally:
             self.liberar_conexion(conn)
 

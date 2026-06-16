@@ -9,7 +9,7 @@ services:
     plan: free
     branch: NUEVA-IMPORTACION
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "web.app:create_app('production')" --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    startCommand: gunicorn "web.app:create_app('production')" --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --timeout 120 --preload
     envVars:
       - key: FLASK_ENV
         value: production

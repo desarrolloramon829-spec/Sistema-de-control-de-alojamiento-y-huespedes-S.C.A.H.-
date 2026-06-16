@@ -46,6 +46,18 @@ def create_app(config_name: str = None) -> Flask:
             'current_user': session.get('user'),
         }
 
+    # Cache headers para assets estáticos (ya tienen cache busting via ?v=timestamp)
+    @app.after_request
+    def add_performance_headers(response):
+        from flask import request as req
+        if req.path.startswith('/static/'):
+            # Assets estáticos con cache busting: cachear 1 año
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        elif response.content_type and 'text/html' in response.content_type:
+            # HTML: no cachear para siempre, pero permitir caché condicional
+            response.headers.setdefault('Cache-Control', 'no-cache')
+        return response
+
     return app
 
 

@@ -14,24 +14,23 @@ from utils.formatters import formato_fecha
 
 
 def obtener_kpis() -> dict:
-    """Obtiene los 4 KPIs del dashboard."""
+    """Obtiene los 4 KPIs del dashboard en una sola query."""
     kpis = {"total_huespedes": 0, "hoteles_activos": 0, "alojados_hoy": 0, "importaciones": 0}
     try:
-        res = db.ejecutar_query_one("SELECT COUNT(*) as total FROM huespedes")
-        kpis["total_huespedes"] = res["total"] if res else 0
-
-        res = db.ejecutar_query_one("SELECT COUNT(*) as total FROM hoteles WHERE activo = TRUE")
-        kpis["hoteles_activos"] = res["total"] if res else 0
-
-        hoy = datetime.now().date()
         res = db.ejecutar_query_one("""
-            SELECT COUNT(*) as total FROM huespedes
-            WHERE fecha_entrada <= %s AND (fecha_salida IS NULL OR fecha_salida >= %s)
-        """, (hoy, hoy))
-        kpis["alojados_hoy"] = res["total"] if res else 0
-
-        res = db.ejecutar_query_one("SELECT COUNT(*) as total FROM importaciones_log")
-        kpis["importaciones"] = res["total"] if res else 0
+            SELECT
+                (SELECT COUNT(*) FROM huespedes) AS total_huespedes,
+                (SELECT COUNT(*) FROM hoteles WHERE activo = TRUE) AS hoteles_activos,
+                (SELECT COUNT(*) FROM huespedes
+                 WHERE fecha_entrada <= CURRENT_DATE
+                   AND (fecha_salida IS NULL OR fecha_salida >= CURRENT_DATE)) AS alojados_hoy,
+                (SELECT COUNT(*) FROM importaciones_log) AS importaciones
+        """)
+        if res:
+            kpis["total_huespedes"] = res["total_huespedes"] or 0
+            kpis["hoteles_activos"] = res["hoteles_activos"] or 0
+            kpis["alojados_hoy"] = res["alojados_hoy"] or 0
+            kpis["importaciones"] = res["importaciones"] or 0
 
     except Exception as e:
         log_error("Error al obtener KPIs", e)

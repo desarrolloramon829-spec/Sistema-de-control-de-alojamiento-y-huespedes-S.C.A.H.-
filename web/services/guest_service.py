@@ -251,25 +251,31 @@ def busqueda_avanzada(filtros: dict, page: int = 1, per_page: int = DEFAULT_PAGE
 
 
 def _ejecutar_busqueda_paginada(query, params, page, per_page):
-    """Ejecuta una búsqueda con paginación server-side."""
+    """Ejecuta una búsqueda con paginación server-side usando COUNT(*) OVER()."""
     try:
-        # Contar total
-        count_query = f"SELECT COUNT(*) as total FROM ({query}) sub"
-        count_result = db.ejecutar_query_one(count_query, tuple(params))
-        total = count_result["total"] if count_result else 0
+        # Usar window function para obtener total y datos en una sola query
+        wrapped_query = f"""
+            SELECT *, COUNT(*) OVER() AS _total_count
+            FROM ({query}) sub
+            ORDER BY (SELECT NULL)
+            LIMIT {per_page} OFFSET %s
+        """
+        # Calcular offset provisional (se ajusta después)
+        offset = max(0, (page - 1) * per_page)
+        full_params = list(params) + [offset]
 
-        # Calcular páginas
+        resultados = db.ejecutar_query(wrapped_query, tuple(full_params), fetch=True)
+
+        if not resultados:
+            return [], 0, 1, 1
+
+        total = resultados[0]["_total_count"] if resultados else 0
         total_pages = max(1, (total + per_page - 1) // per_page)
         page = max(1, min(page, total_pages))
-        offset = (page - 1) * per_page
-
-        # Ejecutar con paginación
-        query_paginada = query + f" LIMIT {per_page} OFFSET {offset}"
-        resultados = db.ejecutar_query(query_paginada, tuple(params), fetch=True)
 
         # Formatear resultados
         datos = []
-        for r in (resultados or []):
+        for r in resultados:
             datos.append({
                 "id": r["id"],
                 "hotel": r["hotel"],
