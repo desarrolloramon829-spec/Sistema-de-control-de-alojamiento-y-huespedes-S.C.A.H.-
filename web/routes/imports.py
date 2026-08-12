@@ -3,9 +3,13 @@ S.C.A.H. Web - Rutas de Importación Excel.
 """
 
 import os
+import shutil
 import tempfile
+import time
+import uuid
 from flask import (Blueprint, render_template, request, redirect,
                    url_for, flash, session, current_app)
+from werkzeug.utils import secure_filename
 from web.routes.decorators import login_required, permission_required
 from web.services.import_service import (
     procesar_archivos_v1, procesar_archivos_v2,
@@ -65,28 +69,75 @@ def importar_v2():
 
 
 def _guardar_archivos_temporales(files) -> list:
-    """Guarda los archivos subidos en carpeta temporal y retorna rutas."""
+    """Guarda los archivos subidos en una carpeta propia y retorna sus rutas.
+
+    Cada subida va a un directorio único. Antes se guardaba con el nombre
+    original en una carpeta compartida: si dos operadores importaban a la vez
+    archivos con el mismo nombre (algo habitual, p. ej. "planilla.xlsx"), el
+    segundo pisaba el del primero y ambos terminaban importando los mismos
+    datos. secure_filename además impide que un nombre como "../../config.py"
+    escriba fuera de la carpeta de subidas.
+    """
     rutas = []
-    upload_dir = current_app.config.get('UPLOAD_FOLDER', tempfile.gettempdir())
+    base_dir = current_app.config.get('UPLOAD_FOLDER', tempfile.gettempdir())
+    upload_dir = os.path.join(base_dir, uuid.uuid4().hex)
     os.makedirs(upload_dir, exist_ok=True)
 
     for f in files:
         if f and f.filename and _allowed_file(f.filename):
-            filepath = os.path.join(upload_dir, f.filename)
+            nombre = secure_filename(f.filename)
+            if not nombre:
+                continue
+            filepath = os.path.join(upload_dir, nombre)
             f.save(filepath)
             rutas.append(filepath)
+
+    if not rutas:
+        _eliminar_directorio(upload_dir)
 
     return rutas
 
 
+def _eliminar_directorio(ruta: str):
+    """Borra un directorio temporal de subida sin propagar errores."""
+    try:
+        shutil.rmtree(ruta, ignore_errors=True)
+    except Exception:
+        pass
+
+
 def _limpiar_archivos(rutas: list):
-    """Elimina archivos temporales."""
+    """Elimina los archivos temporales y sus carpetas de subida."""
+    directorios = set()
     for r in rutas:
         try:
+            directorios.add(os.path.dirname(r))
             if os.path.exists(r):
                 os.remove(r)
         except Exception:
             pass
+    for d in directorios:
+        _eliminar_directorio(d)
+
+
+def _purgar_subidas_antiguas(horas: int = 6):
+    """Borra restos de subidas que quedaron sin importar.
+
+    Una vista previa que el usuario nunca confirma deja el archivo en disco para
+    siempre; en un contenedor con disco acotado eso acaba llenándolo.
+    """
+    base_dir = current_app.config.get('UPLOAD_FOLDER', tempfile.gettempdir())
+    limite = time.time() - horas * 3600
+    try:
+        for nombre in os.listdir(base_dir):
+            ruta = os.path.join(base_dir, nombre)
+            try:
+                if os.path.isdir(ruta) and os.path.getmtime(ruta) < limite:
+                    _eliminar_directorio(ruta)
+            except OSError:
+                continue
+    except Exception:
+        pass
 
 
 def _preview_v1():
@@ -95,6 +146,7 @@ def _preview_v1():
         flash('Seleccione al menos un archivo Excel.', 'warning')
         return render_template('imports/v1.html', preview=None)
 
+    _purgar_subidas_antiguas()
     rutas = _guardar_archivos_temporales(files)
     if not rutas:
         flash('No se encontraron archivos Excel válidos.', 'warning')
@@ -132,6 +184,7 @@ def _preview_v2(hoteles):
         flash('Seleccione al menos un archivo Excel.', 'warning')
         return render_template('imports/v2.html', preview=None, hoteles=hoteles)
 
+    _purgar_subidas_antiguas()
     rutas = _guardar_archivos_temporales(files)
     if not rutas:
         flash('No se encontraron archivos Excel válidos.', 'warning')

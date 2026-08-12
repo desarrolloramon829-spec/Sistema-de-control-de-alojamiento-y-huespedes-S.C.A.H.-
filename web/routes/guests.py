@@ -3,7 +3,7 @@ S.C.A.H. Web - Rutas de Huéspedes (búsqueda, carga manual, detalle).
 """
 
 from flask import (Blueprint, render_template, request, redirect,
-                   url_for, flash, session, jsonify)
+                   url_for, flash, session, jsonify, current_app)
 from web.routes.decorators import login_required, permission_required
 from web.services.guest_service import (
     busqueda_rapida, busqueda_avanzada, crear_huesped, actualizar_huesped,
@@ -52,8 +52,11 @@ def _obtener_alertas_duplicados(datos: dict, exclude_id: int | None = None) -> l
 def index():
     """Página principal de búsqueda de huéspedes."""
     termino = request.args.get('q', '').strip()
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 50, type=int)
+    page = max(1, request.args.get('page', 1, type=int) or 1)
+    # Acotado para que un ?per_page=100000 no obligue al worker a construir una
+    # página gigante y agotar la memoria de la instancia.
+    per_page = request.args.get('per_page', 50, type=int) or 50
+    per_page = max(10, min(per_page, current_app.config.get('MAX_PER_PAGE', 200)))
 
     # Verificar si hay filtros avanzados
     filtros = {}

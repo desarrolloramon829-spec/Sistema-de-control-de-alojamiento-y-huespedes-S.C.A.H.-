@@ -8,8 +8,12 @@ services:
     region: oregon
     plan: free
     branch: NUEVA-IMPORTACION
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "web.app:create_app('production')" --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --timeout 120 --preload
+    # Solo las dependencias del servidor web: requirements.txt incluye
+    # customtkinter/matplotlib/Pillow, que son del cliente de escritorio y
+    # alargan el build sin usarse aquí.
+    buildCommand: pip install -r web/requirements.txt
+    startCommand: gunicorn -c gunicorn.conf.py "web.app:create_app('production')"
+    healthCheckPath: /healthz
     envVars:
       - key: FLASK_ENV
         value: production
@@ -19,3 +23,11 @@ services:
         sync: false # Se configura manualmente con la URL de Neon.tech
       - key: PYTHON_VERSION
         value: '3.13.12'
+      # Workers de Gunicorn. Subir solo al pasar a un plan con más CPU/RAM.
+      - key: WEB_CONCURRENCY
+        value: '2'
+      # Conexiones a PostgreSQL POR WORKER. El total contra Neon es
+      # SCAH_DB_POOL_MAX x WEB_CONCURRENCY: mantenerlo por debajo del límite
+      # del plan de Neon (~20 en el gratuito).
+      - key: SCAH_DB_POOL_MAX
+        value: '5'

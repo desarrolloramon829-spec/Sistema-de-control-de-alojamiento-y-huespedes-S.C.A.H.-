@@ -5,26 +5,38 @@ Registra acciones del usuario y errores del sistema
 
 import logging
 import os
+import sys
 from datetime import datetime
 from config import BASE_DIR
 
 
-# ============================================================
-# LOGGER DE ARCHIVO (errores y debug)
-# ============================================================
-LOG_DIR = os.path.join(BASE_DIR, "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
+def _en_servidor() -> bool:
+    """Detecta si el proceso corre como servicio web en la nube."""
+    return bool(
+        os.environ.get("RENDER")
+        or os.environ.get("DATABASE_URL")
+        or os.environ.get("SERVER_SOFTWARE", "").startswith("gunicorn")
+    )
 
-log_file = os.path.join(LOG_DIR, f"scah_{datetime.now().strftime('%Y%m')}.log")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.FileHandler(log_file, encoding="utf-8"),
-        logging.StreamHandler(open(os.devnull, "w"))  # Solo log a archivo, no a consola
-    ]
-)
+# ============================================================
+# CONFIGURACIÓN DE LOGGING
+# ============================================================
+# En la nube el disco del contenedor es efímero y nadie puede leer un archivo
+# dentro de él: los logs van a stdout, que es lo que Render captura y muestra.
+# En escritorio se mantiene el archivo mensual de siempre.
+_FORMATO = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+_NIVEL = getattr(logging, os.environ.get("SCAH_LOG_LEVEL", "INFO").upper(), logging.INFO)
+
+if _en_servidor():
+    _handlers = [logging.StreamHandler(sys.stdout)]
+else:
+    LOG_DIR = os.path.join(BASE_DIR, "logs")
+    os.makedirs(LOG_DIR, exist_ok=True)
+    log_file = os.path.join(LOG_DIR, f"scah_{datetime.now().strftime('%Y%m')}.log")
+    _handlers = [logging.FileHandler(log_file, encoding="utf-8")]
+
+logging.basicConfig(level=_NIVEL, format=_FORMATO, handlers=_handlers)
 
 logger = logging.getLogger("SCAH")
 

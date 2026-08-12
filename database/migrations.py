@@ -34,13 +34,40 @@ def _registrar_migracion(cursor, version: str):
         pass
 
 
+# Identificador del advisory lock de PostgreSQL que serializa las migraciones.
+# Evita que dos procesos (workers de Gunicorn, un deploy solapado, o el escritorio
+# y la web a la vez) ejecuten DDL en paralelo y se bloqueen mutuamente.
+MIGRATION_LOCK_ID = 827_413_905
+
+
 def ejecutar_migraciones():
-    """Ejecuta todas las migraciones: crear tablas, índices y usuario admin."""
+    """Ejecuta todas las migraciones: crear tablas, índices y usuario admin.
+
+    Toma un advisory lock de PostgreSQL: si otro proceso ya está migrando,
+    esta llamada retorna sin hacer nada en vez de competir por locks de DDL.
+    """
     log_info("Iniciando migraciones de base de datos...")
 
     conn = db.obtener_conexion()
     if not conn:
         log_error("No se pudo obtener conexión para migraciones")
+        return False
+
+    lock_tomado = False
+    try:
+        cursor_lock = conn.cursor()
+        cursor_lock.execute("SELECT pg_try_advisory_lock(%s)", (MIGRATION_LOCK_ID,))
+        lock_tomado = bool(cursor_lock.fetchone()[0])
+        cursor_lock.close()
+        conn.commit()
+
+        if not lock_tomado:
+            log_info("Otro proceso ya está ejecutando las migraciones — se omite")
+            return True
+    except Exception as e:
+        conn.rollback()
+        log_error("No se pudo tomar el lock de migraciones", e)
+        db.liberar_conexion(conn)
         return False
 
     try:
@@ -96,6 +123,14 @@ def ejecutar_migraciones():
         log_error("Error durante las migraciones", e)
         return False
     finally:
+        if lock_tomado:
+            try:
+                cursor_unlock = conn.cursor()
+                cursor_unlock.execute("SELECT pg_advisory_unlock(%s)", (MIGRATION_LOCK_ID,))
+                cursor_unlock.close()
+                conn.commit()
+            except Exception:
+                conn.rollback()
         db.liberar_conexion(conn)
 
 
@@ -157,7 +192,6 @@ def migrar_v1_1():
     try:
         cursor = conn.cursor()
         if _migracion_ya_aplicada(cursor, 'v1.1'):
-            db.liberar_conexion(conn)
             return True
         log_info("Ejecutando migración v1.1 (columnas formato tabular)...")
 
@@ -426,7 +460,6 @@ def migrar_v1_2():
     try:
         cursor = conn.cursor()
         if _migracion_ya_aplicada(cursor, 'v1.2'):
-            db.liberar_conexion(conn)
             return True
         log_info("Ejecutando migración v1.2 (categoría, teléfono y datos de alojamientos)...")
 
@@ -474,8 +507,6 @@ def migrar_v1_2():
         return False
     finally:
         db.liberar_conexion(conn)
-<<<<<<< Updated upstream
-=======
 
 
 # ============================================================
@@ -526,7 +557,6 @@ def migrar_v1_3():
     try:
         cursor = conn.cursor()
         if _migracion_ya_aplicada(cursor, 'v1.3'):
-            db.liberar_conexion(conn)
             return True
         log_info("Ejecutando migración v1.3 (alertas operativas)...")
 
@@ -551,7 +581,26 @@ def migrar_v1_3():
 
 
 def migrar_v1_4():
-    """Migración v1.4: normaliza nacionalidad y procedencia históricas."""
+    """Migración v1.4: normalización geográfica del histórico. PENDIENTE.
+
+    Esta migración llamaba a `normalizar_historico_huespedes()`, una función que
+    no existe en ninguna versión del repositorio: se perdió en el mismo conflicto
+    de merge que dejó este archivo sin compilar. Tal como estaba, lanzaba
+    NameError en cada arranque.
+
+    Se deja deshabilitada a propósito en vez de reescribirla adivinando: reescribe
+    los campos `nacionalidad` y `procedencia` de registros históricos, y una
+    conversión equivocada corrompería datos reales de forma difícil de revertir.
+    NO se marca como aplicada, de modo que cuando se implemente la función se
+    ejecutará con normalidad.
+    """
+    if 'normalizar_historico_huespedes' not in globals():
+        log_info(
+            "Migración v1.4 omitida: falta la función normalizar_historico_huespedes(). "
+            "La normalización geográfica del histórico sigue pendiente."
+        )
+        return True
+
     conn = db.obtener_conexion()
     if not conn:
         log_error("No se pudo obtener conexión para migración v1.4")
@@ -561,11 +610,10 @@ def migrar_v1_4():
         cursor_check = conn.cursor()
         if _migracion_ya_aplicada(cursor_check, 'v1.4'):
             cursor_check.close()
-            db.liberar_conexion(conn)
             return True
         cursor_check.close()
         log_info("Ejecutando migración v1.4 (normalización geográfica)...")
-        resultado = normalizar_historico_huespedes(conn)
+        resultado = globals()['normalizar_historico_huespedes'](conn)
         cursor_reg = conn.cursor()
         _registrar_migracion(cursor_reg, 'v1.4')
         cursor_reg.close()
@@ -602,7 +650,6 @@ def migrar_v1_5():
     try:
         cursor = conn.cursor()
         if _migracion_ya_aplicada(cursor, 'v1.5'):
-            db.liberar_conexion(conn)
             return True
         log_info("Ejecutando migración v1.5 (índices control de cargas)...")
 
@@ -645,7 +692,6 @@ def migrar_v1_6():
     try:
         cursor = conn.cursor()
         if _migracion_ya_aplicada(cursor, 'v1.6'):
-            db.liberar_conexion(conn)
             return True
         log_info("Ejecutando migración v1.6 (índices funcionales de rendimiento)...")
 
@@ -684,4 +730,3 @@ def migrar_v1_6():
         return False
     finally:
         db.liberar_conexion(conn)
->>>>>>> Stashed changes

@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from datetime import datetime
 from openpyxl import load_workbook
+from psycopg2.extras import execute_values
 from database.connection import db
 from config import (EXCEL_HOTEL_MAP, EXCEL_HUESPED_COLS, EXCEL_HUESPED_START_ROW,
                     EXCEL_V2_HUESPED_COLS, EXCEL_V2_HUESPED_START_ROW,
@@ -451,62 +452,84 @@ def importar_datos_v1(huespedes: list, usuario_id: int) -> dict:
     errores_count = 0
     duplicados = 0
 
+    conn = db.obtener_conexion()
+    if not conn:
+        return {"importados": 0, "duplicados": 0, "errores": 1,
+                "mensaje": "Error de conexión a la base de datos"}
+
+    descartar = False
     try:
-        conn = db.obtener_conexion()
-        if not conn:
-            return {"importados": 0, "duplicados": 0, "errores": 1,
-                    "mensaje": "Error de conexión a la base de datos"}
-
         cursor = conn.cursor()
-        hoteles_cache = {}
 
+        # 1) Resolver los hoteles una sola vez cada uno (no una vez por fila).
+        hoteles_cache = {}
+        for huesped in huespedes:
+            hotel_data = huesped.get("hotel_data", {}) or {}
+            hotel_key = hotel_data.get("nombre", "")
+            if hotel_key not in hoteles_cache:
+                hoteles_cache[hotel_key] = _obtener_o_crear_hotel(
+                    cursor, hotel_data, usuario_id)
+
+        # 2) Traer de una vez lo ya cargado, para comparar en memoria.
+        claves_existentes = _cargar_claves_existentes(cursor, hoteles_cache.values())
+
+        # 3) Preparar las filas a insertar.
+        filas = []
         for huesped in huespedes:
             try:
-                hotel_data = huesped.get("hotel_data", {})
-                hotel_key = hotel_data.get("nombre", "")
+                hotel_data = huesped.get("hotel_data", {}) or {}
+                hotel_id = hoteles_cache.get(hotel_data.get("nombre", ""))
 
-                if hotel_key not in hoteles_cache:
-                    hotel_id = _obtener_o_crear_hotel(cursor, hotel_data, usuario_id)
-                    hoteles_cache[hotel_key] = hotel_id
-                else:
-                    hotel_id = hoteles_cache[hotel_key]
-
-                if _es_duplicado(cursor, hotel_id, huesped):
+                clave = _clave_duplicado(hotel_id, huesped)
+                if clave is not None and clave in claves_existentes:
                     duplicados += 1
                     continue
+                if clave is not None:
+                    # Así se descartan también los repetidos dentro del archivo.
+                    claves_existentes.add(clave)
 
-                cursor.execute("""
-                    INSERT INTO huespedes (
-                        hotel_id, nacionalidad, procedencia, apellido_nombre,
-                        dni_pasaporte, fecha_nacimiento, edad, profesion,
-                        fecha_entrada, fecha_salida, origen_carga, usuario_carga_id
-                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'excel',%s)
-                """, (
+                filas.append((
                     hotel_id, huesped["nacionalidad"], huesped["procedencia"],
                     huesped["apellido_nombre"], huesped["dni_pasaporte"],
                     huesped.get("fecha_nacimiento"), huesped.get("edad"),
                     huesped["profesion"], huesped.get("fecha_entrada"),
                     huesped.get("fecha_salida"), usuario_id
                 ))
-                importados += 1
             except Exception as e:
                 errores_count += 1
-                log_error(f"Error importando huésped: {huesped.get('apellido_nombre', '?')}", e)
+                log_error(f"Error preparando huésped: {huesped.get('apellido_nombre', '?')}", e)
+
+        # 4) Insertar agrupado.
+        insertadas, errores_lote = _insertar_en_lotes(cursor, """
+            INSERT INTO huespedes (
+                hotel_id, nacionalidad, procedencia, apellido_nombre,
+                dni_pasaporte, fecha_nacimiento, edad, profesion,
+                fecha_entrada, fecha_salida, usuario_carga_id, origen_carga
+            ) VALUES %s
+        """, [fila + ('excel',) for fila in filas])
+        importados = insertadas
+        errores_count += errores_lote
 
         _registrar_log_importacion(cursor, "excel_v1", importados, errores_count,
                                     duplicados, usuario_id)
         conn.commit()
         cursor.close()
-        db.liberar_conexion(conn)
-
-        _registrar_auditoria(usuario_id, "importar_excel",
-                             f"V1 - Importados: {importados}, Errores: {errores_count}, "
-                             f"Duplicados: {duplicados}")
 
     except Exception as e:
+        descartar = _revertir_conexion(conn)
         log_error("Error general en importación V1", e)
-        return {"importados": importados, "duplicados": duplicados,
+        return {"importados": 0, "duplicados": duplicados,
                 "errores": errores_count + 1, "mensaje": str(e)}
+    finally:
+        # Sin este finally, una importación fallida se quedaba con la conexión
+        # para siempre: unas pocas bastaban para agotar el pool y dejar toda la
+        # aplicación bloqueada hasta reiniciarla.
+        db.liberar_conexion(conn, descartar=descartar)
+
+    _invalidar_caches()
+    _registrar_auditoria(usuario_id, "importar_excel",
+                         f"V1 - Importados: {importados}, Errores: {errores_count}, "
+                         f"Duplicados: {duplicados}")
 
     return {"importados": importados, "duplicados": duplicados,
             "errores": errores_count,
@@ -524,12 +547,13 @@ def importar_datos_v2(huespedes: list, hotel_nombre: str, usuario_id: int,
     errores_count = 0
     duplicados = 0
 
-    try:
-        conn = db.obtener_conexion()
-        if not conn:
-            return {"importados": 0, "duplicados": 0, "errores": 1,
-                    "mensaje": "Error de conexión a la base de datos"}
+    conn = db.obtener_conexion()
+    if not conn:
+        return {"importados": 0, "duplicados": 0, "errores": 1,
+                "mensaje": "Error de conexión a la base de datos"}
 
+    descartar = False
+    try:
         cursor = conn.cursor()
 
         if nuevo_hotel:
@@ -558,21 +582,20 @@ def importar_datos_v2(huespedes: list, hotel_nombre: str, usuario_id: int,
                 """, (sanitizar_texto(hotel_nombre), usuario_id))
                 hotel_id = cursor.fetchone()[0]
 
+        # Una sola consulta para saber qué hay ya cargado en este hotel.
+        claves_existentes = _cargar_claves_existentes(cursor, [hotel_id])
+
+        filas = []
         for huesped in huespedes:
             try:
-                if _es_duplicado(cursor, hotel_id, huesped):
+                clave = _clave_duplicado(hotel_id, huesped)
+                if clave is not None and clave in claves_existentes:
                     duplicados += 1
                     continue
+                if clave is not None:
+                    claves_existentes.add(clave)
 
-                cursor.execute("""
-                    INSERT INTO huespedes (
-                        hotel_id, nacionalidad, procedencia, apellido_nombre,
-                        dni_pasaporte, edad, profesion,
-                        fecha_entrada, fecha_salida,
-                        habitacion, domicilio, destino, movilidad, telefono,
-                        origen_carga, usuario_carga_id
-                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'excel_v2',%s)
-                """, (
+                filas.append((
                     hotel_id, huesped.get("nacionalidad", ""),
                     huesped.get("procedencia", ""),
                     huesped.get("apellido_nombre", ""),
@@ -581,27 +604,41 @@ def importar_datos_v2(huespedes: list, hotel_nombre: str, usuario_id: int,
                     huesped.get("fecha_entrada"), huesped.get("fecha_salida"),
                     huesped.get("habitacion", ""), huesped.get("domicilio", ""),
                     huesped.get("destino", ""), huesped.get("movilidad", ""),
-                    huesped.get("telefono", ""), usuario_id
+                    huesped.get("telefono", ""), usuario_id, 'excel_v2'
                 ))
-                importados += 1
             except Exception as e:
                 errores_count += 1
-                log_error(f"Error importando: {huesped.get('apellido_nombre', '?')}", e)
+                log_error(f"Error preparando: {huesped.get('apellido_nombre', '?')}", e)
+
+        insertadas, errores_lote = _insertar_en_lotes(cursor, """
+            INSERT INTO huespedes (
+                hotel_id, nacionalidad, procedencia, apellido_nombre,
+                dni_pasaporte, edad, profesion,
+                fecha_entrada, fecha_salida,
+                habitacion, domicilio, destino, movilidad, telefono,
+                usuario_carga_id, origen_carga
+            ) VALUES %s
+        """, filas)
+        importados = insertadas
+        errores_count += errores_lote
 
         _registrar_log_importacion(cursor, "excel_v2", importados, errores_count,
                                     duplicados, usuario_id)
         conn.commit()
         cursor.close()
-        db.liberar_conexion(conn)
-
-        _registrar_auditoria(usuario_id, "importar_excel_v2",
-                             f"Tabular - Importados: {importados}, Errores: {errores_count}, "
-                             f"Duplicados: {duplicados}")
 
     except Exception as e:
+        descartar = _revertir_conexion(conn)
         log_error("Error general en importación V2", e)
-        return {"importados": importados, "duplicados": duplicados,
+        return {"importados": 0, "duplicados": duplicados,
                 "errores": errores_count + 1, "mensaje": str(e)}
+    finally:
+        db.liberar_conexion(conn, descartar=descartar)
+
+    _invalidar_caches()
+    _registrar_auditoria(usuario_id, "importar_excel_v2",
+                         f"Tabular - Importados: {importados}, Errores: {errores_count}, "
+                         f"Duplicados: {duplicados}")
 
     return {"importados": importados, "duplicados": duplicados,
             "errores": errores_count,
@@ -633,16 +670,78 @@ def _obtener_o_crear_hotel(cursor, hotel_data: dict, usuario_id: int) -> int:
     return cursor.fetchone()[0]
 
 
-def _es_duplicado(cursor, hotel_id: int, huesped: dict) -> bool:
+# ── Importación por lotes ────────────────────────────────────
+# Tamaño de página para los INSERT agrupados. 500 filas por sentencia mantiene
+# el tamaño del mensaje razonable y reduce los viajes de red ~500 veces.
+_BATCH_PAGE_SIZE = 500
+
+
+def _clave_duplicado(hotel_id: int, huesped: dict):
+    """Clave de duplicidad (hotel, documento, fecha de entrada).
+
+    Retorna None cuando faltan documento o fecha: en ese caso el registro nunca
+    se considera duplicado, igual que hacía la verificación fila a fila.
+    """
     dni = huesped.get("dni_pasaporte", "")
     fecha_entrada = huesped.get("fecha_entrada")
     if not dni or not fecha_entrada:
-        return False
+        return None
+    return (hotel_id, dni, fecha_entrada)
+
+
+def _cargar_claves_existentes(cursor, hotel_ids) -> set:
+    """Trae en UNA consulta los registros ya cargados de los hoteles implicados.
+
+    Sustituye al SELECT por fila: con un Excel de 2.000 filas eran 2.000 viajes
+    de ida y vuelta a la base de datos, que contra una base remota bastaban para
+    superar el timeout del worker y dejar la aplicación sin capacidad.
+    """
+    ids = [h for h in set(hotel_ids) if h]
+    if not ids:
+        return set()
     cursor.execute("""
-        SELECT id FROM huespedes
-        WHERE hotel_id = %s AND dni_pasaporte = %s AND fecha_entrada = %s
-    """, (hotel_id, dni, fecha_entrada))
-    return cursor.fetchone() is not None
+        SELECT hotel_id, dni_pasaporte, fecha_entrada
+        FROM huespedes
+        WHERE hotel_id = ANY(%s)
+          AND dni_pasaporte IS NOT NULL AND dni_pasaporte <> ''
+          AND fecha_entrada IS NOT NULL
+    """, (ids,))
+    return {(fila[0], fila[1], fila[2]) for fila in cursor.fetchall()}
+
+
+def _insertar_en_lotes(cursor, sql: str, filas: list) -> tuple[int, int]:
+    """Inserta las filas agrupadas. Retorna (insertadas, con_error).
+
+    Si un lote falla se reintenta fila a fila sobre un SAVEPOINT, de modo que un
+    único registro defectuoso no invalide el resto de la importación (que es lo
+    que hacía la versión fila a fila).
+    """
+    insertadas = 0
+    errores = 0
+
+    for inicio in range(0, len(filas), _BATCH_PAGE_SIZE):
+        lote = filas[inicio:inicio + _BATCH_PAGE_SIZE]
+        cursor.execute("SAVEPOINT lote_import")
+        try:
+            execute_values(cursor, sql, lote, page_size=len(lote))
+            cursor.execute("RELEASE SAVEPOINT lote_import")
+            insertadas += len(lote)
+        except Exception as e:
+            cursor.execute("ROLLBACK TO SAVEPOINT lote_import")
+            log_error(f"Lote de importación con error, se reintenta fila a fila "
+                      f"({len(lote)} registros)", e)
+            for fila in lote:
+                cursor.execute("SAVEPOINT fila_import")
+                try:
+                    execute_values(cursor, sql, [fila], page_size=1)
+                    cursor.execute("RELEASE SAVEPOINT fila_import")
+                    insertadas += 1
+                except Exception as e_fila:
+                    cursor.execute("ROLLBACK TO SAVEPOINT fila_import")
+                    errores += 1
+                    log_error("Error importando registro", e_fila)
+
+    return insertadas, errores
 
 
 def _registrar_log_importacion(cursor, tipo: str, importados: int,
@@ -660,11 +759,33 @@ def _registrar_log_importacion(cursor, tipo: str, importados: int,
 
 
 def _registrar_auditoria(usuario_id: int, accion: str, detalle: str):
+    conn = None
     try:
         conn = db.obtener_conexion()
         if conn:
             auditoria = Auditoria(conn)
             auditoria.registrar(usuario_id, accion, "huespedes", detalle=detalle)
+    except Exception:
+        pass
+    finally:
+        # En finally: si registrar() lanzaba, la conexión no volvía al pool.
+        if conn is not None:
             db.liberar_conexion(conn)
+
+
+def _revertir_conexion(conn) -> bool:
+    """Deshace la transacción tras un error. True si la conexión quedó inservible."""
+    try:
+        conn.rollback()
+        return False
+    except Exception:
+        return True
+
+
+def _invalidar_caches():
+    """Descarta los totales cacheados de los listados tras una importación."""
+    try:
+        from web.services.guest_service import invalidar_cache_conteos
+        invalidar_cache_conteos()
     except Exception:
         pass

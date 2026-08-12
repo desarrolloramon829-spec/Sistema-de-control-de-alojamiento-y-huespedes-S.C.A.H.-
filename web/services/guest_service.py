@@ -5,6 +5,8 @@ Lógica de negocio para búsqueda, carga, detalle y eliminación de huéspedes.
 
 import sys
 import os
+import threading
+import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from database.connection import db
@@ -13,7 +15,15 @@ from utils.validators import (validar_dni, validar_fecha, validar_texto_obligato
                                sanitizar_texto, validar_telefono, validar_habitacion)
 from utils.formatters import formato_fecha, formato_dni
 from utils.logger import log_info, log_error, Auditoria
-from config import DEFAULT_PAGE_SIZE
+from config import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+
+# Caché en memoria del proceso para los conteos de los listados.
+# Es por worker y sin coordinación entre ellos: eso es aceptable porque el peor
+# efecto de un total desactualizado unos segundos es mostrar un número de
+# páginas ligeramente viejo, nunca datos incorrectos.
+_count_cache: dict = {}
+_cache_lock = threading.Lock()
+_CACHE_MAX_ENTRADAS = 200
 
 
 def _normalizar_documento(valor: str) -> str:
@@ -136,19 +146,39 @@ def buscar_posibles_duplicados(
         return []
 
 
-def busqueda_rapida(termino: str, page: int = 1, per_page: int = DEFAULT_PAGE_SIZE):
-    """
-    Búsqueda rápida en 11 campos ILIKE.
-    Retorna (resultados, total, paginas).
-    """
-    patron = f"%{termino}%"
-    query = """
+# Columnas que se muestran en el listado. Se definen una sola vez para que la
+# consulta de datos y la de conteo no se desincronicen.
+_SELECT_LISTADO = """
         SELECT h.id, ht.nombre as hotel, h.apellido_nombre, h.dni_pasaporte,
                h.nacionalidad, h.procedencia, h.edad, h.profesion,
                h.fecha_entrada, h.fecha_salida, h.habitacion, h.telefono,
                h.domicilio, h.destino, h.movilidad, h.origen_carga
         FROM huespedes h
         JOIN hoteles ht ON h.hotel_id = ht.id
+"""
+
+
+def busqueda_rapida(termino: str, page: int = 1, per_page: int = DEFAULT_PAGE_SIZE):
+    """
+    Búsqueda rápida en 11 campos ILIKE.
+    Retorna (resultados, total, paginas).
+    """
+    termino = (termino or "").strip()
+
+    # Sin término de búsqueda esto es el listado inicial, no una búsqueda.
+    # Antes se resolvía con ILIKE '%%' sobre 11 columnas, lo que obliga a
+    # PostgreSQL a recorrer y filtrar la tabla entera en cada carga de página.
+    if not termino:
+        return _ejecutar_busqueda_paginada(
+            _SELECT_LISTADO + " ORDER BY h.fecha_registro DESC",
+            [],
+            page,
+            per_page,
+            filtro_where="",
+        )
+
+    patron = f"%{termino}%"
+    where = """
         WHERE h.apellido_nombre ILIKE %s
            OR h.dni_pasaporte ILIKE %s
            OR ht.nombre ILIKE %s
@@ -160,10 +190,15 @@ def busqueda_rapida(termino: str, page: int = 1, per_page: int = DEFAULT_PAGE_SI
            OR h.telefono ILIKE %s
            OR h.domicilio ILIKE %s
            OR h.destino ILIKE %s
-        ORDER BY h.fecha_registro DESC
     """
     params = [patron] * 11
-    return _ejecutar_busqueda_paginada(query, params, page, per_page)
+    return _ejecutar_busqueda_paginada(
+        _SELECT_LISTADO + where + " ORDER BY h.fecha_registro DESC",
+        params,
+        page,
+        per_page,
+        filtro_where=where,
+    )
 
 
 def busqueda_avanzada(filtros: dict, page: int = 1, per_page: int = DEFAULT_PAGE_SIZE):
@@ -173,105 +208,158 @@ def busqueda_avanzada(filtros: dict, page: int = 1, per_page: int = DEFAULT_PAGE
     procedencia, fecha_desde, fecha_hasta, edad_min, edad_max,
     habitacion, destino, telefono.
     """
-    query = """
-        SELECT h.id, ht.nombre as hotel, h.apellido_nombre, h.dni_pasaporte,
-               h.nacionalidad, h.procedencia, h.edad, h.profesion,
-               h.fecha_entrada, h.fecha_salida, h.habitacion, h.telefono,
-               h.domicilio, h.destino, h.movilidad, h.origen_carga
-        FROM huespedes h
-        JOIN hoteles ht ON h.hotel_id = ht.id
-        WHERE 1=1
-    """
+    where = " WHERE 1=1"
     params = []
 
     if filtros.get("hotel"):
-        query += " AND ht.nombre = %s"
+        where += " AND ht.nombre = %s"
         params.append(filtros["hotel"])
 
     if filtros.get("ciudad"):
-        query += " AND ht.ciudad_localidad = %s"
+        where += " AND ht.ciudad_localidad = %s"
         params.append(filtros["ciudad"])
 
     if filtros.get("nacionalidad"):
-        query += " AND h.nacionalidad ILIKE %s"
+        where += " AND h.nacionalidad ILIKE %s"
         params.append(f"%{filtros['nacionalidad']}%")
 
     if filtros.get("dni"):
-        query += " AND h.dni_pasaporte ILIKE %s"
+        where += " AND h.dni_pasaporte ILIKE %s"
         params.append(f"%{filtros['dni']}%")
 
     if filtros.get("profesion"):
-        query += " AND h.profesion ILIKE %s"
+        where += " AND h.profesion ILIKE %s"
         params.append(f"%{filtros['profesion']}%")
 
     if filtros.get("procedencia"):
-        query += " AND h.procedencia ILIKE %s"
+        where += " AND h.procedencia ILIKE %s"
         params.append(f"%{filtros['procedencia']}%")
 
     if filtros.get("fecha_desde"):
         ok, _, fecha = validar_fecha(filtros["fecha_desde"], permite_vacio=True)
         if ok and fecha:
-            query += " AND h.fecha_entrada >= %s"
+            where += " AND h.fecha_entrada >= %s"
             params.append(fecha)
 
     if filtros.get("fecha_hasta"):
         ok, _, fecha = validar_fecha(filtros["fecha_hasta"], permite_vacio=True)
         if ok and fecha:
-            query += " AND h.fecha_entrada <= %s"
+            where += " AND h.fecha_entrada <= %s"
             params.append(fecha)
 
     if filtros.get("edad_min"):
         try:
-            query += " AND h.edad >= %s"
+            where += " AND h.edad >= %s"
             params.append(int(filtros["edad_min"]))
         except ValueError:
             pass
 
     if filtros.get("edad_max"):
         try:
-            query += " AND h.edad <= %s"
+            where += " AND h.edad <= %s"
             params.append(int(filtros["edad_max"]))
         except ValueError:
             pass
 
     if filtros.get("habitacion"):
-        query += " AND h.habitacion ILIKE %s"
+        where += " AND h.habitacion ILIKE %s"
         params.append(f"%{filtros['habitacion']}%")
 
     if filtros.get("destino"):
-        query += " AND h.destino ILIKE %s"
+        where += " AND h.destino ILIKE %s"
         params.append(f"%{filtros['destino']}%")
 
     if filtros.get("telefono"):
-        query += " AND h.telefono ILIKE %s"
+        where += " AND h.telefono ILIKE %s"
         params.append(f"%{filtros['telefono']}%")
 
-    query += " ORDER BY h.fecha_registro DESC"
-    return _ejecutar_busqueda_paginada(query, params, page, per_page)
+    return _ejecutar_busqueda_paginada(
+        _SELECT_LISTADO + where + " ORDER BY h.fecha_registro DESC",
+        params,
+        page,
+        per_page,
+        filtro_where=where,
+    )
 
 
-def _ejecutar_busqueda_paginada(query, params, page, per_page):
-    """Ejecuta una búsqueda con paginación server-side usando COUNT(*) OVER()."""
+def _contar_resultados(filtro_where: str, params: list) -> int:
+    """Cuenta las filas que coinciden, reutilizando el resultado unos segundos.
+
+    Contar es lo caro de paginar: obliga a recorrer todas las filas que cumplen
+    la condición, mientras que traer una página solo lee `per_page` filas. Como
+    el total apenas varía entre una página y la siguiente, se cachea en memoria
+    del proceso durante COUNT_CACHE_TTL segundos.
+    """
+    clave = (filtro_where, tuple(str(p) for p in params))
+    ahora = time.monotonic()
+
+    with _cache_lock:
+        entrada = _count_cache.get(clave)
+        if entrada and entrada[0] > ahora:
+            return entrada[1]
+
+    if filtro_where.strip():
+        sql = f"SELECT COUNT(*) AS total FROM huespedes h JOIN hoteles ht ON h.hotel_id = ht.id {filtro_where}"
+        resultado = db.ejecutar_query_one(sql, tuple(params))
+    else:
+        # Sin filtros no hace falta el JOIN: hotel_id es NOT NULL con clave
+        # foránea, así que el join interno no descarta ninguna fila.
+        resultado = db.ejecutar_query_one("SELECT COUNT(*) AS total FROM huespedes")
+
+    total = (resultado or {}).get("total", 0) or 0
+
+    with _cache_lock:
+        if len(_count_cache) > _CACHE_MAX_ENTRADAS:
+            _count_cache.clear()
+        _count_cache[clave] = (ahora + _count_cache_ttl(), total)
+
+    return total
+
+
+def _count_cache_ttl() -> int:
+    """TTL del caché de conteos, configurable por entorno."""
     try:
-        # Usar window function para obtener total y datos en una sola query
-        wrapped_query = f"""
-            SELECT *, COUNT(*) OVER() AS _total_count
-            FROM ({query}) sub
-            ORDER BY (SELECT NULL)
-            LIMIT {per_page} OFFSET %s
-        """
-        # Calcular offset provisional (se ajusta después)
-        offset = max(0, (page - 1) * per_page)
-        full_params = list(params) + [offset]
+        return int(os.environ.get("SCAH_COUNT_CACHE_TTL", 60))
+    except ValueError:
+        return 60
 
-        resultados = db.ejecutar_query(wrapped_query, tuple(full_params), fetch=True)
 
-        if not resultados:
+def invalidar_cache_conteos():
+    """Vacía el caché de conteos tras insertar o borrar huéspedes."""
+    with _cache_lock:
+        _count_cache.clear()
+
+
+def _ejecutar_busqueda_paginada(query, params, page, per_page, filtro_where=""):
+    """Ejecuta una búsqueda paginada con conteo separado y cacheado.
+
+    Antes esto envolvía la consulta en `COUNT(*) OVER()`, lo que obliga a
+    PostgreSQL a materializar TODAS las filas coincidentes (con sus 16 columnas)
+    para poder contarlas, aunque solo se muestren 50. Sobre una tabla grande eso
+    convierte cada carga del listado en un recorrido completo de la tabla.
+    """
+    try:
+        per_page = max(1, min(int(per_page), MAX_PAGE_SIZE))
+        page = max(1, int(page))
+
+        # 1) Total (cacheado): permite acotar la página pedida antes de leer datos.
+        total = _contar_resultados(filtro_where, params)
+        if total == 0:
             return [], 0, 1, 1
 
-        total = resultados[0]["_total_count"] if resultados else 0
         total_pages = max(1, (total + per_page - 1) // per_page)
-        page = max(1, min(page, total_pages))
+        page = min(page, total_pages)
+        offset = (page - 1) * per_page
+
+        # 2) Solo la página solicitada.
+        resultados = db.ejecutar_query(
+            f"{query} LIMIT %s OFFSET %s",
+            tuple(list(params) + [per_page, offset]),
+            fetch=True,
+        )
+
+        if not resultados:
+            return [], total, total_pages, page
 
         # Formatear resultados
         datos = []
@@ -352,6 +440,7 @@ def eliminar_huesped(huesped_id: int, usuario_id: int) -> tuple[bool, str]:
     """Elimina un huésped de la base de datos."""
     try:
         db.ejecutar_query("DELETE FROM huespedes WHERE id = %s", (huesped_id,))
+        invalidar_cache_conteos()
         log_info(f"Huésped ID {huesped_id} eliminado por usuario {usuario_id}")
         return True, "Registro eliminado correctamente"
     except Exception as e:
@@ -524,6 +613,7 @@ def crear_huesped(datos: dict, usuario_id: int) -> tuple[bool, str, int | None]:
         except Exception:
             pass
 
+        invalidar_cache_conteos()
         log_info(f"Huésped creado: {datos.get('apellido_nombre', '')} (ID: {huesped_id})")
         return True, "Huésped registrado correctamente", huesped_id
 

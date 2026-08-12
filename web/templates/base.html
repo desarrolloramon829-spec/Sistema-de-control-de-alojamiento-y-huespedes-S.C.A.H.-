@@ -36,10 +36,7 @@
       href="{{ url_for('static', filename='manifest.json') }}"
     />
     <!-- Custom CSS -->
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='css/custom.css') }}"
-    />
+    <link rel="stylesheet" href="{{ asset_url('css/custom.css') }}" />
     {% block extra_css %}{% endblock %}
   </head>
   <body class="app-body shell-ready">
