@@ -1,0 +1,2314 @@
+From c4fefd55bc5e0d3ce1ef4569f84b306958c7a2cd Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 12 Aug 2026 12:48:48 +0000
+Subject: [PATCH] fix: resolver bloqueo con accesos simultaneos y plan de
+ escalabilidad
+
+El sistema se trababa cuando dos dispositivos cargaban a la vez. La causa
+raiz era un pool de conexiones creado antes del fork de Gunicorn: con
+--preload el proceso maestro abria la conexion a PostgreSQL y los dos
+workers heredaban el mismo socket. Dos peticiones simultaneas escribiendo
+sobre esa conexion desincronizan el protocolo y quedan colgadas hasta que
+vence el timeout de 120s.
+
+Ademas la rama estaba rota: migrations.py tenia marcadores de conflicto de
+merge sin resolver (no compilaba, por lo que ninguna migracion ni indice se
+aplicaba nunca) y base.html invocaba asset_url(), una funcion que no existia
+en el codigo, devolviendo HTTP 500 en toda pagina interna.
+
+Correcciones:
+
+- connection.py: pool atado al PID, validacion de conexiones vivas, espera
+  acotada cuando el pool esta lleno y descarte de conexiones rotas. El
+  sslmode de DATABASE_URL ahora se respeta si viene en la URL.
+- gunicorn.conf.py: hook post_fork que reconstruye el pool en cada worker,
+  migraciones una sola vez en on_starting, reciclado de workers y logs de
+  acceso con duracion de cada peticion.
+- migrations.py: marcadores de conflicto eliminados, advisory lock para
+  serializar el DDL y seis dobles devoluciones al pool corregidas.
+- migrar_v1_4 llamaba a normalizar_historico_huespedes(), inexistente en
+  todo el repositorio. Se deshabilita de forma explicita y sin marcarla
+  como aplicada, en vez de reescribirla adivinando: modifica datos
+  historicos y una conversion equivocada los corromperia.
+- guest_service.py: eliminado el ILIKE '%%' sobre 11 columnas y el
+  COUNT(*) OVER() que materializaba la tabla entera. 707ms -> 0,43ms con
+  200.000 registros.
+- import_service.py: importacion por lotes con execute_values y precarga
+  de duplicados. 2.000 filas pasan de 4.000 viajes a la base a ~7. Se
+  cierran las fugas de conexion que agotaban el pool de forma permanente.
+- imports.py: cada subida en carpeta propia con secure_filename, para que
+  dos operadores importando a la vez no se pisen los archivos.
+- Logs a stdout en la nube, endpoints /healthz y /readyz, cache de assets
+  con sello de version y tope de per_page.
+
+Verificado contra PostgreSQL con 200.000 huespedes: 20 dispositivos
+simultaneos, 320/320 peticiones correctas, p95 366ms, ningun worker caido.
+Las 8 pantallas principales responden 200 donde antes daban 500.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014mjPCmejekjY1SnWc4uvgu
+---
+ PLAN_RENDIMIENTO_ESCALABILIDAD.md | 381 ++++++++++++++++++++++++++++++
+ Procfile                          |   2 +-
+ database/connection.py            | 299 +++++++++++++++++------
+ database/migrations.py            |  69 +++++-
+ gunicorn.conf.py                  | 140 +++++++++++
+ render.yaml                       |  16 +-
+ utils/logger.py                   |  40 ++--
+ web/app.py                        |  89 ++++++-
+ web/config.py                     |  24 +-
+ web/routes/guests.py              |   9 +-
+ web/routes/imports.py             |  61 ++++-
+ web/services/guest_service.py     | 192 +++++++++++----
+ web/services/import_service.py    | 239 ++++++++++++++-----
+ web/templates/auth/login.html     |   2 +-
+ web/templates/base.html           |   5 +-
+ 15 files changed, 1335 insertions(+), 233 deletions(-)
+ create mode 100644 PLAN_RENDIMIENTO_ESCALABILIDAD.md
+ create mode 100644 gunicorn.conf.py
+
+diff --git a/PLAN_RENDIMIENTO_ESCALABILIDAD.md b/PLAN_RENDIMIENTO_ESCALABILIDAD.md
+new file mode 100644
+index 0000000..f3ddc52
+--- /dev/null
++++ b/PLAN_RENDIMIENTO_ESCALABILIDAD.md
+@@ -0,0 +1,381 @@
++# Plan de rendimiento y escalabilidad — S.C.A.H.
++
++**Problema reportado:** cuando dos dispositivos cargan el sistema al mismo tiempo,
++la aplicación se traba y deja de funcionar.
++
++Este documento explica **por qué** pasaba, **qué se corrigió** (Fase 0, ya aplicada
++y verificada) y **qué conviene hacer después** (Fases 1 a 3), en orden de impacto.
++
++---
++
++## 1. Diagnóstico
++
++Se revisó el código, se levantó el sistema contra un PostgreSQL real con 200.000
++huéspedes y se midió con varios dispositivos simultáneos. No había *una* causa:
++había cinco defectos que se potenciaban entre sí.
++
++### 1.1 La rama estaba rota — el sistema devolvía error 500 en todas las páginas
++
++Dos fallos convivían en el último commit (`39af4ed`, *"optimizacion integral de
++rendimiento"*):
++
++| Defecto | Efecto |
++|---|---|
++| `database/migrations.py` tenía marcadores de conflicto de merge (`<<<<<<<`, `=======`, `>>>>>>>`) sin resolver, commiteados | El archivo **no compila**. El arranque lo captura con un `try/except` y sigue: `[WARN] Error inicializando BD: invalid syntax`. Resultado: **ninguna migración se ejecuta jamás**, y con ellas **ningún índice de rendimiento se llega a crear** |
++| `base.html` usaba `asset_url(...)`, una función que nunca se definió en el código | `UndefinedError: 'asset_url' is undefined` → **HTTP 500 en toda página que extienda `base.html`** |
++
++Comprobado ejecutando el commit original tal cual:
++
++```
++[WARN] Error inicializando BD: invalid syntax (migrations.py, line 477)
++UndefinedError -> 'asset_url' is undefined     (al pedir /dashboard)
++```
++
++Es decir: los índices que el commit anterior pretendía añadir **nunca existieron en
++la base de datos**, y la aplicación no renderizaba ninguna pantalla interna.
++
++### 1.2 Causa raíz del bloqueo con dos dispositivos: un socket compartido entre procesos
++
++Esta es la que explica el síntoma exacto que se reportó.
++
++El arranque era:
++
++```
++gunicorn "web.app:create_app('production')" --workers 2 --preload
++```
++
++Con `--preload`, Gunicorn ejecuta `create_app()` **una sola vez en el proceso
++maestro** y después hace `fork()` para crear los 2 workers. Y `create_app()`
++llamaba a `_init_database()`, que abría el pool de conexiones.
++
++El pool de psycopg2 abre `minconn` conexiones de inmediato. Por lo tanto:
++
++```
++    maestro ── abre conexión TCP a PostgreSQL ──┐
++        │                                       │  el MISMO descriptor de socket
++        ├── fork() → worker 1 ──────────────────┤  queda duplicado en los dos
++        └── fork() → worker 2 ──────────────────┘  procesos hijos
++```
++
++Un socket a PostgreSQL **no puede compartirse entre procesos**: el protocolo es
++una conversación con estado. Mientras solo un dispositivo usaba el sistema, un
++único worker atendía y todo parecía funcionar. Con **dos peticiones simultáneas
++repartidas entre los dos workers**, ambos escribían sobre la misma conexión: el
++protocolo se desincroniza y las peticiones **se quedan colgadas hasta que vence
++`--timeout 120`**, momento en que Gunicorn mata al worker.
++
++Eso es literalmente *"cuando 2 dispositivos quieren cargar al mismo tiempo el
++sistema se traba y no deja de funcionar"*.
++
++### 1.3 Fugas de conexiones que dejaban el sistema muerto de forma permanente
++
++Con solo 5 conexiones por worker, cualquier fuga es fatal. Había tres:
++
++- **`import_service.py`**: `db.liberar_conexion(conn)` solo se llamaba en el
++  camino feliz. Si una importación fallaba, esa conexión **no volvía nunca al
++  pool**. Cinco importaciones fallidas = pool agotado = sistema bloqueado para
++  todos hasta reiniciar.
++- **`migrations.py`**: seis puntos devolvían la misma conexión al pool **dos
++  veces** (una explícita y otra en el `finally`). Una conexión duplicada en la
++  lista de libres puede entregarse a dos hilos a la vez → misma corrupción de
++  protocolo del punto anterior.
++- **`_registrar_auditoria()`**: misma fuga que la importación.
++
++Además, `obtener_conexion()` no comprobaba si la conexión seguía viva. Neon
++suspende el cómputo tras unos minutos de inactividad y cierra los sockets: el
++pool devolvía conexiones muertas y la petición fallaba en vez de reconectar.
++
++### 1.4 El listado de huéspedes recorría la tabla entera en cada carga
++
++`/huespedes/` sin término de búsqueda ejecutaba `busqueda_rapida('')`, que
++construía `ILIKE '%%'` sobre **11 columnas** —una condición que hace *match* con
++todo— y la envolvía en `COUNT(*) OVER()`. Esa *window function* obliga a
++PostgreSQL a **materializar todas las filas coincidentes con sus 16 columnas**
++para poder contarlas, aunque en pantalla solo se muestren 50.
++
++Medido con 200.000 huéspedes:
++
++```
++Consulta anterior : 707 ms   (recorrido secuencial + ordenación completa)
++```
++
++Con 2 workers × 0,1 CPU del plan gratuito, dos de esas consultas a la vez saturan
++la instancia.
++
++### 1.5 La importación de Excel mataba al worker por timeout
++
++Por **cada fila** del Excel se hacían 2 viajes a la base de datos: un `SELECT` para
++comprobar duplicados y un `INSERT`. Todo dentro de una transacción larga.
++
++```
++2.000 filas → 4.000 viajes a la base de datos
++```
++
++Contra una base remota tipo Neon (~30 ms de ida y vuelta):
++
++```
++4.000 × 30 ms = 120 s  →  justo el límite de --timeout 120
++```
++
++El worker se mataba a mitad de la importación. Con solo 2 workers, perder uno
++significa **perder la mitad de la capacidad**, y el segundo dispositivo caía en el
++worker moribundo.
++
++### 1.6 Otros problemas encontrados
++
++| Problema | Consecuencia |
++|---|---|
++| Los archivos subidos se guardaban con su nombre original en una carpeta compartida | Dos operadores importando `planilla.xlsx` a la vez **se pisaban el archivo**; el segundo importaba los datos del primero. Además `secure_filename` faltaba: un nombre tipo `../../config.py` escribía fuera de la carpeta |
++| Logs a un archivo dentro del contenedor | En Render ese disco es efímero y **nadie puede leerlo**: los errores 500 eran invisibles |
++| `Cache-Control: immutable` por un año sobre archivos estáticos **sin** sello de versión | Tras un deploy los navegadores seguían usando el CSS viejo durante un año |
++| `render.yaml` instalaba `customtkinter`, `matplotlib` y `Pillow` (dependencias del cliente de escritorio) en el servidor web | Builds más lentos y una imagen mucho más pesada, sin usarse |
++| `?per_page=` sin tope | Un solo parámetro en la URL podía forzar una página gigante y agotar la memoria de la instancia |
++| Migraciones ejecutándose en cada `create_app()` | Sin `--preload` correrían **una vez por worker**, ejecutando DDL en paralelo y compitiendo por locks |
++
++---
++
++## 2. Fase 0 — Correcciones aplicadas
++
++Todo lo de esta sección ya está implementado en esta rama y verificado.
++
++### 2.1 Reparar lo que estaba roto
++- Eliminados los marcadores de conflicto de `migrations.py`; el archivo vuelve a
++  compilar y **las migraciones se ejecutan de verdad**: los 16 índices ya existen.
++- Definida la función `asset_url()` que faltaba (en `web/app.py`), con sello de
++  versión calculado a partir de la fecha de modificación de los archivos estáticos.
++- `migrar_v1_4()` llamaba a `normalizar_historico_huespedes()`, **una función que
++  no existe en ninguna versión del repositorio** (se perdió en el mismo conflicto).
++  Se dejó **deshabilitada de forma explícita y sin marcarse como aplicada**, en vez
++  de reescribirla adivinando: modifica los campos `nacionalidad` y `procedencia` de
++  registros históricos y una conversión equivocada corrompería datos reales.
++  **Queda pendiente de decisión** (ver §3.1).
++
++### 2.2 Un pool de conexiones por proceso
++`database/connection.py` y el nuevo `gunicorn.conf.py`:
++- El pool queda **atado al PID** que lo creó; si detecta otro PID, lo reconstruye.
++- El hook `post_fork` de Gunicorn **reinicia el pool en cada worker**. Las
++  conexiones heredadas se abandonan sin cerrarlas a propósito (cerrarlas enviaría
++  un `Terminate` por un socket que el proceso padre considera suyo).
++- Inicialización protegida con lock, para que dos hilos no creen dos pools.
++- `obtener_conexion()` **valida la conexión** antes de entregarla (descarta las que
++  Neon cerró) y **espera hasta 10 s** si el pool está lleno, en vez de fallar al
++  instante.
++- `liberar_conexion(conn, descartar=...)` cierra las conexiones que quedaron en
++  mal estado y **ignora las devoluciones duplicadas**.
++- Se puede mantener `--preload` (ahorra memoria) porque `post_fork` lo hace seguro.
++
++### 2.3 Fugas cerradas
++- `try/finally` en las dos funciones de importación y en `_registrar_auditoria()`.
++- Eliminadas las seis dobles devoluciones al pool en `migrations.py`.
++- Las migraciones se ejecutan **una sola vez**, en el hook `on_starting` del
++  proceso maestro, protegidas además con un **advisory lock de PostgreSQL**.
++
++### 2.4 Listado de huéspedes
++- Sin término de búsqueda ya no se genera `ILIKE '%%'`: se usa el listado directo.
++- Se eliminó `COUNT(*) OVER()`. Ahora son dos consultas: la página de datos
++  (`LIMIT`/`OFFSET`, que lee solo 50 filas por el índice) y el conteo, **cacheado
++  60 segundos** en memoria del worker e invalidado al crear, borrar o importar.
++- `per_page` acotado a 200.
++
++### 2.5 Importación por lotes
++- Los hoteles se resuelven **una vez cada uno**, no una vez por fila.
++- Los duplicados existentes se traen **en una sola consulta** y se comparan en
++  memoria (detectando también los repetidos dentro del propio archivo).
++- Inserción agrupada con `execute_values` en páginas de 500.
++- Si un lote falla, **se reintenta fila a fila sobre un `SAVEPOINT`**, de modo que
++  un registro defectuoso no invalida el resto de la importación.
++
++### 2.6 Operación y diagnóstico
++- **`/healthz`**: responde sin tocar la base de datos — es lo que debe usar el
++  health check de Render. (Si consultara la base, una caída de Neon provocaría
++  además el reinicio en bucle del servicio.) Configurado en `render.yaml`.
++- **`/readyz`**: sí consulta la base y devuelve la latencia, para diagnóstico manual.
++- **Logs a stdout** en la nube, para que Render los capture.
++- Log de acceso con **duración de cada petición** (`%(L)s`): permite ver qué
++  endpoint se está poniendo lento *antes* de que llegue a colgarse.
++- `max_requests=1000` con jitter: recicla workers para que una fuga de memoria no
++  termine en un OOM del contenedor.
++- Uploads en carpeta única por subida + `secure_filename` + purga de restos de más
++  de 6 horas.
++- `render.yaml` instala solo `web/requirements.txt`.
++- Cookie de sesión `HttpOnly`, `SameSite=Lax` y `Secure` en producción
++  (desactivable con `SCAH_COOKIE_SECURE=0` para despliegues internos por HTTP).
++- `sslmode` de `DATABASE_URL` ahora se respeta si viene en la URL (antes se forzaba
++  `require` siempre, lo que impedía apuntar a un PostgreSQL local o en red privada).
++
++### 2.7 Resultados medidos
++
++Entorno: PostgreSQL 16 local, 200.000 huéspedes, 50 hoteles, Gunicorn con
++2 workers × 4 hilos.
++
++**Consulta del listado**
++
++| | Antes | Después |
++|---|---|---|
++| Página de datos | 707 ms (recorrido secuencial) | **0,43 ms** (índice) |
++| Conteo | incluido en los 707 ms | 13,9 ms, cacheado 60 s |
++
++**Importación de 2.000 filas**
++
++| | Antes | Después |
++|---|---|---|
++| Viajes a la base de datos | 4.000 | **~7** |
++| Tiempo (base local) | 2,50 s | **0,30 s** (6.716 filas/s) |
++| Proyección con base remota (30 ms RTT) | **120 s → mata al worker** | **~0,2 s** |
++
++**Concurrencia** (dashboard + listado + página 3 + estadísticas, con sesión real)
++
++| Dispositivos simultáneos | Peticiones | Correctas | Latencia media | p95 | Workers caídos |
++|---|---|---|---|---|---|
++| 2 | 40 | **40 (100%)** | 25 ms | 63 ms | 0 |
++| 20 | 320 | **320 (100%)** | 162 ms | 366 ms | 0 |
++
++Las 8 pantallas principales (`/dashboard`, `/huespedes/`, `/estadisticas/`,
++`/hoteles/`, `/reportes/`, `/usuarios/`, `/backups/`, `/importar/`) responden
++**200** donde antes devolvían **500**.
++
++Verificación de la importación: 2.000 filas nuevas → 2.000 importadas; reimportar
++el mismo archivo → 2.000 duplicados detectados y 0 insertados; archivo con filas
++repetidas internamente → solo las únicas; lote con 1 fila inválida de 5 → 4
++importadas y 1 error (el `SAVEPOINT` protege al resto).
++
++---
++
++## 3. Fase 1 — Siguientes pasos recomendados (1 a 2 días)
++
++### 3.1 Decidir qué hacer con la migración v1.4 *(requiere criterio del negocio)*
++Está deshabilitada porque su implementación se perdió. Hay que definir **qué
++significa "normalizar" nacionalidad y procedencia** (¿unificar "ARG"/"Argentina"?
++¿corregir mayúsculas?) antes de escribirla. Recomendación: implementarla como un
++script manual que primero muestre un informe de los cambios que haría, se revise, y
++solo entonces se apliquen. Nunca como migración automática al arrancar.
++
++### 3.2 No parsear el Excel dos veces
++Hoy la vista previa parsea el archivo y, al confirmar, `_ejecutar_import_*` lo
++**vuelve a parsear**. Guardar el resultado del parseo junto al archivo subido y
++reutilizarlo reduce a la mitad el trabajo de CPU de una importación.
++
++### 3.3 Índices que faltan para las búsquedas por texto
++La búsqueda rápida usa `ILIKE '%termino%'`, que **ningún índice B-tree puede
++acelerar**. La extensión `pg_trgm` ya se habilita en la migración v1.6, pero faltan
++los índices GIN:
++
++```sql
++CREATE INDEX CONCURRENTLY idx_huespedes_nombre_trgm
++  ON huespedes USING gin (apellido_nombre gin_trgm_ops);
++CREATE INDEX CONCURRENTLY idx_huespedes_dni_trgm
++  ON huespedes USING gin (dni_pasaporte gin_trgm_ops);
++```
++
++Usar `CONCURRENTLY` para no bloquear la tabla. Con la tabla creciendo, esto es la
++diferencia entre una búsqueda instantánea y una de varios segundos.
++
++### 3.4 Paginación por *keyset* en lugar de `OFFSET`
++`OFFSET 10000` obliga a PostgreSQL a leer y descartar 10.000 filas. Si se llega a
++listados muy profundos, conviene paginar por `WHERE fecha_registro < :ultima_vista`.
++Con el uso actual (pocas páginas) no es urgente.
++
++### 3.5 Backups y reportes: no construirlos en memoria
++`generar_backup_zip()` carga **todas las filas de todas las tablas** en memoria,
++las serializa a JSON con `indent=2` y comprime en un `BytesIO`. En una instancia de
++512 MB, con la tabla creciendo, esto termina en un OOM que **se lleva por delante
++las peticiones de los demás usuarios**. Conviene generarlo por streaming
++(`stream_with_context` + escritura incremental) o moverlo a una tarea programada.
++Lo mismo aplica a los reportes grandes en PDF/Excel.
++
++---
++
++## 4. Fase 2 — Escalar de verdad (cuando crezca el uso)
++
++### 4.1 Subir de plan antes que optimizar más
++El plan gratuito de Render son **0,1 CPU y 512 MB**, y además **apaga el servicio
++tras 15 minutos de inactividad** (el primer acceso siguiente tarda ~50 s: eso
++también se percibe como "el sistema está trabado"). Neon Free suspende la base tras
++5 minutos. Pasar a un plan de pago **sin tocar código** es la mejora más grande
++disponible y elimina los arranques en frío.
++
++Al subir de plan, ajustar en `render.yaml`:
++- `WEB_CONCURRENCY` = `(2 × núcleos) + 1`
++- `SCAH_DB_POOL_MAX` de forma que `SCAH_DB_POOL_MAX × WEB_CONCURRENCY` quede por
++  debajo del límite de conexiones del plan de Neon.
++
++### 4.2 Pooler de conexiones
++Neon ofrece un endpoint *pooled* (PgBouncer). Usar esa URL permite muchos más
++workers sin agotar el límite de conexiones. **Atención:** en modo *transaction
++pooling* no se pueden usar sentencias preparadas ni `SET` de sesión.
++
++### 4.3 Sesiones y archivos fuera del proceso
++Hoy la ruta del archivo subido se guarda en la sesión y el archivo vive en el disco
++local del contenedor. **Con más de una instancia eso se rompe**: la segunda
++petición puede caer en otra máquina que no tiene el archivo. Antes de escalar
++horizontalmente hace falta almacenamiento compartido (S3/R2) o enrutado *sticky*.
++
++### 4.4 Importaciones como trabajo en segundo plano
++Una importación grande no debería vivir dentro de una petición HTTP. Con una cola
++(Redis + RQ/Celery, o un worker de Render), la web responde al instante con "importación
++en curso" y el usuario ve el progreso. Esto **elimina por completo** la clase de
++problema del §1.5.
++
++### 4.5 Caché compartida
++El caché de conteos actual es **por worker** y en memoria. Con más workers, Redis
++permitiría compartirlo y cachear también el dashboard y las estadísticas, que hoy
++se recalculan en cada carga.
++
++---
++
++## 5. Fase 3 — Sostenerlo en el tiempo
++
++1. **Pruebas automatizadas.** El repositorio no tiene ninguna. Un fallo tan grave
++   como un archivo que no compila llegó a la rama principal sin que nada lo
++   detectara. Con un test mínimo que arranque la app y pida las pantallas
++   principales habría bastado.
++2. **Verificación de sintaxis antes de commitear.** `python -m compileall` en CI, o
++   un pre-commit hook, habría bloqueado los marcadores de conflicto.
++3. **Vigilar `pg_stat_statements`** para detectar consultas lentas antes de que se
++   noten.
++4. **Alerta sobre el log de acceso**: si el p95 sube o aparecen `WORKER TIMEOUT`,
++   avisar. Ya está el `worker_abort` registrando el evento con una explicación.
++
++---
++
++## 6. Cómo verificar que todo sigue bien
++
++```bash
++# 1. Que todo compila (esto habría evitado el fallo original)
++python -m compileall -q web/ database/ utils/ config.py gunicorn.conf.py
++
++# 2. El servicio está vivo
++curl https://<tu-app>.onrender.com/healthz     # {"status":"ok",...}
++
++# 3. La base responde y con qué latencia
++curl https://<tu-app>.onrender.com/readyz      # {"status":"ok","latencia_ms":...}
++```
++
++En los logs de Render, tras un deploy correcto deben aparecer:
++
++```
++SCAH: migraciones verificadas                          <- una sola vez
++SCAH: pool de conexiones reiniciado en worker <pid>    <- una vez por worker
++```
++
++Si aparece `SCAH: worker <pid> abortado por timeout`, hay una operación demasiado
++larga: buscar en el log de acceso la petición con mayor duración.
++
++---
++
++## 7. Resumen
++
++| | Antes | Después |
++|---|---|---|
++| Páginas internas | **HTTP 500** (`asset_url` sin definir) | 200 |
++| Migraciones e índices | **Nunca se ejecutaban** (archivo sin compilar) | 16 índices creados |
++| 2 dispositivos a la vez | **Bloqueo hasta el timeout de 120 s** | 100% correctas, 25 ms de media |
++| 20 dispositivos a la vez | — | 100% correctas, p95 366 ms |
++| Listado de huéspedes | 707 ms | 0,43 ms |
++| Importar 2.000 filas | 4.000 viajes a la BD (~120 s en remoto) | ~7 viajes (~0,3 s) |
++| Importación fallida | **Fugaba la conexión → sistema muerto** | Conexión devuelta siempre |
++| Errores en producción | Invisibles (log a archivo efímero) | En los logs de Render |
++
++La corrección decisiva para el problema reportado es la del **§2.2**: cada proceso
++con su propio pool de conexiones. Las demás evitan que el sistema vuelva a
++degradarse por otras vías.
+diff --git a/Procfile b/Procfile
+index df13020..679f7c8 100644
+--- a/Procfile
++++ b/Procfile
+@@ -1 +1 @@
+-web: gunicorn "web.app:create_app('production')" --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --timeout 120 --preload
++web: gunicorn -c gunicorn.conf.py "web.app:create_app('production')"
+diff --git a/database/connection.py b/database/connection.py
+index 6a017af..baa1cbd 100644
+--- a/database/connection.py
++++ b/database/connection.py
+@@ -4,12 +4,19 @@ Pool de conexiones y gestión de la base de datos
+ """
+ 
+ import os
++import threading
++import time
+ import psycopg2
+ import psycopg2.pool
+ import psycopg2.extras
++import psycopg2.extensions
+ from config import DB_CONFIG
+ from utils.logger import log_info, log_error
+ 
++# Tiempo máximo (segundos) que una petición espera por una conexión libre
++# antes de rendirse. Sin esto, psycopg2 lanza PoolError al instante.
++POOL_WAIT_TIMEOUT = float(os.environ.get("SCAH_POOL_WAIT_TIMEOUT", 10))
++
+ 
+ def _is_cloud_environment() -> bool:
+     """Detecta si estamos en un entorno cloud (Render/Neon/Railway)."""
+@@ -25,17 +32,20 @@ def _get_connection_params() -> dict:
+ 
+     if database_url:
+         # Parsear DATABASE_URL (formato: postgresql://user:pass@host:port/dbname?sslmode=require)
+-        from urllib.parse import urlparse
++        from urllib.parse import urlparse, parse_qs
+         parsed = urlparse(database_url)
+-        params = {
++        query = parse_qs(parsed.query)
++        return {
+             "host": parsed.hostname,
+             "port": parsed.port or 5432,
+             "dbname": parsed.path.lstrip("/"),
+             "user": parsed.username,
+             "password": parsed.password,
+-            "sslmode": "require",  # Siempre SSL para URLs de nube
++            # SSL obligatorio por defecto (Neon, Render y similares lo exigen),
++            # pero se respeta lo que indique la propia URL para poder apuntar a
++            # un PostgreSQL local o dentro de una red privada sin TLS.
++            "sslmode": query.get("sslmode", ["require"])[0],
+         }
+-        return params
+ 
+     # Fallback: parámetros individuales (uso local)
+     return {
+@@ -48,15 +58,52 @@ def _get_connection_params() -> dict:
+ 
+ 
+ def _get_pool_limits() -> tuple[int, int]:
+-    """Retorna (minconn, maxconn) según el entorno."""
++    """Retorna (minconn, maxconn) según el entorno.
++
++    IMPORTANTE: el límite es POR PROCESO. El total de conexiones abiertas contra
++    PostgreSQL es maxconn x (nro. de workers de Gunicorn). Con Neon Free
++    (~20 conexiones) y 2 workers, 5 por worker deja margen para migraciones
++    y para una consola psql abierta.
++    """
++    env_max = os.environ.get("SCAH_DB_POOL_MAX")
++    if env_max:
++        try:
++            maxconn = max(2, int(env_max))
++            return 1, maxconn
++        except ValueError:
++            pass
++
+     if _is_cloud_environment():
+-        # Render Free Tier + Neon Free: límite de ~20 conexiones compartidas
+-        # Con 2 workers Gunicorn, 5 por worker es seguro
+         return 1, 5
+     # Local: más generoso
+     return 2, 10
+ 
+ 
++def _conexion_utilizable(conn) -> bool:
++    """Indica si una conexión del pool sigue siendo apta para usarse.
++
++    Neon suspende el cómputo tras unos minutos de inactividad y cierra los
++    sockets: sin esta comprobación, el pool devuelve conexiones muertas y la
++    petición falla (o se cuelga) en vez de reconectar.
++    """
++    if conn is None or conn.closed:
++        return False
++    try:
++        estado = conn.get_transaction_status()
++    except Exception:
++        return False
++    if estado == psycopg2.extensions.TRANSACTION_STATUS_UNKNOWN:
++        return False
++    if estado != psycopg2.extensions.TRANSACTION_STATUS_IDLE:
++        # Quedó una transacción abierta de un uso anterior: se aborta para no
++        # heredar locks ni un "idle in transaction" que bloquee a otros.
++        try:
++            conn.rollback()
++        except Exception:
++            return False
++    return True
++
++
+ def _get_keepalive_params() -> dict:
+     """Retorna parámetros TCP keepalive para conexiones serverless (Neon.tech)."""
+     if _is_cloud_environment():
+@@ -73,76 +120,173 @@ def _get_keepalive_params() -> dict:
+ 
+ 
+ class DatabaseConnection:
+-    """Gestiona la conexión y pool de conexiones a PostgreSQL."""
++    """Gestiona la conexión y pool de conexiones a PostgreSQL.
++
++    El pool está atado al PID del proceso que lo creó. Un socket a PostgreSQL
++    NO puede compartirse entre procesos: si el proceso maestro de Gunicorn abre
++    conexiones (por ejemplo con --preload) y luego hace fork, los workers
++    heredan el mismo descriptor. Dos peticiones simultáneas escribiendo sobre
++    ese socket desincronizan el protocolo y la aplicación se cuelga hasta que
++    vence el timeout del worker. Por eso cada proceso reconstruye su propio pool.
++    """
+ 
+     _instance = None
+     _pool = None
++    _pool_pid = None
+ 
+     def __new__(cls):
+         if cls._instance is None:
+             cls._instance = super().__new__(cls)
++            cls._instance._lock = threading.RLock()
+         return cls._instance
+ 
+     def inicializar(self):
+-        """Inicializa el pool de conexiones."""
+-        try:
+-            conn_params = _get_connection_params()
+-            self._conn_params = conn_params
+-            minconn, maxconn = _get_pool_limits()
+-            keepalive = _get_keepalive_params()
+-            self._pool = psycopg2.pool.ThreadedConnectionPool(
+-                minconn=minconn,
+-                maxconn=maxconn,
+-                **conn_params,
+-                **keepalive,
+-            )
+-            log_info(
+-                f"Pool de conexiones inicializado "
+-                f"(min={minconn}, max={maxconn}, cloud={_is_cloud_environment()})"
+-            )
+-            return True
+-        except UnicodeDecodeError:
+-            # Windows con locale en español puede generar errores de encoding
+-            # en los mensajes de error de psycopg2/socket
+-            log_error("Error de encoding al conectar a PostgreSQL. "
+-                      "Verifique que PostgreSQL esté en ejecución.")
+-            return False
+-        except psycopg2.OperationalError as e:
+-            log_error("No se pudo conectar a PostgreSQL", e)
+-            return False
+-        except Exception as e:
+-            log_error("Error al inicializar pool de conexiones", e)
+-            return False
++        """Inicializa el pool de conexiones para el proceso actual."""
++        with self._lock:
++            # Otro hilo pudo haberlo creado mientras esperábamos el lock.
++            if self._pool is not None and self._pool_pid == os.getpid():
++                return True
++            try:
++                conn_params = _get_connection_params()
++                self._conn_params = conn_params
++                minconn, maxconn = _get_pool_limits()
++                keepalive = _get_keepalive_params()
++                self._pool = psycopg2.pool.ThreadedConnectionPool(
++                    minconn=minconn,
++                    maxconn=maxconn,
++                    **conn_params,
++                    **keepalive,
++                )
++                self._pool_pid = os.getpid()
++                log_info(
++                    f"Pool de conexiones inicializado en PID {self._pool_pid} "
++                    f"(min={minconn}, max={maxconn}, cloud={_is_cloud_environment()})"
++                )
++                return True
++            except UnicodeDecodeError:
++                # Windows con locale en español puede generar errores de encoding
++                # en los mensajes de error de psycopg2/socket
++                log_error("Error de encoding al conectar a PostgreSQL. "
++                          "Verifique que PostgreSQL esté en ejecución.")
++                return False
++            except psycopg2.OperationalError as e:
++                log_error("No se pudo conectar a PostgreSQL", e)
++                return False
++            except Exception as e:
++                log_error("Error al inicializar pool de conexiones", e)
++                return False
+ 
+-    def obtener_conexion(self):
+-        """Obtiene una conexión del pool."""
+-        if self._pool is None:
++    def reiniciar_pool(self):
++        """Descarta el pool actual y fuerza su recreación.
++
++        Se llama desde el hook post_fork de Gunicorn. Las conexiones heredadas
++        se abandonan SIN cerrarlas a propósito: cerrarlas enviaría un Terminate
++        por un socket que el proceso padre todavía considera suyo.
++        """
++        with self._lock:
++            self._pool = None
++            self._pool_pid = None
++
++    def _pool_del_proceso(self):
++        """Retorna el pool válido para este proceso, creándolo si hace falta."""
++        if self._pool is None or self._pool_pid != os.getpid():
++            if self._pool is not None:
++                # Heredado de un fork: se descarta sin cerrar.
++                self.reiniciar_pool()
+             if not self.inicializar():
+                 return None
+-        try:
+-            conn = self._pool.getconn()
+-            conn.autocommit = False
+-            return conn
+-        except Exception as e:
+-            log_error("Error al obtener conexión del pool", e)
++        return self._pool
++
++    def obtener_conexion(self):
++        """Obtiene del pool una conexión viva y lista para usar.
++
++        Espera hasta POOL_WAIT_TIMEOUT si el pool está agotado, en vez de
++        fallar de inmediato, y descarta las conexiones que el servidor cerró.
++        """
++        pool = self._pool_del_proceso()
++        if pool is None:
+             return None
+ 
+-    def liberar_conexion(self, conn):
+-        """Devuelve una conexión al pool."""
+-        if self._pool and conn:
++        limite = time.monotonic() + POOL_WAIT_TIMEOUT
++        ultimo_error = None
++
++        while True:
+             try:
+-                self._pool.putconn(conn)
++                conn = pool.getconn()
++            except psycopg2.pool.PoolError as e:
++                # Pool agotado: esperar a que otro hilo devuelva una conexión.
++                ultimo_error = e
++                if time.monotonic() >= limite:
++                    log_error(
++                        "Pool de conexiones agotado: todas las conexiones están "
++                        "en uso. Revise consultas lentas o suba SCAH_DB_POOL_MAX",
++                        e,
++                    )
++                    return None
++                time.sleep(0.05)
++                continue
+             except Exception as e:
+-                log_error("Error al liberar conexión", e)
++                log_error("Error al obtener conexión del pool", e)
++                return None
++
++            if _conexion_utilizable(conn):
++                conn.autocommit = False
++                return conn
++
++            # Conexión muerta (Neon suspendido, reinicio del servidor, red caída):
++            # se devuelve cerrada para que el pool abra una nueva en su lugar.
++            self.liberar_conexion(conn, descartar=True)
++
++            if time.monotonic() >= limite:
++                log_error("No se obtuvo una conexión utilizable a PostgreSQL",
++                          ultimo_error)
++                return None
++
++    def liberar_conexion(self, conn, descartar: bool = False):
++        """Devuelve una conexión al pool.
++
++        descartar=True cierra la conexión en vez de reutilizarla: se usa cuando
++        quedó en un estado inconsistente tras un error.
++        """
++        if conn is None:
++            return
++        pool = self._pool
++        if pool is None or self._pool_pid != os.getpid():
++            # El pool ya no existe (o es de otro proceso): cerrar y salir.
++            try:
++                conn.close()
++            except Exception:
++                pass
++            return
++        try:
++            pool.putconn(conn, close=descartar or conn.closed != 0)
++        except psycopg2.pool.PoolError:
++            # Conexión ya devuelta al pool: devolverla de nuevo la duplicaría en
++            # la lista de libres y dos hilos acabarían usando el mismo socket.
++            pass
++        except Exception as e:
++            log_error("Error al liberar conexión", e)
+ 
+     def cerrar_pool(self):
+         """Cierra todas las conexiones del pool."""
+-        if self._pool:
+-            try:
+-                self._pool.closeall()
+-                log_info("Pool de conexiones cerrado")
+-            except Exception as e:
+-                log_error("Error al cerrar pool de conexiones", e)
++        with self._lock:
++            if self._pool and self._pool_pid == os.getpid():
++                try:
++                    self._pool.closeall()
++                    log_info("Pool de conexiones cerrado")
++                except Exception as e:
++                    log_error("Error al cerrar pool de conexiones", e)
++            self._pool = None
++            self._pool_pid = None
++
++    def _revertir(self, conn) -> bool:
++        """Hace rollback tras un error. Retorna True si la conexión quedó inservible."""
++        try:
++            conn.rollback()
++            return False
++        except Exception:
++            # El rollback falla cuando el socket ya está roto: hay que descartarla.
++            return True
+ 
+     def ejecutar_query(self, query: str, params: tuple = None, fetch: bool = False):
+         """Ejecuta una query y opcionalmente retorna resultados."""
+@@ -150,6 +294,7 @@ class DatabaseConnection:
+         if not conn:
+             return None
+ 
++        descartar = False
+         try:
+             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+             cursor.execute(query, params)
+@@ -163,11 +308,11 @@ class DatabaseConnection:
+             cursor.close()
+             return resultado
+         except Exception as e:
+-            conn.rollback()
++            descartar = self._revertir(conn)
+             log_error(f"Error ejecutando query: {query[:100]}", e)
+             return None
+         finally:
+-            self.liberar_conexion(conn)
++            self.liberar_conexion(conn, descartar=descartar)
+ 
+     def ejecutar_query_one(self, query: str, params: tuple = None):
+         """Ejecuta una query y retorna un solo resultado."""
+@@ -175,6 +320,7 @@ class DatabaseConnection:
+         if not conn:
+             return None
+ 
++        descartar = False
+         try:
+             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+             cursor.execute(query, params)
+@@ -183,11 +329,11 @@ class DatabaseConnection:
+             cursor.close()
+             return resultado
+         except Exception as e:
+-            conn.rollback()
++            descartar = self._revertir(conn)
+             log_error(f"Error ejecutando query: {query[:100]}", e)
+             return None
+         finally:
+-            self.liberar_conexion(conn)
++            self.liberar_conexion(conn, descartar=descartar)
+ 
+     def ejecutar_many(self, query: str, params_list: list):
+         """Ejecuta una query múltiples veces con distintos parámetros."""
+@@ -195,6 +341,7 @@ class DatabaseConnection:
+         if not conn:
+             return False
+ 
++        descartar = False
+         try:
+             cursor = conn.cursor()
+             cursor.executemany(query, params_list)
+@@ -202,11 +349,11 @@ class DatabaseConnection:
+             cursor.close()
+             return True
+         except Exception as e:
+-            conn.rollback()
++            descartar = self._revertir(conn)
+             log_error(f"Error ejecutando query masiva: {query[:100]}", e)
+             return False
+         finally:
+-            self.liberar_conexion(conn)
++            self.liberar_conexion(conn, descartar=descartar)
+ 
+     def ejecutar_batch_insert(self, query_template: str, values_list: list,
+                               page_size: int = 500) -> int:
+@@ -222,6 +369,7 @@ class DatabaseConnection:
+         if not conn:
+             return -1
+ 
++        descartar = False
+         try:
+             cursor = conn.cursor()
+             psycopg2.extras.execute_values(
+@@ -233,25 +381,32 @@ class DatabaseConnection:
+             cursor.close()
+             return rowcount
+         except Exception as e:
+-            conn.rollback()
++            descartar = self._revertir(conn)
+             log_error(f"Error en batch insert: {query_template[:100]}", e)
+             return -1
+         finally:
+-            self.liberar_conexion(conn)
++            self.liberar_conexion(conn, descartar=descartar)
+ 
+     def test_conexion(self) -> tuple[bool, str]:
+         """Prueba la conexión a la base de datos."""
++        conn = None
++        descartar = False
+         try:
+             conn = self.obtener_conexion()
+-            if conn:
+-                cursor = conn.cursor()
+-                cursor.execute("SELECT 1")
+-                cursor.close()
+-                self.liberar_conexion(conn)
+-                return True, "Conexión exitosa a PostgreSQL"
+-            return False, "No se pudo obtener conexión"
++            if not conn:
++                return False, "No se pudo obtener conexión"
++            cursor = conn.cursor()
++            cursor.execute("SELECT 1")
++            cursor.close()
++            conn.commit()
++            return True, "Conexión exitosa a PostgreSQL"
+         except Exception as e:
++            if conn is not None:
++                descartar = self._revertir(conn)
+             return False, f"Error de conexión: {str(e)}"
++        finally:
++            if conn is not None:
++                self.liberar_conexion(conn, descartar=descartar)
+ 
+     @staticmethod
+     def crear_base_datos():
+diff --git a/database/migrations.py b/database/migrations.py
+index daaa670..cfe65fb 100644
+--- a/database/migrations.py
++++ b/database/migrations.py
+@@ -34,8 +34,18 @@ def _registrar_migracion(cursor, version: str):
+         pass
+ 
+ 
++# Identificador del advisory lock de PostgreSQL que serializa las migraciones.
++# Evita que dos procesos (workers de Gunicorn, un deploy solapado, o el escritorio
++# y la web a la vez) ejecuten DDL en paralelo y se bloqueen mutuamente.
++MIGRATION_LOCK_ID = 827_413_905
++
++
+ def ejecutar_migraciones():
+-    """Ejecuta todas las migraciones: crear tablas, índices y usuario admin."""
++    """Ejecuta todas las migraciones: crear tablas, índices y usuario admin.
++
++    Toma un advisory lock de PostgreSQL: si otro proceso ya está migrando,
++    esta llamada retorna sin hacer nada en vez de competir por locks de DDL.
++    """
+     log_info("Iniciando migraciones de base de datos...")
+ 
+     conn = db.obtener_conexion()
+@@ -43,6 +53,23 @@ def ejecutar_migraciones():
+         log_error("No se pudo obtener conexión para migraciones")
+         return False
+ 
++    lock_tomado = False
++    try:
++        cursor_lock = conn.cursor()
++        cursor_lock.execute("SELECT pg_try_advisory_lock(%s)", (MIGRATION_LOCK_ID,))
++        lock_tomado = bool(cursor_lock.fetchone()[0])
++        cursor_lock.close()
++        conn.commit()
++
++        if not lock_tomado:
++            log_info("Otro proceso ya está ejecutando las migraciones — se omite")
++            return True
++    except Exception as e:
++        conn.rollback()
++        log_error("No se pudo tomar el lock de migraciones", e)
++        db.liberar_conexion(conn)
++        return False
++
+     try:
+         cursor = conn.cursor()
+ 
+@@ -96,6 +123,14 @@ def ejecutar_migraciones():
+         log_error("Error durante las migraciones", e)
+         return False
+     finally:
++        if lock_tomado:
++            try:
++                cursor_unlock = conn.cursor()
++                cursor_unlock.execute("SELECT pg_advisory_unlock(%s)", (MIGRATION_LOCK_ID,))
++                cursor_unlock.close()
++                conn.commit()
++            except Exception:
++                conn.rollback()
+         db.liberar_conexion(conn)
+ 
+ 
+@@ -157,7 +192,6 @@ def migrar_v1_1():
+     try:
+         cursor = conn.cursor()
+         if _migracion_ya_aplicada(cursor, 'v1.1'):
+-            db.liberar_conexion(conn)
+             return True
+         log_info("Ejecutando migración v1.1 (columnas formato tabular)...")
+ 
+@@ -426,7 +460,6 @@ def migrar_v1_2():
+     try:
+         cursor = conn.cursor()
+         if _migracion_ya_aplicada(cursor, 'v1.2'):
+-            db.liberar_conexion(conn)
+             return True
+         log_info("Ejecutando migración v1.2 (categoría, teléfono y datos de alojamientos)...")
+ 
+@@ -474,8 +507,6 @@ def migrar_v1_2():
+         return False
+     finally:
+         db.liberar_conexion(conn)
+-<<<<<<< Updated upstream
+-=======
+ 
+ 
+ # ============================================================
+@@ -526,7 +557,6 @@ def migrar_v1_3():
+     try:
+         cursor = conn.cursor()
+         if _migracion_ya_aplicada(cursor, 'v1.3'):
+-            db.liberar_conexion(conn)
+             return True
+         log_info("Ejecutando migración v1.3 (alertas operativas)...")
+ 
+@@ -551,7 +581,26 @@ def migrar_v1_3():
+ 
+ 
+ def migrar_v1_4():
+-    """Migración v1.4: normaliza nacionalidad y procedencia históricas."""
++    """Migración v1.4: normalización geográfica del histórico. PENDIENTE.
++
++    Esta migración llamaba a `normalizar_historico_huespedes()`, una función que
++    no existe en ninguna versión del repositorio: se perdió en el mismo conflicto
++    de merge que dejó este archivo sin compilar. Tal como estaba, lanzaba
++    NameError en cada arranque.
++
++    Se deja deshabilitada a propósito en vez de reescribirla adivinando: reescribe
++    los campos `nacionalidad` y `procedencia` de registros históricos, y una
++    conversión equivocada corrompería datos reales de forma difícil de revertir.
++    NO se marca como aplicada, de modo que cuando se implemente la función se
++    ejecutará con normalidad.
++    """
++    if 'normalizar_historico_huespedes' not in globals():
++        log_info(
++            "Migración v1.4 omitida: falta la función normalizar_historico_huespedes(). "
++            "La normalización geográfica del histórico sigue pendiente."
++        )
++        return True
++
+     conn = db.obtener_conexion()
+     if not conn:
+         log_error("No se pudo obtener conexión para migración v1.4")
+@@ -561,11 +610,10 @@ def migrar_v1_4():
+         cursor_check = conn.cursor()
+         if _migracion_ya_aplicada(cursor_check, 'v1.4'):
+             cursor_check.close()
+-            db.liberar_conexion(conn)
+             return True
+         cursor_check.close()
+         log_info("Ejecutando migración v1.4 (normalización geográfica)...")
+-        resultado = normalizar_historico_huespedes(conn)
++        resultado = globals()['normalizar_historico_huespedes'](conn)
+         cursor_reg = conn.cursor()
+         _registrar_migracion(cursor_reg, 'v1.4')
+         cursor_reg.close()
+@@ -602,7 +650,6 @@ def migrar_v1_5():
+     try:
+         cursor = conn.cursor()
+         if _migracion_ya_aplicada(cursor, 'v1.5'):
+-            db.liberar_conexion(conn)
+             return True
+         log_info("Ejecutando migración v1.5 (índices control de cargas)...")
+ 
+@@ -645,7 +692,6 @@ def migrar_v1_6():
+     try:
+         cursor = conn.cursor()
+         if _migracion_ya_aplicada(cursor, 'v1.6'):
+-            db.liberar_conexion(conn)
+             return True
+         log_info("Ejecutando migración v1.6 (índices funcionales de rendimiento)...")
+ 
+@@ -684,4 +730,3 @@ def migrar_v1_6():
+         return False
+     finally:
+         db.liberar_conexion(conn)
+->>>>>>> Stashed changes
+diff --git a/gunicorn.conf.py b/gunicorn.conf.py
+new file mode 100644
+index 0000000..5b74126
+--- /dev/null
++++ b/gunicorn.conf.py
+@@ -0,0 +1,140 @@
++"""
++S.C.A.H. Web - Configuración de Gunicorn.
++
++Se usa con:  gunicorn -c gunicorn.conf.py "web.app:create_app('production')"
++
++Aquí vive la parte de concurrencia que NO puede resolverse dentro de Flask:
++qué se ejecuta antes del fork, qué se reconstruye después, y cuántas
++peticiones simultáneas acepta cada proceso.
++"""
++
++import multiprocessing
++import os
++import sys
++
++# Asegurar que la raíz del proyecto esté importable desde los hooks.
++sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
++
++
++# ── Red ──────────────────────────────────────────────────────────
++bind = f"0.0.0.0:{os.environ.get('PORT', '5000')}"
++
++# ── Modelo de concurrencia ───────────────────────────────────────
++# gthread: cada worker atiende varias peticiones en hilos. Encaja con esta
++# aplicación porque casi todo el tiempo de una petición se va esperando a
++# PostgreSQL (I/O), no calculando en Python.
++worker_class = "gthread"
++
++# En el plan gratuito de Render (0.1 CPU / 512 MB) más de 2 workers solo
++# genera competencia por CPU y riesgo de OOM. En planes con más recursos,
++# WEB_CONCURRENCY manda.
++workers = int(os.environ.get("WEB_CONCURRENCY", 2))
++threads = int(os.environ.get("GUNICORN_THREADS", 4))
++
++# Capacidad simultánea = workers x threads. Debe ser <= (SCAH_DB_POOL_MAX x workers)
++# para que ningún hilo se quede esperando conexión de forma sistemática.
++
++# ── Tiempos ──────────────────────────────────────────────────────
++timeout = int(os.environ.get("GUNICORN_TIMEOUT", 120))
++graceful_timeout = 30
++# Mantener vivas las conexiones del proxy de Render entre peticiones.
++keepalive = 5
++
++# ── Reciclado de workers ─────────────────────────────────────────
++# Reinicia cada worker periódicamente para que una fuga de memoria (p. ej. un
++# Excel grande) no termine provocando un OOM del contenedor. El jitter evita
++# que los dos workers se reinicien a la vez y dejen el sitio sin capacidad.
++max_requests = int(os.environ.get("GUNICORN_MAX_REQUESTS", 1000))
++max_requests_jitter = 100
++
++# ── Arranque ─────────────────────────────────────────────────────
++# preload_app ahorra memoria (el código se carga una vez y se comparte tras el
++# fork). Es seguro ÚNICAMENTE porque post_fork reconstruye el pool de conexiones
++# en cada worker; sin ese hook, los workers compartirían sockets a PostgreSQL.
++preload_app = True
++
++# ── Logs ─────────────────────────────────────────────────────────
++# A stdout/stderr para que Render los capture y sean consultables.
++accesslog = "-"
++errorlog = "-"
++loglevel = os.environ.get("GUNICORN_LOG_LEVEL", "info")
++# %(L)s = duración de la petición en segundos: imprescindible para detectar
++# qué endpoint se está poniendo lento antes de que llegue a colgarse.
++access_log_format = '%(h)s "%(r)s" %(s)s %(b)s %(L)ss "%(a)s"'
++
++
++# ── Hooks del ciclo de vida ──────────────────────────────────────
++
++def on_starting(server):
++    """Se ejecuta UNA vez en el proceso maestro, antes de crear workers.
++
++    Las migraciones van aquí y no en create_app(): si cada worker ejecutase el
++    DDL, competirían por locks de tabla en PostgreSQL durante el arranque.
++    """
++    if os.environ.get("SCAH_SKIP_MIGRATIONS") == "1":
++        server.log.info("SCAH: migraciones omitidas por SCAH_SKIP_MIGRATIONS=1")
++        return
++
++    try:
++        from database.connection import db
++        from database.migrations import ejecutar_migraciones
++
++        conexion_ok, mensaje = db.test_conexion()
++        if not conexion_ok:
++            server.log.error("SCAH: sin conexión a la base de datos (%s)", mensaje)
++            return
++
++        ejecutar_migraciones()
++        server.log.info("SCAH: migraciones verificadas")
++    except Exception as e:
++        # Un fallo migrando no debe impedir que el sitio levante: puede ser un
++        # problema transitorio de red y la app sirve igual con el esquema previo.
++        server.log.error("SCAH: error ejecutando migraciones: %s", e)
++    finally:
++        # Cerrar las conexiones del maestro para que los workers no las hereden.
++        try:
++            from database.connection import db
++            db.cerrar_pool()
++        except Exception:
++            pass
++
++
++def post_fork(server, worker):
++    """Se ejecuta en cada worker recién creado.
++
++    Descarta cualquier pool heredado del proceso maestro. Un socket TCP a
++    PostgreSQL no puede usarse desde dos procesos: si dos workers escriben
++    sobre el mismo, el protocolo se desincroniza y las peticiones se quedan
++    colgadas hasta que vence `timeout`. Este es exactamente el síntoma de
++    "dos dispositivos cargan a la vez y el sistema se traba".
++    """
++    try:
++        from database.connection import db
++        db.reiniciar_pool()
++        worker.log.info("SCAH: pool de conexiones reiniciado en worker %s", worker.pid)
++    except Exception as e:
++        worker.log.error("SCAH: error reiniciando el pool tras el fork: %s", e)
++
++
++def worker_exit(server, worker):
++    """Cierra limpiamente las conexiones del worker que termina."""
++    try:
++        from database.connection import db
++        db.cerrar_pool()
++    except Exception:
++        pass
++
++
++def worker_abort(worker):
++    """Se dispara cuando un worker es abortado por superar `timeout`."""
++    worker.log.error(
++        "SCAH: worker %s abortado por timeout (%ss). "
++        "Suele indicar una consulta o importación demasiado larga.",
++        worker.pid, timeout,
++    )
++
++
++# Sugerencia de dimensionado para cuando se suba de plan:
++#   workers recomendados = (2 x nucleos) + 1
++_NUCLEOS = multiprocessing.cpu_count()
++_WORKERS_SUGERIDOS = (2 * _NUCLEOS) + 1
+diff --git a/render.yaml b/render.yaml
+index 80d5ee1..1c420af 100644
+--- a/render.yaml
++++ b/render.yaml
+@@ -8,8 +8,12 @@ services:
+     region: oregon
+     plan: free
+     branch: NUEVA-IMPORTACION
+-    buildCommand: pip install -r requirements.txt
+-    startCommand: gunicorn "web.app:create_app('production')" --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --timeout 120 --preload
++    # Solo las dependencias del servidor web: requirements.txt incluye
++    # customtkinter/matplotlib/Pillow, que son del cliente de escritorio y
++    # alargan el build sin usarse aquí.
++    buildCommand: pip install -r web/requirements.txt
++    startCommand: gunicorn -c gunicorn.conf.py "web.app:create_app('production')"
++    healthCheckPath: /healthz
+     envVars:
+       - key: FLASK_ENV
+         value: production
+@@ -19,3 +23,11 @@ services:
+         sync: false # Se configura manualmente con la URL de Neon.tech
+       - key: PYTHON_VERSION
+         value: '3.13.12'
++      # Workers de Gunicorn. Subir solo al pasar a un plan con más CPU/RAM.
++      - key: WEB_CONCURRENCY
++        value: '2'
++      # Conexiones a PostgreSQL POR WORKER. El total contra Neon es
++      # SCAH_DB_POOL_MAX x WEB_CONCURRENCY: mantenerlo por debajo del límite
++      # del plan de Neon (~20 en el gratuito).
++      - key: SCAH_DB_POOL_MAX
++        value: '5'
+diff --git a/utils/logger.py b/utils/logger.py
+index 353bf27..77f5b1e 100644
+--- a/utils/logger.py
++++ b/utils/logger.py
+@@ -5,26 +5,38 @@ Registra acciones del usuario y errores del sistema
+ 
+ import logging
+ import os
++import sys
+ from datetime import datetime
+ from config import BASE_DIR
+ 
+ 
++def _en_servidor() -> bool:
++    """Detecta si el proceso corre como servicio web en la nube."""
++    return bool(
++        os.environ.get("RENDER")
++        or os.environ.get("DATABASE_URL")
++        or os.environ.get("SERVER_SOFTWARE", "").startswith("gunicorn")
++    )
++
++
+ # ============================================================
+-# LOGGER DE ARCHIVO (errores y debug)
++# CONFIGURACIÓN DE LOGGING
+ # ============================================================
+-LOG_DIR = os.path.join(BASE_DIR, "logs")
+-os.makedirs(LOG_DIR, exist_ok=True)
+-
+-log_file = os.path.join(LOG_DIR, f"scah_{datetime.now().strftime('%Y%m')}.log")
+-
+-logging.basicConfig(
+-    level=logging.INFO,
+-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+-    handlers=[
+-        logging.FileHandler(log_file, encoding="utf-8"),
+-        logging.StreamHandler(open(os.devnull, "w"))  # Solo log a archivo, no a consola
+-    ]
+-)
++# En la nube el disco del contenedor es efímero y nadie puede leer un archivo
++# dentro de él: los logs van a stdout, que es lo que Render captura y muestra.
++# En escritorio se mantiene el archivo mensual de siempre.
++_FORMATO = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
++_NIVEL = getattr(logging, os.environ.get("SCAH_LOG_LEVEL", "INFO").upper(), logging.INFO)
++
++if _en_servidor():
++    _handlers = [logging.StreamHandler(sys.stdout)]
++else:
++    LOG_DIR = os.path.join(BASE_DIR, "logs")
++    os.makedirs(LOG_DIR, exist_ok=True)
++    log_file = os.path.join(LOG_DIR, f"scah_{datetime.now().strftime('%Y%m')}.log")
++    _handlers = [logging.FileHandler(log_file, encoding="utf-8")]
++
++logging.basicConfig(level=_NIVEL, format=_FORMATO, handlers=_handlers)
+ 
+ logger = logging.getLogger("SCAH")
+ 
+diff --git a/web/app.py b/web/app.py
+index 8f2177a..4056734 100644
+--- a/web/app.py
++++ b/web/app.py
+@@ -4,6 +4,7 @@ S.C.A.H. Web - Flask Application Factory
+ 
+ import sys
+ import os
++import time
+ 
+ # Agregar raíz del proyecto al path para acceder a database/, config, etc.
+ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+@@ -27,8 +28,10 @@ def create_app(config_name: str = None) -> Flask:
+     # Crear carpeta de uploads
+     os.makedirs(app.config.get('UPLOAD_FOLDER', 'uploads'), exist_ok=True)
+ 
+-    # Inicializar base de datos
+-    _init_database()
++    # Inicializar base de datos (solo fuera de Gunicorn: allí lo hace el hook
++    # on_starting del proceso maestro, una única vez y antes del fork).
++    if _debe_migrar_en_arranque():
++        _init_database()
+ 
+     # Registrar blueprints
+     _register_blueprints(app)
+@@ -36,31 +39,105 @@ def create_app(config_name: str = None) -> Flask:
+     # Registrar filtros Jinja2
+     _register_filters(app)
+ 
++    # Versión de los assets: sella CSS/JS con su fecha de modificación para que
++    # el navegador descargue la versión nueva tras un deploy y reutilice la
++    # cacheada el resto del tiempo.
++    asset_version = _calcular_version_assets(app.static_folder)
++
+     # Contexto global para templates
+     @app.context_processor
+     def inject_globals():
+-        from flask import session
++        from flask import session, url_for
++
++        def asset_url(filename: str) -> str:
++            return url_for('static', filename=filename, v=asset_version)
++
+         return {
+             'app_name': 'S.C.A.H.',
+             'app_version': '2.0 Web',
+             'current_user': session.get('user'),
++            'asset_version': asset_version,
++            'asset_url': asset_url,
+         }
+ 
+-    # Cache headers para assets estáticos (ya tienen cache busting via ?v=timestamp)
+     @app.after_request
+     def add_performance_headers(response):
+         from flask import request as req
+         if req.path.startswith('/static/'):
+-            # Assets estáticos con cache busting: cachear 1 año
+-            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
++            if req.args.get('v'):
++                # Con sello de versión en la URL: cachear un año sin revalidar.
++                response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
++            else:
++                # Sin sello no se puede invalidar la caché desde el servidor:
++                # una hora y revalidación, para no servir CSS viejo tras deploy.
++                response.headers['Cache-Control'] = 'public, max-age=3600'
+         elif response.content_type and 'text/html' in response.content_type:
+             # HTML: no cachear para siempre, pero permitir caché condicional
+             response.headers.setdefault('Cache-Control', 'no-cache')
+         return response
+ 
++    _register_health_endpoints(app)
++
+     return app
+ 
+ 
++def _debe_migrar_en_arranque() -> bool:
++    """Decide si create_app() debe tocar la base de datos.
++
++    Bajo Gunicorn la respuesta es no: con --preload esta función corre en el
++    proceso maestro y sin --preload correría una vez por worker, ejecutando DDL
++    en paralelo y compitiendo por locks. El hook on_starting se encarga.
++    """
++    if os.environ.get("SCAH_RUN_MIGRATIONS") == "1":
++        return True
++    if os.environ.get("SCAH_SKIP_MIGRATIONS") == "1":
++        return False
++    return not os.environ.get("SERVER_SOFTWARE", "").startswith("gunicorn")
++
++
++def _calcular_version_assets(static_folder: str) -> str:
++    """Sello de versión basado en el archivo estático modificado más recientemente."""
++    try:
++        ultimo = 0.0
++        for raiz, _, archivos in os.walk(static_folder):
++            for nombre in archivos:
++                try:
++                    ultimo = max(ultimo, os.path.getmtime(os.path.join(raiz, nombre)))
++                except OSError:
++                    continue
++        return str(int(ultimo)) if ultimo else str(int(time.time()))
++    except Exception:
++        return str(int(time.time()))
++
++
++def _register_health_endpoints(app: Flask):
++    """Endpoints de diagnóstico.
++
++    /healthz no toca la base de datos: responde mientras el proceso esté vivo,
++    que es lo que debe comprobar el health check de Render (si consultara la BD,
++    una caída de Neon provocaría además el reinicio en bucle del servicio).
++    /readyz sí la consulta, para diagnosticar a mano.
++    """
++
++    @app.route('/healthz')
++    def healthz():
++        return {'status': 'ok', 'pid': os.getpid()}, 200
++
++    @app.route('/readyz')
++    def readyz():
++        from database.connection import db
++        inicio = time.monotonic()
++        ok, mensaje = db.test_conexion()
++        latencia_ms = round((time.monotonic() - inicio) * 1000, 1)
++        payload = {
++            'status': 'ok' if ok else 'error',
++            'database': mensaje,
++            'latencia_ms': latencia_ms,
++            'pid': os.getpid(),
++        }
++        return payload, (200 if ok else 503)
++
++
+ def _init_database():
+     """Inicializa la conexión a la BD y ejecuta migraciones."""
+     try:
+diff --git a/web/config.py b/web/config.py
+index e174486..aeca816 100644
+--- a/web/config.py
++++ b/web/config.py
+@@ -9,17 +9,28 @@ import secrets
+ class Config:
+     """Configuración base."""
+     SECRET_KEY = os.environ.get("FLASK_SECRET_KEY") or "scah-dev-key-cambiar-en-produccion-2024"
+-    
++
+     # Carpeta para uploads temporales
+     UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
+-    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 MB max upload
+-    
++    # Tope de subida. Cada archivo en curso ocupa memoria al parsearse, así que
++    # en instancias de 512 MB conviene bajarlo vía SCAH_MAX_UPLOAD_MB.
++    MAX_CONTENT_LENGTH = int(os.environ.get("SCAH_MAX_UPLOAD_MB", 50)) * 1024 * 1024
++
+     # Sesiones
+     SESSION_PERMANENT = True
+     PERMANENT_SESSION_LIFETIME = 3600 * 8  # 8 horas
+-    
++    SESSION_COOKIE_HTTPONLY = True
++    SESSION_COOKIE_SAMESITE = 'Lax'
++
+     # Paginación
+     PER_PAGE = 50
++    # Tope duro: evita que ?per_page=100000 fuerce al servidor a construir una
++    # página enorme y agote la memoria del worker.
++    MAX_PER_PAGE = 200
++
++    # Segundos que se reutiliza el conteo total de un listado antes de volver a
++    # calcularlo. Contar filas es la parte cara de paginar sobre tablas grandes.
++    COUNT_CACHE_TTL = int(os.environ.get("SCAH_COUNT_CACHE_TTL", 60))
+ 
+ 
+ class DevelopmentConfig(Config):
+@@ -28,6 +39,11 @@ class DevelopmentConfig(Config):
+ 
+ class ProductionConfig(Config):
+     DEBUG = False
++    # La app va detrás del proxy HTTPS de Render: la cookie de sesión no debe
++    # viajar nunca por HTTP. Se puede desactivar con SCAH_COOKIE_SECURE=0 para
++    # despliegues internos servidos solo por HTTP (si no, no se podría iniciar
++    # sesión: el navegador retendría la cookie).
++    SESSION_COOKIE_SECURE = os.environ.get("SCAH_COOKIE_SECURE", "1") != "0"
+ 
+ 
+ config = {
+diff --git a/web/routes/guests.py b/web/routes/guests.py
+index 509284a..81d2f5c 100644
+--- a/web/routes/guests.py
++++ b/web/routes/guests.py
+@@ -3,7 +3,7 @@ S.C.A.H. Web - Rutas de Huéspedes (búsqueda, carga manual, detalle).
+ """
+ 
+ from flask import (Blueprint, render_template, request, redirect,
+-                   url_for, flash, session, jsonify)
++                   url_for, flash, session, jsonify, current_app)
+ from web.routes.decorators import login_required, permission_required
+ from web.services.guest_service import (
+     busqueda_rapida, busqueda_avanzada, crear_huesped, actualizar_huesped,
+@@ -52,8 +52,11 @@ def _obtener_alertas_duplicados(datos: dict, exclude_id: int | None = None) -> l
+ def index():
+     """Página principal de búsqueda de huéspedes."""
+     termino = request.args.get('q', '').strip()
+-    page = request.args.get('page', 1, type=int)
+-    per_page = request.args.get('per_page', 50, type=int)
++    page = max(1, request.args.get('page', 1, type=int) or 1)
++    # Acotado para que un ?per_page=100000 no obligue al worker a construir una
++    # página gigante y agotar la memoria de la instancia.
++    per_page = request.args.get('per_page', 50, type=int) or 50
++    per_page = max(10, min(per_page, current_app.config.get('MAX_PER_PAGE', 200)))
+ 
+     # Verificar si hay filtros avanzados
+     filtros = {}
+diff --git a/web/routes/imports.py b/web/routes/imports.py
+index b21d4f0..e09e624 100644
+--- a/web/routes/imports.py
++++ b/web/routes/imports.py
+@@ -3,9 +3,13 @@ S.C.A.H. Web - Rutas de Importación Excel.
+ """
+ 
+ import os
++import shutil
+ import tempfile
++import time
++import uuid
+ from flask import (Blueprint, render_template, request, redirect,
+                    url_for, flash, session, current_app)
++from werkzeug.utils import secure_filename
+ from web.routes.decorators import login_required, permission_required
+ from web.services.import_service import (
+     procesar_archivos_v1, procesar_archivos_v2,
+@@ -65,28 +69,75 @@ def importar_v2():
+ 
+ 
+ def _guardar_archivos_temporales(files) -> list:
+-    """Guarda los archivos subidos en carpeta temporal y retorna rutas."""
++    """Guarda los archivos subidos en una carpeta propia y retorna sus rutas.
++
++    Cada subida va a un directorio único. Antes se guardaba con el nombre
++    original en una carpeta compartida: si dos operadores importaban a la vez
++    archivos con el mismo nombre (algo habitual, p. ej. "planilla.xlsx"), el
++    segundo pisaba el del primero y ambos terminaban importando los mismos
++    datos. secure_filename además impide que un nombre como "../../config.py"
++    escriba fuera de la carpeta de subidas.
++    """
+     rutas = []
+-    upload_dir = current_app.config.get('UPLOAD_FOLDER', tempfile.gettempdir())
++    base_dir = current_app.config.get('UPLOAD_FOLDER', tempfile.gettempdir())
++    upload_dir = os.path.join(base_dir, uuid.uuid4().hex)
+     os.makedirs(upload_dir, exist_ok=True)
+ 
+     for f in files:
+         if f and f.filename and _allowed_file(f.filename):
+-            filepath = os.path.join(upload_dir, f.filename)
++            nombre = secure_filename(f.filename)
++            if not nombre:
++                continue
++            filepath = os.path.join(upload_dir, nombre)
+             f.save(filepath)
+             rutas.append(filepath)
+ 
++    if not rutas:
++        _eliminar_directorio(upload_dir)
++
+     return rutas
+ 
+ 
++def _eliminar_directorio(ruta: str):
++    """Borra un directorio temporal de subida sin propagar errores."""
++    try:
++        shutil.rmtree(ruta, ignore_errors=True)
++    except Exception:
++        pass
++
++
+ def _limpiar_archivos(rutas: list):
+-    """Elimina archivos temporales."""
++    """Elimina los archivos temporales y sus carpetas de subida."""
++    directorios = set()
+     for r in rutas:
+         try:
++            directorios.add(os.path.dirname(r))
+             if os.path.exists(r):
+                 os.remove(r)
+         except Exception:
+             pass
++    for d in directorios:
++        _eliminar_directorio(d)
++
++
++def _purgar_subidas_antiguas(horas: int = 6):
++    """Borra restos de subidas que quedaron sin importar.
++
++    Una vista previa que el usuario nunca confirma deja el archivo en disco para
++    siempre; en un contenedor con disco acotado eso acaba llenándolo.
++    """
++    base_dir = current_app.config.get('UPLOAD_FOLDER', tempfile.gettempdir())
++    limite = time.time() - horas * 3600
++    try:
++        for nombre in os.listdir(base_dir):
++            ruta = os.path.join(base_dir, nombre)
++            try:
++                if os.path.isdir(ruta) and os.path.getmtime(ruta) < limite:
++                    _eliminar_directorio(ruta)
++            except OSError:
++                continue
++    except Exception:
++        pass
+ 
+ 
+ def _preview_v1():
+@@ -95,6 +146,7 @@ def _preview_v1():
+         flash('Seleccione al menos un archivo Excel.', 'warning')
+         return render_template('imports/v1.html', preview=None)
+ 
++    _purgar_subidas_antiguas()
+     rutas = _guardar_archivos_temporales(files)
+     if not rutas:
+         flash('No se encontraron archivos Excel válidos.', 'warning')
+@@ -132,6 +184,7 @@ def _preview_v2(hoteles):
+         flash('Seleccione al menos un archivo Excel.', 'warning')
+         return render_template('imports/v2.html', preview=None, hoteles=hoteles)
+ 
++    _purgar_subidas_antiguas()
+     rutas = _guardar_archivos_temporales(files)
+     if not rutas:
+         flash('No se encontraron archivos Excel válidos.', 'warning')
+diff --git a/web/services/guest_service.py b/web/services/guest_service.py
+index b4f969a..e7a391c 100644
+--- a/web/services/guest_service.py
++++ b/web/services/guest_service.py
+@@ -5,6 +5,8 @@ Lógica de negocio para búsqueda, carga, detalle y eliminación de huéspedes.
+ 
+ import sys
+ import os
++import threading
++import time
+ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+ 
+ from database.connection import db
+@@ -13,7 +15,15 @@ from utils.validators import (validar_dni, validar_fecha, validar_texto_obligato
+                                sanitizar_texto, validar_telefono, validar_habitacion)
+ from utils.formatters import formato_fecha, formato_dni
+ from utils.logger import log_info, log_error, Auditoria
+-from config import DEFAULT_PAGE_SIZE
++from config import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
++
++# Caché en memoria del proceso para los conteos de los listados.
++# Es por worker y sin coordinación entre ellos: eso es aceptable porque el peor
++# efecto de un total desactualizado unos segundos es mostrar un número de
++# páginas ligeramente viejo, nunca datos incorrectos.
++_count_cache: dict = {}
++_cache_lock = threading.Lock()
++_CACHE_MAX_ENTRADAS = 200
+ 
+ 
+ def _normalizar_documento(valor: str) -> str:
+@@ -136,19 +146,39 @@ def buscar_posibles_duplicados(
+         return []
+ 
+ 
+-def busqueda_rapida(termino: str, page: int = 1, per_page: int = DEFAULT_PAGE_SIZE):
+-    """
+-    Búsqueda rápida en 11 campos ILIKE.
+-    Retorna (resultados, total, paginas).
+-    """
+-    patron = f"%{termino}%"
+-    query = """
++# Columnas que se muestran en el listado. Se definen una sola vez para que la
++# consulta de datos y la de conteo no se desincronicen.
++_SELECT_LISTADO = """
+         SELECT h.id, ht.nombre as hotel, h.apellido_nombre, h.dni_pasaporte,
+                h.nacionalidad, h.procedencia, h.edad, h.profesion,
+                h.fecha_entrada, h.fecha_salida, h.habitacion, h.telefono,
+                h.domicilio, h.destino, h.movilidad, h.origen_carga
+         FROM huespedes h
+         JOIN hoteles ht ON h.hotel_id = ht.id
++"""
++
++
++def busqueda_rapida(termino: str, page: int = 1, per_page: int = DEFAULT_PAGE_SIZE):
++    """
++    Búsqueda rápida en 11 campos ILIKE.
++    Retorna (resultados, total, paginas).
++    """
++    termino = (termino or "").strip()
++
++    # Sin término de búsqueda esto es el listado inicial, no una búsqueda.
++    # Antes se resolvía con ILIKE '%%' sobre 11 columnas, lo que obliga a
++    # PostgreSQL a recorrer y filtrar la tabla entera en cada carga de página.
++    if not termino:
++        return _ejecutar_busqueda_paginada(
++            _SELECT_LISTADO + " ORDER BY h.fecha_registro DESC",
++            [],
++            page,
++            per_page,
++            filtro_where="",
++        )
++
++    patron = f"%{termino}%"
++    where = """
+         WHERE h.apellido_nombre ILIKE %s
+            OR h.dni_pasaporte ILIKE %s
+            OR ht.nombre ILIKE %s
+@@ -160,10 +190,15 @@ def busqueda_rapida(termino: str, page: int = 1, per_page: int = DEFAULT_PAGE_SI
+            OR h.telefono ILIKE %s
+            OR h.domicilio ILIKE %s
+            OR h.destino ILIKE %s
+-        ORDER BY h.fecha_registro DESC
+     """
+     params = [patron] * 11
+-    return _ejecutar_busqueda_paginada(query, params, page, per_page)
++    return _ejecutar_busqueda_paginada(
++        _SELECT_LISTADO + where + " ORDER BY h.fecha_registro DESC",
++        params,
++        page,
++        per_page,
++        filtro_where=where,
++    )
+ 
+ 
+ def busqueda_avanzada(filtros: dict, page: int = 1, per_page: int = DEFAULT_PAGE_SIZE):
+@@ -173,105 +208,158 @@ def busqueda_avanzada(filtros: dict, page: int = 1, per_page: int = DEFAULT_PAGE
+     procedencia, fecha_desde, fecha_hasta, edad_min, edad_max,
+     habitacion, destino, telefono.
+     """
+-    query = """
+-        SELECT h.id, ht.nombre as hotel, h.apellido_nombre, h.dni_pasaporte,
+-               h.nacionalidad, h.procedencia, h.edad, h.profesion,
+-               h.fecha_entrada, h.fecha_salida, h.habitacion, h.telefono,
+-               h.domicilio, h.destino, h.movilidad, h.origen_carga
+-        FROM huespedes h
+-        JOIN hoteles ht ON h.hotel_id = ht.id
+-        WHERE 1=1
+-    """
++    where = " WHERE 1=1"
+     params = []
+ 
+     if filtros.get("hotel"):
+-        query += " AND ht.nombre = %s"
++        where += " AND ht.nombre = %s"
+         params.append(filtros["hotel"])
+ 
+     if filtros.get("ciudad"):
+-        query += " AND ht.ciudad_localidad = %s"
++        where += " AND ht.ciudad_localidad = %s"
+         params.append(filtros["ciudad"])
+ 
+     if filtros.get("nacionalidad"):
+-        query += " AND h.nacionalidad ILIKE %s"
++        where += " AND h.nacionalidad ILIKE %s"
+         params.append(f"%{filtros['nacionalidad']}%")
+ 
+     if filtros.get("dni"):
+-        query += " AND h.dni_pasaporte ILIKE %s"
++        where += " AND h.dni_pasaporte ILIKE %s"
+         params.append(f"%{filtros['dni']}%")
+ 
+     if filtros.get("profesion"):
+-        query += " AND h.profesion ILIKE %s"
++        where += " AND h.profesion ILIKE %s"
+         params.append(f"%{filtros['profesion']}%")
+ 
+     if filtros.get("procedencia"):
+-        query += " AND h.procedencia ILIKE %s"
++        where += " AND h.procedencia ILIKE %s"
+         params.append(f"%{filtros['procedencia']}%")
+ 
+     if filtros.get("fecha_desde"):
+         ok, _, fecha = validar_fecha(filtros["fecha_desde"], permite_vacio=True)
+         if ok and fecha:
+-            query += " AND h.fecha_entrada >= %s"
++            where += " AND h.fecha_entrada >= %s"
+             params.append(fecha)
+ 
+     if filtros.get("fecha_hasta"):
+         ok, _, fecha = validar_fecha(filtros["fecha_hasta"], permite_vacio=True)
+         if ok and fecha:
+-            query += " AND h.fecha_entrada <= %s"
++            where += " AND h.fecha_entrada <= %s"
+             params.append(fecha)
+ 
+     if filtros.get("edad_min"):
+         try:
+-            query += " AND h.edad >= %s"
++            where += " AND h.edad >= %s"
+             params.append(int(filtros["edad_min"]))
+         except ValueError:
+             pass
+ 
+     if filtros.get("edad_max"):
+         try:
+-            query += " AND h.edad <= %s"
++            where += " AND h.edad <= %s"
+             params.append(int(filtros["edad_max"]))
+         except ValueError:
+             pass
+ 
+     if filtros.get("habitacion"):
+-        query += " AND h.habitacion ILIKE %s"
++        where += " AND h.habitacion ILIKE %s"
+         params.append(f"%{filtros['habitacion']}%")
+ 
+     if filtros.get("destino"):
+-        query += " AND h.destino ILIKE %s"
++        where += " AND h.destino ILIKE %s"
+         params.append(f"%{filtros['destino']}%")
+ 
+     if filtros.get("telefono"):
+-        query += " AND h.telefono ILIKE %s"
++        where += " AND h.telefono ILIKE %s"
+         params.append(f"%{filtros['telefono']}%")
+ 
+-    query += " ORDER BY h.fecha_registro DESC"
+-    return _ejecutar_busqueda_paginada(query, params, page, per_page)
++    return _ejecutar_busqueda_paginada(
++        _SELECT_LISTADO + where + " ORDER BY h.fecha_registro DESC",
++        params,
++        page,
++        per_page,
++        filtro_where=where,
++    )
++
++
++def _contar_resultados(filtro_where: str, params: list) -> int:
++    """Cuenta las filas que coinciden, reutilizando el resultado unos segundos.
++
++    Contar es lo caro de paginar: obliga a recorrer todas las filas que cumplen
++    la condición, mientras que traer una página solo lee `per_page` filas. Como
++    el total apenas varía entre una página y la siguiente, se cachea en memoria
++    del proceso durante COUNT_CACHE_TTL segundos.
++    """
++    clave = (filtro_where, tuple(str(p) for p in params))
++    ahora = time.monotonic()
++
++    with _cache_lock:
++        entrada = _count_cache.get(clave)
++        if entrada and entrada[0] > ahora:
++            return entrada[1]
++
++    if filtro_where.strip():
++        sql = f"SELECT COUNT(*) AS total FROM huespedes h JOIN hoteles ht ON h.hotel_id = ht.id {filtro_where}"
++        resultado = db.ejecutar_query_one(sql, tuple(params))
++    else:
++        # Sin filtros no hace falta el JOIN: hotel_id es NOT NULL con clave
++        # foránea, así que el join interno no descarta ninguna fila.
++        resultado = db.ejecutar_query_one("SELECT COUNT(*) AS total FROM huespedes")
++
++    total = (resultado or {}).get("total", 0) or 0
++
++    with _cache_lock:
++        if len(_count_cache) > _CACHE_MAX_ENTRADAS:
++            _count_cache.clear()
++        _count_cache[clave] = (ahora + _count_cache_ttl(), total)
+ 
++    return total
+ 
+-def _ejecutar_busqueda_paginada(query, params, page, per_page):
+-    """Ejecuta una búsqueda con paginación server-side usando COUNT(*) OVER()."""
++
++def _count_cache_ttl() -> int:
++    """TTL del caché de conteos, configurable por entorno."""
+     try:
+-        # Usar window function para obtener total y datos en una sola query
+-        wrapped_query = f"""
+-            SELECT *, COUNT(*) OVER() AS _total_count
+-            FROM ({query}) sub
+-            ORDER BY (SELECT NULL)
+-            LIMIT {per_page} OFFSET %s
+-        """
+-        # Calcular offset provisional (se ajusta después)
+-        offset = max(0, (page - 1) * per_page)
+-        full_params = list(params) + [offset]
+-
+-        resultados = db.ejecutar_query(wrapped_query, tuple(full_params), fetch=True)
++        return int(os.environ.get("SCAH_COUNT_CACHE_TTL", 60))
++    except ValueError:
++        return 60
+ 
+-        if not resultados:
++
++def invalidar_cache_conteos():
++    """Vacía el caché de conteos tras insertar o borrar huéspedes."""
++    with _cache_lock:
++        _count_cache.clear()
++
++
++def _ejecutar_busqueda_paginada(query, params, page, per_page, filtro_where=""):
++    """Ejecuta una búsqueda paginada con conteo separado y cacheado.
++
++    Antes esto envolvía la consulta en `COUNT(*) OVER()`, lo que obliga a
++    PostgreSQL a materializar TODAS las filas coincidentes (con sus 16 columnas)
++    para poder contarlas, aunque solo se muestren 50. Sobre una tabla grande eso
++    convierte cada carga del listado en un recorrido completo de la tabla.
++    """
++    try:
++        per_page = max(1, min(int(per_page), MAX_PAGE_SIZE))
++        page = max(1, int(page))
++
++        # 1) Total (cacheado): permite acotar la página pedida antes de leer datos.
++        total = _contar_resultados(filtro_where, params)
++        if total == 0:
+             return [], 0, 1, 1
+ 
+-        total = resultados[0]["_total_count"] if resultados else 0
+         total_pages = max(1, (total + per_page - 1) // per_page)
+-        page = max(1, min(page, total_pages))
++        page = min(page, total_pages)
++        offset = (page - 1) * per_page
++
++        # 2) Solo la página solicitada.
++        resultados = db.ejecutar_query(
++            f"{query} LIMIT %s OFFSET %s",
++            tuple(list(params) + [per_page, offset]),
++            fetch=True,
++        )
++
++        if not resultados:
++            return [], total, total_pages, page
+ 
+         # Formatear resultados
+         datos = []
+@@ -352,6 +440,7 @@ def eliminar_huesped(huesped_id: int, usuario_id: int) -> tuple[bool, str]:
+     """Elimina un huésped de la base de datos."""
+     try:
+         db.ejecutar_query("DELETE FROM huespedes WHERE id = %s", (huesped_id,))
++        invalidar_cache_conteos()
+         log_info(f"Huésped ID {huesped_id} eliminado por usuario {usuario_id}")
+         return True, "Registro eliminado correctamente"
+     except Exception as e:
+@@ -524,6 +613,7 @@ def crear_huesped(datos: dict, usuario_id: int) -> tuple[bool, str, int | None]:
+         except Exception:
+             pass
+ 
++        invalidar_cache_conteos()
+         log_info(f"Huésped creado: {datos.get('apellido_nombre', '')} (ID: {huesped_id})")
+         return True, "Huésped registrado correctamente", huesped_id
+ 
+diff --git a/web/services/import_service.py b/web/services/import_service.py
+index 6dfc4c9..d2e8dd9 100644
+--- a/web/services/import_service.py
++++ b/web/services/import_service.py
+@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+ 
+ from datetime import datetime
+ from openpyxl import load_workbook
++from psycopg2.extras import execute_values
+ from database.connection import db
+ from config import (EXCEL_HOTEL_MAP, EXCEL_HUESPED_COLS, EXCEL_HUESPED_START_ROW,
+                     EXCEL_V2_HUESPED_COLS, EXCEL_V2_HUESPED_START_ROW,
+@@ -451,62 +452,84 @@ def importar_datos_v1(huespedes: list, usuario_id: int) -> dict:
+     errores_count = 0
+     duplicados = 0
+ 
+-    try:
+-        conn = db.obtener_conexion()
+-        if not conn:
+-            return {"importados": 0, "duplicados": 0, "errores": 1,
+-                    "mensaje": "Error de conexión a la base de datos"}
++    conn = db.obtener_conexion()
++    if not conn:
++        return {"importados": 0, "duplicados": 0, "errores": 1,
++                "mensaje": "Error de conexión a la base de datos"}
+ 
++    descartar = False
++    try:
+         cursor = conn.cursor()
++
++        # 1) Resolver los hoteles una sola vez cada uno (no una vez por fila).
+         hoteles_cache = {}
++        for huesped in huespedes:
++            hotel_data = huesped.get("hotel_data", {}) or {}
++            hotel_key = hotel_data.get("nombre", "")
++            if hotel_key not in hoteles_cache:
++                hoteles_cache[hotel_key] = _obtener_o_crear_hotel(
++                    cursor, hotel_data, usuario_id)
++
++        # 2) Traer de una vez lo ya cargado, para comparar en memoria.
++        claves_existentes = _cargar_claves_existentes(cursor, hoteles_cache.values())
+ 
++        # 3) Preparar las filas a insertar.
++        filas = []
+         for huesped in huespedes:
+             try:
+-                hotel_data = huesped.get("hotel_data", {})
+-                hotel_key = hotel_data.get("nombre", "")
++                hotel_data = huesped.get("hotel_data", {}) or {}
++                hotel_id = hoteles_cache.get(hotel_data.get("nombre", ""))
+ 
+-                if hotel_key not in hoteles_cache:
+-                    hotel_id = _obtener_o_crear_hotel(cursor, hotel_data, usuario_id)
+-                    hoteles_cache[hotel_key] = hotel_id
+-                else:
+-                    hotel_id = hoteles_cache[hotel_key]
+-
+-                if _es_duplicado(cursor, hotel_id, huesped):
++                clave = _clave_duplicado(hotel_id, huesped)
++                if clave is not None and clave in claves_existentes:
+                     duplicados += 1
+                     continue
++                if clave is not None:
++                    # Así se descartan también los repetidos dentro del archivo.
++                    claves_existentes.add(clave)
+ 
+-                cursor.execute("""
+-                    INSERT INTO huespedes (
+-                        hotel_id, nacionalidad, procedencia, apellido_nombre,
+-                        dni_pasaporte, fecha_nacimiento, edad, profesion,
+-                        fecha_entrada, fecha_salida, origen_carga, usuario_carga_id
+-                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'excel',%s)
+-                """, (
++                filas.append((
+                     hotel_id, huesped["nacionalidad"], huesped["procedencia"],
+                     huesped["apellido_nombre"], huesped["dni_pasaporte"],
+                     huesped.get("fecha_nacimiento"), huesped.get("edad"),
+                     huesped["profesion"], huesped.get("fecha_entrada"),
+                     huesped.get("fecha_salida"), usuario_id
+                 ))
+-                importados += 1
+             except Exception as e:
+                 errores_count += 1
+-                log_error(f"Error importando huésped: {huesped.get('apellido_nombre', '?')}", e)
++                log_error(f"Error preparando huésped: {huesped.get('apellido_nombre', '?')}", e)
++
++        # 4) Insertar agrupado.
++        insertadas, errores_lote = _insertar_en_lotes(cursor, """
++            INSERT INTO huespedes (
++                hotel_id, nacionalidad, procedencia, apellido_nombre,
++                dni_pasaporte, fecha_nacimiento, edad, profesion,
++                fecha_entrada, fecha_salida, usuario_carga_id, origen_carga
++            ) VALUES %s
++        """, [fila + ('excel',) for fila in filas])
++        importados = insertadas
++        errores_count += errores_lote
+ 
+         _registrar_log_importacion(cursor, "excel_v1", importados, errores_count,
+                                     duplicados, usuario_id)
+         conn.commit()
+         cursor.close()
+-        db.liberar_conexion(conn)
+-
+-        _registrar_auditoria(usuario_id, "importar_excel",
+-                             f"V1 - Importados: {importados}, Errores: {errores_count}, "
+-                             f"Duplicados: {duplicados}")
+ 
+     except Exception as e:
++        descartar = _revertir_conexion(conn)
+         log_error("Error general en importación V1", e)
+-        return {"importados": importados, "duplicados": duplicados,
++        return {"importados": 0, "duplicados": duplicados,
+                 "errores": errores_count + 1, "mensaje": str(e)}
++    finally:
++        # Sin este finally, una importación fallida se quedaba con la conexión
++        # para siempre: unas pocas bastaban para agotar el pool y dejar toda la
++        # aplicación bloqueada hasta reiniciarla.
++        db.liberar_conexion(conn, descartar=descartar)
++
++    _invalidar_caches()
++    _registrar_auditoria(usuario_id, "importar_excel",
++                         f"V1 - Importados: {importados}, Errores: {errores_count}, "
++                         f"Duplicados: {duplicados}")
+ 
+     return {"importados": importados, "duplicados": duplicados,
+             "errores": errores_count,
+@@ -524,12 +547,13 @@ def importar_datos_v2(huespedes: list, hotel_nombre: str, usuario_id: int,
+     errores_count = 0
+     duplicados = 0
+ 
+-    try:
+-        conn = db.obtener_conexion()
+-        if not conn:
+-            return {"importados": 0, "duplicados": 0, "errores": 1,
+-                    "mensaje": "Error de conexión a la base de datos"}
++    conn = db.obtener_conexion()
++    if not conn:
++        return {"importados": 0, "duplicados": 0, "errores": 1,
++                "mensaje": "Error de conexión a la base de datos"}
+ 
++    descartar = False
++    try:
+         cursor = conn.cursor()
+ 
+         if nuevo_hotel:
+@@ -558,21 +582,20 @@ def importar_datos_v2(huespedes: list, hotel_nombre: str, usuario_id: int,
+                 """, (sanitizar_texto(hotel_nombre), usuario_id))
+                 hotel_id = cursor.fetchone()[0]
+ 
++        # Una sola consulta para saber qué hay ya cargado en este hotel.
++        claves_existentes = _cargar_claves_existentes(cursor, [hotel_id])
++
++        filas = []
+         for huesped in huespedes:
+             try:
+-                if _es_duplicado(cursor, hotel_id, huesped):
++                clave = _clave_duplicado(hotel_id, huesped)
++                if clave is not None and clave in claves_existentes:
+                     duplicados += 1
+                     continue
++                if clave is not None:
++                    claves_existentes.add(clave)
+ 
+-                cursor.execute("""
+-                    INSERT INTO huespedes (
+-                        hotel_id, nacionalidad, procedencia, apellido_nombre,
+-                        dni_pasaporte, edad, profesion,
+-                        fecha_entrada, fecha_salida,
+-                        habitacion, domicilio, destino, movilidad, telefono,
+-                        origen_carga, usuario_carga_id
+-                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'excel_v2',%s)
+-                """, (
++                filas.append((
+                     hotel_id, huesped.get("nacionalidad", ""),
+                     huesped.get("procedencia", ""),
+                     huesped.get("apellido_nombre", ""),
+@@ -581,27 +604,41 @@ def importar_datos_v2(huespedes: list, hotel_nombre: str, usuario_id: int,
+                     huesped.get("fecha_entrada"), huesped.get("fecha_salida"),
+                     huesped.get("habitacion", ""), huesped.get("domicilio", ""),
+                     huesped.get("destino", ""), huesped.get("movilidad", ""),
+-                    huesped.get("telefono", ""), usuario_id
++                    huesped.get("telefono", ""), usuario_id, 'excel_v2'
+                 ))
+-                importados += 1
+             except Exception as e:
+                 errores_count += 1
+-                log_error(f"Error importando: {huesped.get('apellido_nombre', '?')}", e)
++                log_error(f"Error preparando: {huesped.get('apellido_nombre', '?')}", e)
++
++        insertadas, errores_lote = _insertar_en_lotes(cursor, """
++            INSERT INTO huespedes (
++                hotel_id, nacionalidad, procedencia, apellido_nombre,
++                dni_pasaporte, edad, profesion,
++                fecha_entrada, fecha_salida,
++                habitacion, domicilio, destino, movilidad, telefono,
++                usuario_carga_id, origen_carga
++            ) VALUES %s
++        """, filas)
++        importados = insertadas
++        errores_count += errores_lote
+ 
+         _registrar_log_importacion(cursor, "excel_v2", importados, errores_count,
+                                     duplicados, usuario_id)
+         conn.commit()
+         cursor.close()
+-        db.liberar_conexion(conn)
+-
+-        _registrar_auditoria(usuario_id, "importar_excel_v2",
+-                             f"Tabular - Importados: {importados}, Errores: {errores_count}, "
+-                             f"Duplicados: {duplicados}")
+ 
+     except Exception as e:
++        descartar = _revertir_conexion(conn)
+         log_error("Error general en importación V2", e)
+-        return {"importados": importados, "duplicados": duplicados,
++        return {"importados": 0, "duplicados": duplicados,
+                 "errores": errores_count + 1, "mensaje": str(e)}
++    finally:
++        db.liberar_conexion(conn, descartar=descartar)
++
++    _invalidar_caches()
++    _registrar_auditoria(usuario_id, "importar_excel_v2",
++                         f"Tabular - Importados: {importados}, Errores: {errores_count}, "
++                         f"Duplicados: {duplicados}")
+ 
+     return {"importados": importados, "duplicados": duplicados,
+             "errores": errores_count,
+@@ -633,16 +670,78 @@ def _obtener_o_crear_hotel(cursor, hotel_data: dict, usuario_id: int) -> int:
+     return cursor.fetchone()[0]
+ 
+ 
+-def _es_duplicado(cursor, hotel_id: int, huesped: dict) -> bool:
++# ── Importación por lotes ────────────────────────────────────
++# Tamaño de página para los INSERT agrupados. 500 filas por sentencia mantiene
++# el tamaño del mensaje razonable y reduce los viajes de red ~500 veces.
++_BATCH_PAGE_SIZE = 500
++
++
++def _clave_duplicado(hotel_id: int, huesped: dict):
++    """Clave de duplicidad (hotel, documento, fecha de entrada).
++
++    Retorna None cuando faltan documento o fecha: en ese caso el registro nunca
++    se considera duplicado, igual que hacía la verificación fila a fila.
++    """
+     dni = huesped.get("dni_pasaporte", "")
+     fecha_entrada = huesped.get("fecha_entrada")
+     if not dni or not fecha_entrada:
+-        return False
++        return None
++    return (hotel_id, dni, fecha_entrada)
++
++
++def _cargar_claves_existentes(cursor, hotel_ids) -> set:
++    """Trae en UNA consulta los registros ya cargados de los hoteles implicados.
++
++    Sustituye al SELECT por fila: con un Excel de 2.000 filas eran 2.000 viajes
++    de ida y vuelta a la base de datos, que contra una base remota bastaban para
++    superar el timeout del worker y dejar la aplicación sin capacidad.
++    """
++    ids = [h for h in set(hotel_ids) if h]
++    if not ids:
++        return set()
+     cursor.execute("""
+-        SELECT id FROM huespedes
+-        WHERE hotel_id = %s AND dni_pasaporte = %s AND fecha_entrada = %s
+-    """, (hotel_id, dni, fecha_entrada))
+-    return cursor.fetchone() is not None
++        SELECT hotel_id, dni_pasaporte, fecha_entrada
++        FROM huespedes
++        WHERE hotel_id = ANY(%s)
++          AND dni_pasaporte IS NOT NULL AND dni_pasaporte <> ''
++          AND fecha_entrada IS NOT NULL
++    """, (ids,))
++    return {(fila[0], fila[1], fila[2]) for fila in cursor.fetchall()}
++
++
++def _insertar_en_lotes(cursor, sql: str, filas: list) -> tuple[int, int]:
++    """Inserta las filas agrupadas. Retorna (insertadas, con_error).
++
++    Si un lote falla se reintenta fila a fila sobre un SAVEPOINT, de modo que un
++    único registro defectuoso no invalide el resto de la importación (que es lo
++    que hacía la versión fila a fila).
++    """
++    insertadas = 0
++    errores = 0
++
++    for inicio in range(0, len(filas), _BATCH_PAGE_SIZE):
++        lote = filas[inicio:inicio + _BATCH_PAGE_SIZE]
++        cursor.execute("SAVEPOINT lote_import")
++        try:
++            execute_values(cursor, sql, lote, page_size=len(lote))
++            cursor.execute("RELEASE SAVEPOINT lote_import")
++            insertadas += len(lote)
++        except Exception as e:
++            cursor.execute("ROLLBACK TO SAVEPOINT lote_import")
++            log_error(f"Lote de importación con error, se reintenta fila a fila "
++                      f"({len(lote)} registros)", e)
++            for fila in lote:
++                cursor.execute("SAVEPOINT fila_import")
++                try:
++                    execute_values(cursor, sql, [fila], page_size=1)
++                    cursor.execute("RELEASE SAVEPOINT fila_import")
++                    insertadas += 1
++                except Exception as e_fila:
++                    cursor.execute("ROLLBACK TO SAVEPOINT fila_import")
++                    errores += 1
++                    log_error("Error importando registro", e_fila)
++
++    return insertadas, errores
+ 
+ 
+ def _registrar_log_importacion(cursor, tipo: str, importados: int,
+@@ -660,11 +759,33 @@ def _registrar_log_importacion(cursor, tipo: str, importados: int,
+ 
+ 
+ def _registrar_auditoria(usuario_id: int, accion: str, detalle: str):
++    conn = None
+     try:
+         conn = db.obtener_conexion()
+         if conn:
+             auditoria = Auditoria(conn)
+             auditoria.registrar(usuario_id, accion, "huespedes", detalle=detalle)
++    except Exception:
++        pass
++    finally:
++        # En finally: si registrar() lanzaba, la conexión no volvía al pool.
++        if conn is not None:
+             db.liberar_conexion(conn)
++
++
++def _revertir_conexion(conn) -> bool:
++    """Deshace la transacción tras un error. True si la conexión quedó inservible."""
++    try:
++        conn.rollback()
++        return False
++    except Exception:
++        return True
++
++
++def _invalidar_caches():
++    """Descarta los totales cacheados de los listados tras una importación."""
++    try:
++        from web.services.guest_service import invalidar_cache_conteos
++        invalidar_cache_conteos()
+     except Exception:
+         pass
+diff --git a/web/templates/auth/login.html b/web/templates/auth/login.html
+index 7660345..398d956 100644
+--- a/web/templates/auth/login.html
++++ b/web/templates/auth/login.html
+@@ -40,7 +40,7 @@
+     />
+     <link
+       rel="stylesheet"
+-      href="{{ url_for('static', filename='css/custom.css') }}"
++      href="{{ asset_url('css/custom.css') }}"
+     />
+     <style>
+       :root {
+diff --git a/web/templates/base.html b/web/templates/base.html
+index 3dea379..0b486d6 100644
+--- a/web/templates/base.html
++++ b/web/templates/base.html
+@@ -36,10 +36,7 @@
+       href="{{ url_for('static', filename='manifest.json') }}"
+     />
+     <!-- Custom CSS -->
+-    <link
+-      rel="stylesheet"
+-      href="{{ url_for('static', filename='css/custom.css') }}"
+-    />
++    <link rel="stylesheet" href="{{ asset_url('css/custom.css') }}" />
+     {% block extra_css %}{% endblock %}
+   </head>
+   <body class="app-body shell-ready">
+-- 
+2.43.0
+
