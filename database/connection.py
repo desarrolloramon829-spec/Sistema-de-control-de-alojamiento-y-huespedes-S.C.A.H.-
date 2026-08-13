@@ -197,11 +197,17 @@ class DatabaseConnection:
                 return None
         return self._pool
 
-    def obtener_conexion(self):
+    def obtener_conexion(self, autocommit: bool = False):
         """Obtiene del pool una conexión viva y lista para usar.
 
         Espera hasta POOL_WAIT_TIMEOUT si el pool está agotado, en vez de
         fallar de inmediato, y descarta las conexiones que el servidor cerró.
+
+        autocommit=True evita el par BEGIN/COMMIT que psycopg2 emite alrededor
+        de cada sentencia: sirve para las operaciones de una sola sentencia
+        (ver ejecutar_query/ejecutar_query_one). El default es False para que
+        los llamadores que agrupan varias sentencias —migraciones, importación,
+        auditoría— sigan controlando la transacción a mano.
         """
         pool = self._pool_del_proceso()
         if pool is None:
@@ -230,7 +236,15 @@ class DatabaseConnection:
                 return None
 
             if _conexion_utilizable(conn):
-                conn.autocommit = False
+                try:
+                    conn.autocommit = autocommit
+                except psycopg2.ProgrammingError:
+                    # psycopg2 rechaza cambiar autocommit con una transacción
+                    # abierta: la conexión volvió al pool en mal estado.
+                    self.liberar_conexion(conn, descartar=True)
+                    if time.monotonic() >= limite:
+                        return None
+                    continue
                 return conn
 
             # Conexión muerta (Neon suspendido, reinicio del servidor, red caída):
@@ -289,8 +303,13 @@ class DatabaseConnection:
             return True
 
     def ejecutar_query(self, query: str, params: tuple = None, fetch: bool = False):
-        """Ejecuta una query y opcionalmente retorna resultados."""
-        conn = self.obtener_conexion()
+        """Ejecuta una query y opcionalmente retorna resultados.
+
+        Corre en autocommit: es una única sentencia, así que el COMMIT explícito
+        no aportaba atomicidad y costaba dos viajes extra a la base (psycopg2
+        emitía BEGIN antes y COMMIT después de cada SELECT).
+        """
+        conn = self.obtener_conexion(autocommit=True)
         if not conn:
             return None
 
@@ -304,7 +323,6 @@ class DatabaseConnection:
             else:
                 resultado = cursor.rowcount
 
-            conn.commit()
             cursor.close()
             return resultado
         except Exception as e:
@@ -315,8 +333,11 @@ class DatabaseConnection:
             self.liberar_conexion(conn, descartar=descartar)
 
     def ejecutar_query_one(self, query: str, params: tuple = None):
-        """Ejecuta una query y retorna un solo resultado."""
-        conn = self.obtener_conexion()
+        """Ejecuta una query y retorna un solo resultado.
+
+        En autocommit por el mismo motivo que ejecutar_query.
+        """
+        conn = self.obtener_conexion(autocommit=True)
         if not conn:
             return None
 
@@ -325,7 +346,6 @@ class DatabaseConnection:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cursor.execute(query, params)
             resultado = cursor.fetchone()
-            conn.commit()
             cursor.close()
             return resultado
         except Exception as e:

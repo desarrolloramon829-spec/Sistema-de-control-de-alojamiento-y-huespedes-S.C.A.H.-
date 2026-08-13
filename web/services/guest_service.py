@@ -204,14 +204,34 @@ def busqueda_rapida(termino: str, page: int = 1, per_page: int = DEFAULT_PAGE_SI
 def busqueda_avanzada(filtros: dict, page: int = 1, per_page: int = DEFAULT_PAGE_SIZE):
     """
     Búsqueda avanzada con filtros combinables.
-    filtros puede contener: hotel, ciudad, nacionalidad, dni, profesion,
-    procedencia, fecha_desde, fecha_hasta, edad_min, edad_max,
-    habitacion, destino, telefono.
+
+    Las claves son las que envían el formulario de `guests/index.html` y la ruta
+    `guests.index`: apellido_nombre, dni_pasaporte, nacionalidad, procedencia,
+    profesion, hotel_id, fecha_desde, fecha_hasta, edad_min, edad_max,
+    origen_carga, destino, movilidad.
+
+    Se aceptan además los nombres antiguos (hotel, dni, ciudad, habitacion,
+    telefono) para no romper llamadores que los usen.
     """
     where = " WHERE 1=1"
     params = []
 
-    if filtros.get("hotel"):
+    if filtros.get("apellido_nombre"):
+        where += " AND h.apellido_nombre ILIKE %s"
+        params.append(f"%{filtros['apellido_nombre']}%")
+
+    # Igualdad sobre la FK: usa idx_huespedes_hotel en vez de filtrar por el
+    # nombre del hotel, que obliga a resolver el join antes de descartar filas.
+    if filtros.get("hotel_id"):
+        try:
+            hotel_id = int(filtros["hotel_id"])
+        except (TypeError, ValueError):
+            hotel_id = None
+        if hotel_id is not None:
+            where += " AND h.hotel_id = %s"
+            params.append(hotel_id)
+
+    elif filtros.get("hotel"):
         where += " AND ht.nombre = %s"
         params.append(filtros["hotel"])
 
@@ -223,9 +243,18 @@ def busqueda_avanzada(filtros: dict, page: int = 1, per_page: int = DEFAULT_PAGE
         where += " AND h.nacionalidad ILIKE %s"
         params.append(f"%{filtros['nacionalidad']}%")
 
-    if filtros.get("dni"):
+    dni = filtros.get("dni_pasaporte") or filtros.get("dni")
+    if dni:
         where += " AND h.dni_pasaporte ILIKE %s"
-        params.append(f"%{filtros['dni']}%")
+        params.append(f"%{dni}%")
+
+    if filtros.get("origen_carga"):
+        where += " AND h.origen_carga = %s"
+        params.append(filtros["origen_carga"])
+
+    if filtros.get("movilidad"):
+        where += " AND h.movilidad ILIKE %s"
+        params.append(f"%{filtros['movilidad']}%")
 
     if filtros.get("profesion"):
         where += " AND h.profesion ILIKE %s"
@@ -247,19 +276,25 @@ def busqueda_avanzada(filtros: dict, page: int = 1, per_page: int = DEFAULT_PAGE
             where += " AND h.fecha_entrada <= %s"
             params.append(fecha)
 
+    # La conversión va antes de tocar `where`: si fallaba, la cláusula quedaba
+    # en la consulta sin su parámetro y rompía la búsqueda entera.
     if filtros.get("edad_min"):
         try:
+            edad_min = int(filtros["edad_min"])
+        except (TypeError, ValueError):
+            edad_min = None
+        if edad_min is not None:
             where += " AND h.edad >= %s"
-            params.append(int(filtros["edad_min"]))
-        except ValueError:
-            pass
+            params.append(edad_min)
 
     if filtros.get("edad_max"):
         try:
+            edad_max = int(filtros["edad_max"])
+        except (TypeError, ValueError):
+            edad_max = None
+        if edad_max is not None:
             where += " AND h.edad <= %s"
-            params.append(int(filtros["edad_max"]))
-        except ValueError:
-            pass
+            params.append(edad_max)
 
     if filtros.get("habitacion"):
         where += " AND h.habitacion ILIKE %s"

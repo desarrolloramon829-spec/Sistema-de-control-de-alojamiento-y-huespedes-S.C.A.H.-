@@ -4,6 +4,7 @@ Creación inicial de tablas, índices y datos semilla
 """
 
 import bcrypt
+import psycopg2.extras
 from database.connection import db
 from database.models import ALL_TABLES, SQL_CREATE_INDICES, SQL_CREATE_PERFORMANCE_INDICES
 from config import DEFAULT_ADMIN
@@ -470,30 +471,53 @@ def migrar_v1_2():
             except Exception as e:
                 log_info(f"Nota migración v1.2 (columna): {e}")
 
-        # 2. Insertar hoteles semilla (solo si no existen)
-        insertados = 0
-        existentes = 0
+        # 2. Insertar hoteles semilla (solo si no existen).
+        # Antes esto hacía un SELECT + un UPDATE/INSERT por cada una de las 188
+        # semillas (376 consultas). Ahora se trae el padrón existente de una vez
+        # y se resuelve en memoria: 1 SELECT + hasta 2 sentencias en lote.
+        cursor.execute("SELECT UPPER(nombre), UPPER(ciudad_localidad) FROM hoteles")
+        ya_existen = {(n, c) for n, c in cursor.fetchall()}
+
+        faltantes = []
+        presentes = []
         for nombre, categoria, direccion, telefono, ciudad in HOTELES_SEMILLA:
-            # Verificar si ya existe por nombre y ciudad
-            cursor.execute(
-                "SELECT id FROM hoteles WHERE UPPER(nombre) = UPPER(%s) AND UPPER(ciudad_localidad) = UPPER(%s)",
-                (nombre, ciudad)
-            )
-            if cursor.fetchone():
-                # Actualizar categoria y telefono si faltan
-                cursor.execute(
-                    "UPDATE hoteles SET categoria = COALESCE(categoria, %s), telefono = COALESCE(telefono, %s) "
-                    "WHERE UPPER(nombre) = UPPER(%s) AND UPPER(ciudad_localidad) = UPPER(%s)",
-                    (categoria, telefono, nombre, ciudad)
-                )
-                existentes += 1
+            clave = ((nombre or '').upper(), (ciudad or '').upper())
+            if clave in ya_existen:
+                presentes.append((categoria, telefono, nombre, ciudad))
             else:
-                cursor.execute(
-                    "INSERT INTO hoteles (nombre, categoria, direccion, telefono, ciudad_localidad) "
-                    "VALUES (%s, %s, %s, %s, %s)",
-                    (nombre, categoria, direccion, telefono, ciudad)
-                )
-                insertados += 1
+                faltantes.append((nombre, categoria, direccion, telefono, ciudad))
+                # Una semilla repetida dentro de la propia lista no debe
+                # insertarse dos veces.
+                ya_existen.add(clave)
+
+        if faltantes:
+            psycopg2.extras.execute_values(
+                cursor,
+                "INSERT INTO hoteles (nombre, categoria, direccion, telefono, ciudad_localidad) "
+                "VALUES %s",
+                faltantes,
+                page_size=500,
+            )
+
+        if presentes:
+            # COALESCE igual que antes: solo rellena lo que está en NULL, nunca
+            # pisa una categoría o un teléfono ya cargados por el usuario.
+            psycopg2.extras.execute_values(
+                cursor,
+                "UPDATE hoteles h SET categoria = COALESCE(h.categoria, v.categoria), "
+                "telefono = COALESCE(h.telefono, v.telefono) "
+                "FROM (VALUES %s) AS v(categoria, telefono, nombre, ciudad) "
+                "WHERE UPPER(h.nombre) = UPPER(v.nombre) "
+                "AND UPPER(h.ciudad_localidad) = UPPER(v.ciudad)",
+                presentes,
+                # Los casts son necesarios: si una columna del VALUES viniera
+                # entera en NULL, PostgreSQL no podría inferir su tipo.
+                template="(%s::text, %s::text, %s::text, %s::text)",
+                page_size=500,
+            )
+
+        insertados = len(faltantes)
+        existentes = len(presentes)
 
         _registrar_migracion(cursor, 'v1.2')
         conn.commit()
